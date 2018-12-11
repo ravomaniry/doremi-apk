@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/editor_main_cont"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:theme="@style/AppTheme.noActionBar"
+    android:weightSum="12">
+
+    <LinearLayout
+        android:id="@+id/appbar_cont"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="0.75"
+        android:orientation="vertical" />
+
+    <LinearLayout
+        android:id="@+id/editor_body_content"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="11.25"
+        android:orientation="vertical"
+        android:weightSum="11.25">
+
+        <LinearLayout
+            android:id="@+id/editor_viewer_cont"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="6.5">
+
+            <ScrollView
+                android:id="@+id/editor_viewer"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <LinearLayout
+                    android:id="@+id/lyrics_cont"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/song_title_text_view"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:text="@string/app_name"
+                        android:textColor="@color/colorPrimaryDark" />
+
+                    <com.google.android.flexbox.FlexboxLayout
+                        android:id="@+id/partition_cont"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="#FFF"
+                        app:flexWrap="wrap" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="20dp"
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/lyrics_text_view"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/app_name"
+                            android:textSize="14sp" />
+
+                        <EditText
+                            android:id="@+id/lyrics_edit_text"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="@string/app_name"
+                            android:textSize="14sp" />
+
+                        <ImageButton
+                            android:id="@+id/lyrics_edit_btn"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:background="@drawable/button"
+                            android:paddingLeft="10dp"
+                            android:paddingRight="10dp"
+                            android:src="@drawable/ic_edit"
+                            android:textAllCaps="false"
+                            android:textColor="#FFF" />
+
+                        <ImageButton
+                            android:id="@+id/lyrics_save_btn"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:background="@drawable/button"
+                            android:padding="8sp"
+                            android:src="@drawable/ic_done"
+                            android:textColor="#FFF" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </ScrollView>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/keyboard_cont"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="5"
+            android:orientation="vertical"
+            android:weightSum="6">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="0.75"
+                android:background="@drawable/wood"
+                android:weightSum="4">
+
+                <ImageView
+                    android:id="@+id/reduce_octave_btn"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/black_btn"
+                    android:clickable="true"
+                    android:contentDescription="@string/piano_btns_descr"
+                    android:focusable="true"
+                    android:src="@drawable/to_left" />
+
+                <Space
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="0.5" />
+
+                <ImageView
+                    android:id="@+id/delete_notes_btn"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/black_btn"
+                    android:clickable="true"
+                    android:contentDescription="@string/piano_btns_descr"
+                    android:focusable="true"
+                    android:padding="3dp"
+                    android:src="@drawable/ic_backspace" />
+
+                <Space
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="0.5" />
+
+                <ImageView
+                    android:id="@+id/increment_octave_btn"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/black_btn"
+                    android:clickable="true"
+                    android:contentDescription="@string/piano_btns_descr"
+                    android:focusable="true"
+                    android:src="@drawable/to_right" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="@drawable/wood"
+                android:gravity="center_horizontal"
+                android:weightSum="8">
+
+                <Button
+                    android:id="@+id/kb_dash"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_margin="4dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/dash_btn" />
+
+                <Button
+                    android:id="@+id/kb_dot"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="4dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/dot_btn" />
+
+                <Button
+                    android:id="@+id/kb_comma"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="4dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/comma_btn" />
+
+                <Button
+                    android:id="@+id/kb_semicolon"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="4dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/semicolon_btn" />
+
+                <Button
+                    android:id="@+id/kb_space"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="4dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/black_btn"
+                    android:text="_"
+                    android:textColor="#FFF"
+                    android:textScaleX="3" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="4"
+                android:background="@drawable/wood"
+                android:paddingTop="1px"
+                android:paddingBottom="2dp">
+
+                <mg.maniry.doremi.ui.views.PianoView
+                    android:id="@+id/piano_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_margin="2dp" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

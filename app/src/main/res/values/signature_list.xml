@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="signature_list">
+        <item>2/4 - 6/8</item>
+        <item>3/4 - 9/8</item>
+        <item>4/4 - 12/8</item>
+        <item>5/4</item>
+        <item>6/4</item>
+    </string-array>
+
+    <string-array name="cursor_list">
+        <item>S</item>
+        <item>A</item>
+        <item>T</item>
+        <item>B</item>
+    </string-array>
+</resources>

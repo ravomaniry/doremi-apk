@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="140sp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/colorAccent"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/cd_time_coord"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textColor="#FFF"
+            android:textSize="20sp" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/cd_velocity_form"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight=".6"
+            android:text="@string/text_velocity"
+            android:textSize="14sp" />
+
+        <Spinner
+            android:id="@+id/cd_velocity_spinner"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight=".4" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/cd_marker_form"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight=".6"
+            android:text="@string/text_sign"
+            android:textSize="14sp" />
+
+        <Spinner
+            android:id="@+id/cd_sign_spinner"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight=".4" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/cg_dal_form"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight=".6"
+            android:text="@string/cd_dal"
+            android:textSize="14sp" />
+
+        <Spinner
+            android:id="@+id/cd_dal_spinner"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight=".4" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/cd_key_form"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight=".6"
+            android:text="@string/text_modulation"
+            android:textSize="14sp" />
+
+        <Spinner
+            android:id="@+id/cd_key_spinner"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight=".4" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/cd_tempo_form"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight=".6"
+            android:text="@string/text_tempo"
+            android:textSize="14sp" />
+
+        <EditText
+            android:id="@+id/cd_tempo_et"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight=".4"
+            android:inputType="number"
+            android:padding="0dp" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/cd_submit_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="32sp"
+            android:layout_margin="4sp"
+            android:background="@color/colorAccent"
+            android:text="@string/text_ok" />
+
+    </LinearLayout>
+
+</LinearLayout>

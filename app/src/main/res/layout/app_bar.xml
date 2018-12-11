@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/design_default_color_primary_dark"
+    android:baselineAligned="false"
+    android:orientation="horizontal"
+    android:paddingTop="6dp"
+    android:paddingBottom="2dp"
+    android:theme="@style/AppTheme.noActionBar"
+    android:weightSum="5.8">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="0.8">
+
+        <ImageView
+            android:id="@+id/drawer_shower_btn"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center_vertical"
+            android:clickable="true"
+            android:contentDescription="@string/appbar_content_descr"
+            android:focusable="true"
+            android:soundEffectsEnabled="true"
+            android:src="@drawable/ic_music_logo" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center">
+
+        <ImageView
+            android:id="@+id/play_btn"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clickable="true"
+            android:contentDescription="@string/appbar_content_descr"
+            android:focusable="true"
+            android:soundEffectsEnabled="true"
+            android:src="@drawable/ic_play" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center">
+
+        <ImageView
+            android:id="@+id/stop_btn"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clickable="true"
+            android:contentDescription="@string/appbar_content_descr"
+            android:focusable="true"
+            android:soundEffectsEnabled="true"
+            android:src="@drawable/ic_stop_circle" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center">
+
+        <ImageView
+            android:id="@+id/save_btn"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clickable="true"
+            android:contentDescription="@string/appbar_content_descr"
+            android:focusable="true"
+            android:soundEffectsEnabled="true"
+            android:src="@drawable/ic_save"
+            tools:focusableInTouchMode="true" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center">
+
+        <ImageView
+            android:id="@+id/reset_btn"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clickable="true"
+            android:contentDescription="@string/appbar_content_descr"
+            android:focusable="true"
+            android:soundEffectsEnabled="true"
+            android:src="@drawable/ic_new"
+            tools:focusableInTouchMode="true" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center">
+
+        <ImageView
+            android:id="@+id/preview_btn"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clickable="true"
+            android:contentDescription="@string/appbar_content_descr"
+            android:focusable="true"
+            android:soundEffectsEnabled="true"
+            android:src="@drawable/ic_piano"
+            tools:focusableInTouchMode="true" />
+    </LinearLayout>
+</LinearLayout>

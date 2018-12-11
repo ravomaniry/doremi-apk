@@ -1,0 +1,105 @@
+<resources>
+    <string name="app_name">DoReMi</string>
+    <string name="app_version">1.0.0</string>
+
+    <string name="text_editor">Structure</string>
+    <string name="text_song">Titre</string>
+    <string name="text_open">Explorer</string>
+
+    <string name="tex_title">Titre</string>
+    <string name="text_author">Auteur</string>
+    <string name="text_compositor">Compositeur</string>
+    <string name="text_release_date">Date</string>
+    <string name="text_singer">Chanteur</string>
+
+    <string name="text_signature">Signature</string>
+    <string name="text_key">Clé</string>
+    <string name="text_tempo">Tempo</string>
+    <string name="text_swing">Swing</string>
+    <string name="text_play_mute">Jouer / Muet</string>
+
+    <string name="appbar_content_descr">App par button</string>
+    <string name="piano_btns_descr">Piano button</string>
+
+    <string name="save_btn">OK</string>
+    <string name="edit_lyrics">Modifier les paroles</string>
+
+    <string name="search">Recherche...</string>
+
+    <string name="cd_coord_placeholder">1 : 1</string>
+    <string name="text_sign">Signe de renvoi</string>
+    <string name="cd_dal">Renvoi</string>
+    <string name="text_ok">OK</string>
+    <string name="text_modulation">Modulation</string>
+    <string name="text_velocity">Nuance</string>
+
+    <string name="text_slogan">
+        Andriamanitra o, hihira fihiram-baovao ho Anao aho,
+        amin\'ny valiha tory folo no hankalazako Anao.
+    </string>
+    <string name="text_psalm">Salamo 144 : 9</string>
+    <string name="help_greeting">Finaritra e!</string>
+    <string name="text_description">
+        Finaritra!
+        \n\t Ity \"application\" dia natao mba hanampiana antsika
+        mpitendry na antoko mpihira amin\'ny fianarana ny Solfa
+        ary indrinda koa mba hahafahantsika mifampizara ireo hira fiderana an\'Andriamanitra.
+        \n\t Zaraina maimaim-poana izy ity ary entanina ihany koa ianao mba hizara izany maimaim-poana.
+        \n\t Misaotra anao mampiasa ity fitaovana ity ary mirary soa anao mba hitombo talenta sy
+        hahefa be amin\'ny asa fanompoana izay iandraiketanao.
+        \n\t Ny Fiadanan\'i Jesosy Kristy Tompo anie hitoetra aminao mandrakariva.
+    </string>
+    <string name="text_contact">
+        Fifandraisana:
+        \n ravomaniry@gmail.com
+        \n 034 19 059 36
+    </string>
+
+    <string name="help_buttons">1. Ireo bokotra samihafa</string>
+    <string name="help_open_menu">
+        Manokatra ny \"menu\", mitovy amin\'ny bokotra \"menu\" eo amin\'ny finday.
+    </string>
+    <string name="help_play">Mandefa ny feon-kira</string>
+    <string name="hep_stop">Manajanona ny feon-kira</string>
+    <string name="help_save">Mitahiry ny hira na ny fanovana natao taminy</string>
+    <string name="help_new">Hanomboka hira vaovao</string>
+    <string name="help_show_keyboard">Mampiseho ny \"clavier\"</string>
+    <string name="help_hide_keyboard">Manafina ny \"clavier\"</string>
+
+    <string name="help_menu">2. Ny \"Menu\"</string>
+
+    <string name="help_structure">2.1. Structure</string>
+    <string name="help_structure_details">
+        - Fanovana ny firafitry ny hira (tempo, clé …)
+        \n- Ahafahana mitsonga ny feo tiana hoenoina
+    </string>
+
+    <string name="help_titre">2.2. Titre</string>
+    <string name="help_titre_details">
+        Fanovana ny mombamomba ny hira (lohateny, mpamorona …)
+    </string>
+
+    <string name="help_open">2.3. Explorer</string>
+    <string name="help_open_details">
+        - Ahitana ny lisitry ny solfa rehetra
+        \n- Ahafahana manokatra, mizara ary mafafa solfa
+    </string>
+
+    <string name="help_keyboard">3. NY \"Clavier\"</string>
+    <string name="help_keyboard_octave">Mampidina sy mampiakatra \"Octave\"</string>
+    <string name="help_delete_note">Mamafa naoty</string>
+    <string name="help_keyboard_other">
+        Ireo bokotra hafa dia mifanaraka amin\'izay hita ao anaty solfa
+    </string>
+
+    <string name="help_solfa">4. Ny solfa</string>
+    <string name="help_solfa_details">
+        Raha te hanomboka ny feon-kira amin\'ny \"mesure\" iray ianao dia
+        tsindrio manadrify ny \":\" na ny \"|\". Miloko maitso ilay \"mesure\" rehefa avy eo.
+        \nTsindrio ny faritra eo ambonin\'ny feo voalohany raha hanampy:
+        \n\t. fiverenana (D.C na D.S),\n\t. fiovana \"Tempo\" na \"Clé\",\n\t. \"nuance\"
+    </string>
+    <string name="help_lyrics">5. Ny tononkira</string>
+    <string name="help_lyrics_edit">Manampy na manova ny tononkira</string>
+    <string name="help_lyrics_save">Mitahiry ny tononkira</string>
+</resources>
