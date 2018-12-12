@@ -11,6 +11,7 @@ data class SongInfo(val title: MutableLiveData<String> = MutableLiveData(),
 
     var filename: String = ""
         get() = "${title.value}${if (singer.value != null && singer.value != "") " - ${singer.value}" else ""}"
+                .replace("/", "_")
 
 
     override fun toString() = "title=${title.value}, aut=${author.value} comp=${compositor.value}," +

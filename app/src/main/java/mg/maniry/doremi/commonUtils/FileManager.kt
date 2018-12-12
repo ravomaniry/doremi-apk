@@ -20,13 +20,17 @@ class FileManager {
 
     companion object {
         private val sep = File.separator
-        private val parentDir: File = with(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)) {
+        private var parentDir: File = with(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)) {
             if (canRead() && canWrite()) this@with
             else Environment.getExternalStorageDirectory()
         }
-        private val directory = File("${parentDir.absolutePath}${sep}doremi$sep")
+        private val directory = with(File("${parentDir.absolutePath}${sep}doremi$sep")) {
+            if (exists()) this
+            else File("${Environment.getExternalStorageDirectory().absolutePath}${sep}doremi")
+        }
+
         private val directoryPath: String = directory.absolutePath
-        private val htmlDirPath = "$directoryPath${sep}export$sep"
+        private val htmlDirPath = "${Environment.getExternalStorageDirectory().absolutePath}${sep}doremi_export$sep"
 
 
         fun listFiles() = directory
@@ -130,7 +134,7 @@ class FileManager {
             doAsync {
                 val path = Environment.getExternalStorageDirectory().absolutePath
 
-                listOf("Download", "Bluetooth", "Xender", "Xender/other", "Documents").forEach { dirName ->
+                listOf("Download", "Bluetooth", "Xender", "Xender/other", "Documents", "doremi", "Music/doremi").forEach { dirName ->
                     File("$path$sep$dirName").also { dir ->
                         if (dir.exists())
                             dir.listFiles { f -> f.extension == "drm" }.forEach { file ->

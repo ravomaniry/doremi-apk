@@ -39,7 +39,7 @@ class BottomButtonsManager(
             findViewById<ImageButton>(R.id.print_btn)
                     .setOnClickListener {
                         editorViewModel.print { filename ->
-                            notify("Exporté: export/$filename.html")
+                            notify("Succès: /doremi_export/$filename.html")
                         }
                     }
         }

@@ -26,12 +26,12 @@ class HtmlExport(
     private val flex = "display:flex;flex-wrap:wrap;align-items:baseline;"
     private val spaceBetween = "justify-content:space-between;"
     private val spaceAround = "justify-content:space-around;"
-    private val fontFamily = "font-family:verdana, times new roman;"
+    private val fontFamily = "font-family:sans-serif;"
     private val lyricsMargins = "margin: 20px 0 0 0;"
     private val linebreakRegex = Regex("\n +\n([ \n])*")
     private val verseMargin = "margin: 0 20px 10px 0"
-    private val octaveStyles = "line-height:0;font-size:10px;"
-    private val small = "font-size:0.5em;"
+    private val octaveStyles = "line-height:0;font-size:8px;$italic"
+    private val small = "font-size:0.7em;"
     private val collapse = "border-collapse:collapse;"
 
 
@@ -44,7 +44,7 @@ class HtmlExport(
 
 
     private fun prefix() = with(partitionData.songInfo) {
-        "<html><head><title>${title.value}</title></head><body>"
+        "<html><head><title>${title.value}</title></head><body style=\"$fontFamily\">"
     }
 
 
@@ -66,11 +66,13 @@ class HtmlExport(
             var str = "<div>" +
                     "<div style=\"$bold\">${signature.value}/4</div>" +
                     "<div style=\"$bold\">Do dia ${this@HtmlExport.notes[signature.value!!]}</div>" +
-                    "<div style=\"$bold\">$tempo Bpm</div>"
+                    "<div style=\"$bold\">Tempo: $tempo bpm</div>"
 
             if (swing.value == true) {
                 str += "<div style=\"$italic\"><span style=\"$bold\">Swing</span>" +
-                        " (vakiana hoe \"d.-.d\" ny \"d.d\" sy ny \"d.,d\")</div>"
+                        "<span style=\"$small\">" +
+                        "(vakiana hoe \"d.-.d\" ny \"d.d\" sy ny \"d.,d\")" +
+                        "</span></div>"
             }
 
             str += "</div>"
@@ -143,11 +145,11 @@ class HtmlExport(
                         }
                         .filter { it != null }
                         .toList()
-            }.filter { it.isNotEmpty() }.toList())
+            }.toList())
         }
 
         var headerHtml = "<tr>"
-        events.forEach { timeEvent ->
+        events.forEachIndexed { i, timeEvent ->
             if (timeEvent.isNotEmpty()) {
                 headerHtml += "<td style=\"$italic$small\">"
                 timeEvent.forEach { group ->
@@ -156,16 +158,22 @@ class HtmlExport(
                         group.forEach { e ->
                             e?.value?.run {
                                 headerHtml += " " + when (e.type) {
-                                    ChangeEvent.MOD -> "Do=${e.value}"
+                                    ChangeEvent.MOD -> "<b>Do=${e.value}</b>"
                                     ChangeEvent.MVMT -> "T=${e.value}"
                                     else -> e.value
                                 }
                             }
                         }
+
                         headerHtml += "</div>"
                     }
                 }
                 headerHtml += "</td>"
+            } else {
+                headerHtml += "<td/>"
+            }
+            if (i < signature - 1) {
+                headerHtml += "<td/>"
             }
         }
 
@@ -187,8 +195,8 @@ class HtmlExport(
                 rows[voice] += "</td>"
 
                 if (i != signature - 1) {
-                    rows[voice] += "<td>"
-                    rows[voice] += if (signature % 2 == 0 && i % signature == 1) " | " else " : "
+                    rows[voice] += "<td style=\"$center$tdMinWidth\">"
+                    rows[voice] += if (signature % 2 == 0 && i % signature == 1) "|" else ":"
                     rows[voice] += "</td>"
                 }
             }

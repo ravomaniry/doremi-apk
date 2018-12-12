@@ -17,7 +17,7 @@ class EditorViewModel : ViewModel() {
     private var prefs: SharedPreferences? = null
     private val parser = NotesParser()
     val partitionData = PartitionData()
-    val printer = HtmlExport(partitionData)
+    private val printer = HtmlExport(partitionData)
     private val updater = NotesUpdater(partitionData)
     val lyricsEditMode = MutableLiveData<Boolean>().apply { value = false }
     val octave = MutableLiveData<Int>().apply { value = 0 }
