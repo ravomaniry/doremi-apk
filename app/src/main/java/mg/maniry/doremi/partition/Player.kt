@@ -45,7 +45,7 @@ class Player constructor(
                     isPlaying = true
                 } catch (e: Exception) {
                     uiThread {
-                        Toast.makeText(mainContext, "Erreur: incapable de lire le son. :(", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(mainContext, "Impossible de lire le son. :(", Toast.LENGTH_SHORT).show()
                     }
                 }
             }

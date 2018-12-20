@@ -107,7 +107,8 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight=".5"
-                android:text="@string/text_velocity" />
+                android:text="@string/text_velocity"
+                android:textColor="@color/colorPrimaryDark" />
 
             <CheckBox
                 android:id="@+id/velocity_chbx"
@@ -115,56 +116,120 @@
                 android:layout_height="wrap_content" />
         </LinearLayout>
 
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/text_loog"
+                android:textColor="@color/colorPrimaryDark" />
+
+            <Spinner
+                android:id="@+id/loop_spinner"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+        </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="15dp"
-            android:text="@string/text_play_mute" />
+            android:text="@string/text_voices_instruments"
+            android:textColor="@color/colorPrimaryDark" />
 
         <LinearLayout
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
 
-            <CheckBox
-                android:id="@+id/soprano_cbx"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
-
-            <TextView
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="S" />
+                android:orientation="horizontal">
 
-            <CheckBox
-                android:id="@+id/alto_cbx"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/voice_s" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="A" />
+                <CheckBox
+                    android:id="@+id/soprano_cbx"
+                    android:layout_width="wrap_content"
+                    android:layout_height="20dp" />
 
-            <CheckBox
-                android:id="@+id/tenor_cbx"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
+                <Spinner
+                    android:id="@+id/instru_spin_s"
+                    android:layout_width="wrap_content"
+                    android:layout_height="24dp" />
+            </LinearLayout>
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="T" />
-
-            <CheckBox
-                android:id="@+id/baritone_cbx"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
-
-            <TextView
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="B" />
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/voice_a" />
+
+                <CheckBox
+                    android:id="@+id/alto_cbx"
+                    android:layout_width="wrap_content"
+                    android:layout_height="20dp" />
+
+                <Spinner
+                    android:id="@+id/instru_spin_a"
+                    android:layout_width="wrap_content"
+                    android:layout_height="24dp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/voice_t" />
+
+                <CheckBox
+                    android:id="@+id/tenor_cbx"
+                    android:layout_width="wrap_content"
+                    android:layout_height="20dp" />
+
+                <Spinner
+                    android:id="@+id/instru_spin_t"
+                    android:layout_width="wrap_content"
+                    android:layout_height="24dp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/voice_b" />
+
+                <CheckBox
+                    android:id="@+id/baritone_cbx"
+                    android:layout_width="wrap_content"
+                    android:layout_height="20dp" />
+
+                <Spinner
+                    android:id="@+id/instru_spin_b"
+                    android:layout_width="wrap_content"
+                    android:layout_height="24dp" />
+            </LinearLayout>
+
         </LinearLayout>
+
     </LinearLayout>
 </ScrollView>

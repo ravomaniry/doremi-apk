@@ -1,34 +1,30 @@
 package mg.maniry.doremi.partition
 
 
+import android.arch.lifecycle.MutableLiveData
+import leff.midi.*
 import java.io.File
 import java.io.IOException
 import java.util.ArrayList
 
-import leff.midi.MidiFile
-import leff.midi.MidiTrack
-import leff.midi.Tempo
-import leff.midi.TimeSignature
+
+data class CreateMidiParams(
+        val notes: MutableList<Note>,
+        val tempo: Int,
+        val outFile: File,
+        val instruments: Array<MutableLiveData<Int>>)
 
 
-fun createMidiFile(notes: MutableList<Note>, bpm: Int, outFile: File) {
-    val tempoTrack = MidiTrack()
+fun createMidiFile(params: CreateMidiParams) {
     val noteTracks = mutableListOf(MidiTrack())
-
-    val ts = TimeSignature()
-    ts.setTimeSignature(4, 4, TimeSignature.DEFAULT_METER, TimeSignature.DEFAULT_DIVISION)
-
-    val t = Tempo()
-    t.bpm = bpm.toFloat()
-
-    tempoTrack.insertEvent(ts)
-    tempoTrack.insertEvent(t)
+    val (notes, tempo, outFile, instruments) = params
 
     // Add notes
     notes.forEach {
         if (it.pitch > 0) {
-            while (noteTracks.size <= it.channel)
+            while (noteTracks.size <= it.channel) {
                 noteTracks.add(MidiTrack())
+            }
 
             noteTracks[it.channel].insertNote(it)
         }
@@ -36,8 +32,24 @@ fun createMidiFile(notes: MutableList<Note>, bpm: Int, outFile: File) {
 
     //Create a MidiFile
     val tracks = ArrayList<MidiTrack>()
-    tracks.add(tempoTrack)
-    noteTracks.forEach { tracks.add(it) }
+    val ts = TimeSignature().apply {
+        setTimeSignature(4, 4, TimeSignature.DEFAULT_METER, TimeSignature.DEFAULT_DIVISION)
+    }
+    val tempoEvent = Tempo().apply {
+        bpm = tempo.toFloat()
+    }
+
+    tracks.add(MidiTrack().apply {
+        insertEvent(ts)
+        insertEvent(tempoEvent)
+    })
+
+    val programsIndexes = instruments.map { it.value ?: 0 }
+
+    noteTracks.forEachIndexed { v, track ->
+        track.insertEvent(ProgramChange(1, v, InstrumentsList.list[programsIndexes[v]].program))
+        tracks.add(track)
+    }
 
     val midi = MidiFile(MidiFile.DEFAULT_RESOLUTION, tracks)
 
@@ -48,4 +60,3 @@ fun createMidiFile(notes: MutableList<Note>, bpm: Int, outFile: File) {
         System.err.println(e)
     }
 }
-

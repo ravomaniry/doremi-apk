@@ -17,6 +17,12 @@
     <string name="text_tempo">Tempo</string>
     <string name="text_swing">Swing</string>
     <string name="text_play_mute">Jouer / Muet</string>
+    <string name="text_voices_instruments">Voix et Instruments</string>
+    <string name="voice_s">S</string>
+    <string name="voice_a">A</string>
+    <string name="voice_t">T</string>
+    <string name="voice_b">B</string>
+    <string name="text_loog">Boucles</string>
 
     <string name="appbar_content_descr">App par button</string>
     <string name="piano_btns_descr">Piano button</string>

@@ -1,6 +1,7 @@
 package mg.maniry.doremi.partition
 
 import android.arch.lifecycle.MutableLiveData
+import java.lang.Exception
 import java.util.*
 import kotlin.math.max
 
@@ -17,6 +18,7 @@ class PartitionData {
     val lyrics = MutableLiveData<String>().apply { value = "" }
     val songInfo = SongInfo()
     var changeEvents = mutableListOf<ChangeEvent>()
+    val instruments = Array(4) { MutableLiveData<Int>().apply { value = 0 } }
 
 
     init {
@@ -78,6 +80,7 @@ class PartitionData {
 
     fun updateChangeEvents(position: Int, events: MutableList<ChangeEvent>) {
         changeEvents = changeEvents
+                .asSequence()
                 .filter { it.position != position }
                 .toMutableList()
                 .apply {
@@ -107,6 +110,15 @@ class PartitionData {
                     Labels.SWING -> swing.value = _value == "1"
                     Labels.CHANGES -> _value.split(',').forEach { str ->
                         ChangeEvent.fromString(str)?.run { changeEvents.add(this) }
+                    }
+                    Labels.INSTR -> _value.split(",").forEachIndexed { i, instr ->
+                        if (i < 4) {
+                            instruments[i].value = try {
+                                instr.trim().toInt()
+                            } catch (e: Exception) {
+                                0
+                            }
+                        }
                     }
                 }
             }
@@ -142,7 +154,8 @@ class PartitionData {
         }
 
         output += "${Labels.SWING}:${if (swing.value == true) 1 else 0}; "
-        output += "${Labels.CHANGES}:${changeEvents.joinToString(",")} "
+        output += "${Labels.CHANGES}:${changeEvents.joinToString(",")}; "
+        output += "${Labels.INSTR}:${instruments.joinToString { (it.value ?: 0).toString() }} "
 
         notes.forEach { output += separator + it.joinToString(":") }
 

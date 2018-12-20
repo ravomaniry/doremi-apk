@@ -39,6 +39,7 @@ class Labels {
         const val SINGER = "P_SINGER"
 
         const val CHANGES = "CHANGES"
+        const val INSTR = "INSTR"
     }
 }
 

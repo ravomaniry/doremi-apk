@@ -2,7 +2,6 @@ package mg.maniry.doremi.ui.managers
 
 import android.content.Context
 import android.view.View
-import mg.maniry.doremi.ui.MainActivity
 import mg.maniry.doremi.viewModels.EditorViewModel
 import mg.maniry.doremi.partition.Player
 import mg.maniry.doremi.viewModels.UiViewModel
@@ -19,6 +18,7 @@ class UiManager constructor(
     val changesDialogManager: ChangesDialogManager
     private val solfaDisplayManager: SolfaDisplayManager
 
+
     init {
         AppBarManager(mainContext, mainView, uiViewModel, editorViewModel, player)
         Toaster(mainContext, editorViewModel)
@@ -34,7 +34,6 @@ class UiManager constructor(
         }
 
         changesDialogManager = ChangesDialogManager(mainContext, mainView, editorViewModel)
-        BottomButtonsManager(mainContext as MainActivity, mainView, editorViewModel)
     }
 
 
@@ -52,9 +51,11 @@ class UiManager constructor(
             playerCursorPosition = 0
             resetDialog()
         }
+
         with(uiViewModel.editorMode) {
-            if (value != 1)
+            if (value != 1) {
                 value = 1
+            }
         }
     }
 }

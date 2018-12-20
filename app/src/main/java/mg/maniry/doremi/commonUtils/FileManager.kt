@@ -19,21 +19,20 @@ import org.jetbrains.anko.uiThread
 class FileManager {
 
     companion object {
+        private const val doremi = "Doremi"
+        private const val solfa = "solfa"
+        private const val export = "export"
         private val sep = File.separator
-        private var parentDir: File = with(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)) {
-            if (canRead() && canWrite()) this@with
-            else Environment.getExternalStorageDirectory()
-        }
-        private val directory = with(File("${parentDir.absolutePath}${sep}doremi$sep")) {
-            if (exists()) this
-            else File("${Environment.getExternalStorageDirectory().absolutePath}${sep}doremi")
-        }
-
-        private val directoryPath: String = directory.absolutePath
-        private val htmlDirPath = "${Environment.getExternalStorageDirectory().absolutePath}${sep}doremi_export$sep"
+        private var parentDir = File("${Environment.getExternalStorageDirectory().absoluteFile}$sep$doremi")
+                .also { if (!it.exists()) it.mkdirs() }
+        private val solfaDir = File("${parentDir.absolutePath}$sep$solfa")
+        private val htmlDir = File("${parentDir.absolutePath}$sep$export")
+                .also { if (!it.exists()) it.mkdirs() }
+        private val solfaDirPath: String = solfaDir.absolutePath + sep
+        private val htmlDirPath = htmlDir.absolutePath + sep
 
 
-        fun listFiles() = directory
+        fun listFiles() = solfaDir
                 .listFiles { f -> f.extension == "drm" }
                 .map { it.name.replace(".drm", "") }.sorted()
 
@@ -42,7 +41,7 @@ class FileManager {
             if (oldName != null && newName != "") {
                 with(getFileFromName(oldName)) {
                     if (exists())
-                        renameTo(File("$directoryPath$sep$newName.drm"))
+                        renameTo(File("$solfaDirPath$newName.drm"))
                 }
             }
         }
@@ -65,16 +64,20 @@ class FileManager {
 
 
         fun writeHtml(filename: String, data: String) {
-            File(htmlDirPath).run { if (!exists()) mkdirs() }
+            File(htmlDirPath).run {
+                if (!exists())
+                    mkdirs()
+            }
+
             write("$htmlDirPath$filename.html", data)
         }
 
 
         fun getFileFromName(filename: String?) = when {
-            filename == null -> File("$directoryPath${sep}doremi.drm")
+            filename == null -> File("${solfaDirPath}doremi.drm")
             filename.contains('/') -> File(filename)
-            filename.endsWith(".drm") -> File("$directoryPath$sep$filename")
-            else -> File("$directoryPath$sep$filename.drm")
+            filename.endsWith(".drm") -> File("$solfaDirPath$filename")
+            else -> File("$solfaDirPath$filename.drm")
         }
 
 
@@ -130,12 +133,12 @@ class FileManager {
         }
 
 
-        fun importAllDoremiFiles(callback: () -> Unit) {
+        fun importAllDoremiFiles(callback: (() -> Unit)? = null) {
             doAsync {
-                val path = Environment.getExternalStorageDirectory().absolutePath
+                val path = Environment.getExternalStorageDirectory().absolutePath + sep
 
-                listOf("Download", "Bluetooth", "Xender", "Xender/other", "Documents", "doremi", "Music/doremi").forEach { dirName ->
-                    File("$path$sep$dirName").also { dir ->
+                listOf("Download", "Bluetooth", "Xender", "Xender/other", "Documents", "Music/doremi").forEach { dirName ->
+                    File("$path$dirName").also { dir ->
                         if (dir.exists())
                             dir.listFiles { f -> f.extension == "drm" }.forEach { file ->
                                 moveIntoDoremiDir(file = file)
@@ -143,7 +146,7 @@ class FileManager {
                     }
                 }
 
-                uiThread { callback() }
+                uiThread { callback?.invoke() }
             }
         }
 
@@ -156,15 +159,18 @@ class FileManager {
                     else -> null
                 }?.let { src ->
                     if (src.exists()) {
-                        if (src.parentFile.absolutePath == directoryPath)
+                        if (src.parentFile.absolutePath + sep == solfaDirPath) {
                             src.name.replace(".drm", "")
-                        else {
+
+                        } else {
                             val copy = getCopy(src.absolutePath)
                             src.renameTo(copy)
                             copy.name.replace(".drm", "")
                         }
-                    } else
+
+                    } else {
                         null
+                    }
                 }
             } catch (e: Exception) {
                 null
@@ -198,9 +204,9 @@ class FileManager {
 
 
         fun copyDemoFiles(assets: AssetManager) {
-            if (!directory.exists()) {
+            if (!solfaDir.exists()) {
                 try {
-                    directory.mkdirs()
+                    solfaDir.mkdirs()
                     assets.list("demo")?.forEach { name ->
                         assets.open("demo/$name").copyTo(FileOutputStream(getFileFromName(name)))
                     }

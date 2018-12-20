@@ -31,7 +31,9 @@ class EditorViewModel : ViewModel() {
     var prevCursorPos: Cell? = null
     var playerCursorPosition = 0
     var enablePlayerVelocity = MutableLiveData<Boolean>().apply { value = true }
+    var playerLoops = 0
     private var filename = ""
+    private var history = EditionHistory()
 
 
     init {
@@ -49,14 +51,17 @@ class EditorViewModel : ViewModel() {
 
                 if (path == "") {
                     loadRecentFile()
-                    message.value = "Impossible d'ouvrir le fithier"
-                } else
+                    message.value = "Impossible d'ouvrir le fichier"
+
+                } else {
                     loadFile(path) {
-                        message.value = "Impossible d'ouvrir le fithier"
+                        message.value = "Impossible d'ouvrir le fichier"
                         loadRecentFile()
                     }
-            } else
+                }
+            } else {
                 loadRecentFile()
+            }
         }
 
         FileManager.importAllDoremiFiles { refreshFileList() }
@@ -64,13 +69,25 @@ class EditorViewModel : ViewModel() {
 
 
     fun addNote(n: String) {
+        history.anticipate(cursorPos.value, partitionData)
         updater.add(addOctaveToNote(n, octave.value)).also {
             updatedCell.value = it
             if (it != null) {
-                if (it.index != cursorPos.value?.index)
+                if (it.index != cursorPos.value?.index) {
                     prevCursorPos = cursorPos.value
+                }
                 cursorPos.value = it
+
+                history.handle(it)
             }
+        }
+    }
+
+
+    fun restoreHistory(isForward: Boolean) {
+        history.restore(partitionData, isForward)?.also {
+            updatedCell.value = it
+            moveCursor(it.voice, it.index)
         }
     }
 
@@ -86,8 +103,9 @@ class EditorViewModel : ViewModel() {
     fun moveCursor(voice: Int, index: Int) {
         if (cursorPos.value?.voice != voice || cursorPos.value?.index != index) {
             prevCursorPos = cursorPos.value
-            cursorPos.value = updater.moveCursor(voice, index)
         }
+
+        cursorPos.value = updater.moveCursor(voice, index)
     }
 
 
@@ -98,11 +116,13 @@ class EditorViewModel : ViewModel() {
 
 
     fun deleteNotes() {
+        history.anticipate(cursorPos.value, partitionData)
         updater.delete().also {
             updatedCell.value = it
             if (it != null && (cursorPos.value == null || it.index != cursorPos.value?.index)) {
                 prevCursorPos = cursorPos.value
                 cursorPos.value = it
+                history.handle(it)
             }
         }
     }
@@ -138,17 +158,10 @@ class EditorViewModel : ViewModel() {
     }
 
 
-    private fun loadRecentFile() {
-        prefs?.getString("recent", "").run {
-            if (this != "" && this != null)
-                loadFile(this) {}
-        }
-    }
-
-
     fun loadFile(path: String, onError: (e: String) -> Unit) {
         if (filename != path) {
             save()
+            history.reset()
 
             with(FileManager.read(path)) {
                 if (error == null) {
@@ -166,6 +179,14 @@ class EditorViewModel : ViewModel() {
     }
 
 
+    private fun loadRecentFile() {
+        prefs?.getString("recent", "").run {
+            if (this != "" && this != null)
+                loadFile(this) {}
+        }
+    }
+
+
     private fun saveRecentFile(filename: String) {
         this.filename = filename
         prefs?.edit()?.apply {
@@ -178,6 +199,7 @@ class EditorViewModel : ViewModel() {
     fun reset() {
         save()
         resetCursors()
+        history.reset()
         partitionData.reset()
         partitionData.signature.value = 4
         filename = partitionData.songInfo.filename
@@ -199,6 +221,9 @@ class EditorViewModel : ViewModel() {
 
 
     fun createTmpMidFile(file: File, playedVoices: MutableList<Boolean>?) {
+        if (playerCursorPosition % partitionData.signature.value!! > 0)
+            playerCursorPosition = 0
+
         parser.apply {
             key = partitionData.key.value ?: 0
             swing = partitionData.swing.value ?: false
@@ -206,12 +231,19 @@ class EditorViewModel : ViewModel() {
             tempo = partitionData.tempo
             start = playerCursorPosition
             enableVelocity = enablePlayerVelocity.value ?: false
+            loopsNumber = playerLoops
+            signature = partitionData.signature.value ?: 4
 
             if (playedVoices != null)
                 this.playedVoices = playedVoices
         }
 
-        createMidiFile(parser.parse(partitionData.notes), partitionData.tempo, file)
+        createMidiFile(CreateMidiParams(
+                notes = parser.parse(partitionData.notes),
+                tempo = partitionData.tempo,
+                outFile = file,
+                instruments = partitionData.instruments
+        ))
     }
 
 

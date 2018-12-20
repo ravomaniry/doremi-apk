@@ -16,20 +16,16 @@
 
 package leff.midi;
 
-public class InstrumentName extends TextualMetaEvent
-{
-    public InstrumentName(long tick, long delta, String name)
-    {
+public class InstrumentName extends TextualMetaEvent {
+    public InstrumentName(long tick, long delta, String name) {
         super(tick, delta, MetaEvent.INSTRUMENT_NAME, name);
     }
 
-    public void setName(String name)
-    {
+    public void setName(String name) {
         setText(name);
     }
 
-    public String getName()
-    {
+    public String getName() {
         return getText();
     }
 }

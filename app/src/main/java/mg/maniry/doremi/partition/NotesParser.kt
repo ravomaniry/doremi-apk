@@ -21,16 +21,20 @@ class NotesParser {
     private lateinit var notesToParse: Array<MutableList<String>>
 
     var start = 0
+    var tmpStart = 0
     var key = 0
     var tempo = 120
     var swing = false
+    var signature = 4
     var enableVelocity = true
+    var loopsNumber = 0
     private val ticks = MutableList(4) { commonDelay }
     private var currentTempo = 0
 
 
     fun parse(notes: Array<MutableList<String>>): MutableList<Note> {
         handleRepetitions(notes)
+        handleStartAndLoops()
 
         val parsedNotes = mutableListOf<Note>()
 
@@ -71,17 +75,26 @@ class NotesParser {
                 .toMutableList()
                 .also { changes -> changes.forEach { it.treated = false } }
 
-        var nextIndex = start
+        var nextIndex = 0
         var realIndex = 0
         var initTempoKey = true
         var reachedEnd = false
+        tmpStart = if (start == 0) 0 else -1
         var maxIndex = notes.map { it.size }.reduce(::max)
 
-        if (!changeEvents.isEmpty())
+        if (!changeEvents.isEmpty()) {
             maxIndex = max(maxIndex, changeEvents.asSequence().map { it.position }.reduce(::max) + 1)
+        }
+
+        if (maxIndex % signature > 0) {
+            maxIndex += signature - (maxIndex % signature)
+        }
 
 
         while (nextIndex < maxIndex) {
+            if (nextIndex == start && tmpStart == -1)
+                tmpStart = realIndex
+
             // TEMPO && KEY: INIT + CHANGES
             if (nextIndex == 0) {
                 val tmpEvent = ParserStructureEvent(realIndex, tempo, key, 110)
@@ -99,6 +112,7 @@ class NotesParser {
                     var i = nextIndex
                     var tmpTempo = -1
                     var tmpKey = -1
+                    var tmpVelo = -1
 
                     while (i > 0 && (tmpTempo == -1 || tmpKey == -1)) {
                         if (tmpTempo == -1)
@@ -111,13 +125,19 @@ class NotesParser {
                                     .find { it.position == i && it.type == ChangeEvent.MOD }
                                     ?.run { tmpKey = modulationKeys.indexOf(value) }
 
+                        if (tmpKey == -1)
+                            changeEvents
+                                    .find { it.position == i && it.type == ChangeEvent.VELOCITY }
+                                    ?.run { tmpVelo = velNumbers[velLetters.indexOf(value)] }
+
                         i -= 1
                     }
 
                     if (tmpTempo == -1) tmpTempo = tempo
                     if (tmpKey == -1) tmpKey = key
+                    if (tmpVelo == -1) tmpVelo = 110
 
-                    tmpChangeEvents.add(ParserStructureEvent(0, tmpTempo, tmpKey, 110))
+                    tmpChangeEvents.add(ParserStructureEvent(realIndex, tmpTempo, tmpKey, tmpVelo))
 
                 } else {
                     val changes = changeEvents.filter {
@@ -145,10 +165,11 @@ class NotesParser {
 
             // NOTES
             notesToParse.forEachIndexed { voice, voiceNotes ->
-                if (notes[voice].size > nextIndex)
+                if (notes[voice].size > nextIndex) {
                     voiceNotes.add(notes[voice][nextIndex])
-                else
+                } else {
                     voiceNotes.add("")
+                }
             }
 
             realIndex++
@@ -187,12 +208,69 @@ class NotesParser {
 
                     if (target != null) {
                         nextIndex = target.position
+
                     } else {
                         nextIndex++
                     }
                 }
             }
         }
+    }
+
+
+    private fun handleStartAndLoops() {
+        val tmpNotesToParse: Array<MutableList<String>>
+        val newChangeEvents: MutableList<ParserStructureEvent>
+
+        if (tmpStart > 0) {
+            tmpNotesToParse = Array(4) { mutableListOf<String>() }
+            val chEvZero = ParserStructureEvent(0)
+            var index = tmpStart
+
+            while (index >= 0 && (chEvZero.key == -1 || chEvZero.tempo == -1 || chEvZero.velocity == -1)) {
+                tmpChangeEvents.find { it.position == index }?.run {
+                    if (chEvZero.tempo == -1 && tempo != -1)
+                        chEvZero.tempo = tempo
+                    if (chEvZero.key == -1 && key != -1)
+                        chEvZero.key = key
+                    if (chEvZero.velocity == -1 && velocity != -1)
+                        chEvZero.velocity = velocity
+                }
+
+                index--
+            }
+
+            newChangeEvents = mutableListOf(chEvZero).apply {
+                addAll(tmpChangeEvents.asSequence()
+                        .filter { it.position > tmpStart }
+                        .map { it.copy(position = it.position - tmpStart) }
+                        .toList())
+            }
+
+            notesToParse.forEachIndexed { v, notesList ->
+                tmpNotesToParse[v] = notesList.slice(tmpStart until notesList.size).toMutableList()
+            }
+
+        } else {
+            tmpNotesToParse = notesToParse.map { it.toMutableList() }.toTypedArray()
+            newChangeEvents = tmpChangeEvents.toMutableList()
+        }
+
+
+        var loopIndex = 0
+        var positionOffset = tmpNotesToParse[0].size
+        while (loopsNumber > loopIndex) {
+            newChangeEvents.addAll(tmpChangeEvents.map { it.copy(position = it.position + positionOffset) })
+            notesToParse.forEachIndexed { v, voiceNotes ->
+                tmpNotesToParse[v].addAll(voiceNotes)
+            }
+
+            loopIndex++
+            positionOffset = tmpNotesToParse[0].size
+        }
+
+        tmpChangeEvents = newChangeEvents
+        notesToParse = tmpNotesToParse
     }
 
 

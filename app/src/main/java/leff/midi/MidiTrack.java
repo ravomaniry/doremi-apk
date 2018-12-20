@@ -124,7 +124,6 @@ public class MidiTrack {
     }
 
     public void insertNote(int channel, int pitch, int velocity, long tick, long duration) {
-
         insertEvent(new NoteOn(tick, channel, pitch, velocity));
         insertEvent(new NoteOn(tick + duration, channel, pitch, 0));
     }

@@ -3,47 +3,40 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:baselineAligned="false"
-    android:orientation="horizontal">
+    android:orientation="vertical">
 
     <LinearLayout
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight=".5"
+        android:baselineAligned="false"
         android:orientation="horizontal">
 
-        <ImageButton
-            android:id="@+id/print_btn"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:contentDescription="@string/app_name"
-            android:src="@drawable/ic_print" />
+            android:layout_weight=".5"
+            android:orientation="horizontal">
 
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight=".5"
+            android:gravity="end"
+            android:orientation="horizontal">
+
+
+
+
+        </LinearLayout>
     </LinearLayout>
 
     <LinearLayout
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight=".5"
-        android:gravity="end"
+        android:gravity="center_horizontal"
         android:orientation="horizontal">
-
-        <ImageButton
-            android:id="@+id/help_btn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:contentDescription="@string/app_name"
-            android:src="@drawable/ic_help" />
-
-        <ImageButton
-            android:id="@+id/about_btn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="20sp"
-            android:layout_marginLeft="20sp"
-            android:layout_marginEnd="10sp"
-            android:layout_marginRight="10sp"
-            android:contentDescription="@string/app_name"
-            android:src="@drawable/ic_about" />
 
     </LinearLayout>
 
