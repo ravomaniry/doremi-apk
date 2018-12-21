@@ -6,7 +6,7 @@
     android:orientation="vertical">
 
     <LinearLayout
-        android:layout_width="30dp"
+        android:layout_width="32dp"
         android:layout_height="wrap_content"
         android:layout_gravity="end"
         android:layout_marginTop="30dp"
@@ -18,8 +18,9 @@
 
         <ImageView
             android:id="@+id/undo_btn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginTop="10dp"
             android:layout_marginBottom="10dp"
             android:contentDescription="@string/app_name"
             android:src="@drawable/ic_undo" />
@@ -27,32 +28,44 @@
 
         <ImageView
             android:id="@+id/redo_btn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
             android:layout_marginBottom="10dp"
             android:contentDescription="@string/app_name"
             android:src="@drawable/ic_redo" />
 
         <ImageView
+            android:id="@+id/reset_btn"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginBottom="10dp"
+            android:clickable="true"
+            android:contentDescription="@string/appbar_content_descr"
+            android:focusable="true"
+            android:soundEffectsEnabled="true"
+            android:src="@drawable/ic_new"
+            tools:focusableInTouchMode="true" />
+
+        <ImageView
             android:id="@+id/print_btn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
             android:layout_marginBottom="10dp"
             android:contentDescription="@string/app_name"
             android:src="@drawable/ic_print" />
 
         <ImageView
             android:id="@+id/help_btn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
             android:layout_marginBottom="10dp"
             android:contentDescription="@string/app_name"
             android:src="@drawable/ic_help" />
 
         <ImageView
             android:id="@+id/about_btn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
             android:layout_marginBottom="10dp"
             android:contentDescription="@string/app_name"
             android:src="@drawable/ic_about" />

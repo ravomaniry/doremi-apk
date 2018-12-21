@@ -17,6 +17,7 @@ class UiManager constructor(
     private val drawerManager = DrawerManager(mainView)
     val changesDialogManager: ChangesDialogManager
     private val solfaDisplayManager: SolfaDisplayManager
+    private val lyricsDisplayManager: LyricsDisplayManager
 
 
     init {
@@ -25,7 +26,7 @@ class UiManager constructor(
         PianoViewManager(mainContext, mainView, editorViewModel)
         solfaDisplayManager = SolfaDisplayManager(mainContext, mainView, editorViewModel)
         Toaster(mainContext, editorViewModel)
-        LyricsDisplayManager(mainContext, mainView, uiViewModel, editorViewModel)
+        lyricsDisplayManager = LyricsDisplayManager(mainContext, mainView, uiViewModel, editorViewModel)
 
         TabsManager(mainContext, mainView, uiViewModel).also {
             EditorTabManager(mainContext, it.editorTab, editorViewModel, player)
@@ -39,12 +40,15 @@ class UiManager constructor(
 
     fun handleButtonPress(keyCode: Int) = when {
         drawerManager.handleButtonPress(keyCode) -> true
+        lyricsDisplayManager.handleButtonPress(keyCode) -> true
         else -> false
     }
 
 
     fun kill() {
         solfaDisplayManager.movePlayerCursor(null)
+        lyricsDisplayManager.save()
+
         editorViewModel.run {
             save()
             resetCursors()

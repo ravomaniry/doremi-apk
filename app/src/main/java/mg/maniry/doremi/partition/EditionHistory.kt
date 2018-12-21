@@ -4,14 +4,14 @@ class EditionHistory {
     data class Change(val voice: Int, val index: Int, val prev: String, val next: String)
 
     private var anticipations = mutableListOf<Cell>()
-    private var backChanges = mutableListOf<Change>()
-    private var fwdChanges = mutableListOf<Change>()
-
+    private val backChanges = mutableListOf<Change>()
+    private val fwdChanges = mutableListOf<Change>()
+    private val maxHistoryLength = 20
 
     fun reset() {
-        anticipations = mutableListOf()
-        backChanges = mutableListOf()
-        fwdChanges = mutableListOf()
+        anticipations.removeAll { true }
+        backChanges.removeAll { true }
+        fwdChanges.removeAll { true }
     }
 
 
@@ -34,9 +34,9 @@ class EditionHistory {
                 }
 
         if (fwdChanges.size > 0)
-            fwdChanges = mutableListOf()
+            fwdChanges.removeAll { true }
 
-        while (backChanges.size > 10)
+        while (backChanges.size > maxHistoryLength)
             backChanges.removeAt(0)
     }
 

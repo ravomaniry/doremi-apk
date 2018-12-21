@@ -44,15 +44,20 @@ class AppBarManager(
 
     private fun initPlayerButtons() {
         with(mainView) {
-            findViewById<ImageView>(mg.maniry.doremi.R.id.stop_btn).setOnClickListener { player.stop() }
-            findViewById<ImageView>(mg.maniry.doremi.R.id.reset_btn).setOnClickListener { editorViewModel.reset() }
-            findViewById<ImageView>(mg.maniry.doremi.R.id.play_btn).setOnClickListener {
-                player.play()
-                editorViewModel.message.value = "Lecture en cours"
-            }
-            findViewById<ImageView>(mg.maniry.doremi.R.id.save_btn).setOnClickListener {
-                editorViewModel.save()
-            }
+            findViewById<ImageView>(R.id.stop_btn)
+                    .setOnClickListener { player.stop() }
+
+            findViewById<ImageView>(R.id.additional_menu_btn)
+                    .setOnClickListener { toggleVerticalBar() }
+
+            findViewById<ImageView>(R.id.play_btn)
+                    .setOnClickListener {
+                        player.play()
+                        editorViewModel.message.value = "Lecture en cours"
+                    }
+
+            findViewById<ImageView>(R.id.save_btn)
+                    .setOnClickListener { editorViewModel.save() }
         }
     }
 
@@ -101,37 +106,39 @@ class AppBarManager(
 
 
     private fun toggleViewMode(mode: Int?) {
-        toggleVerticalBar()
+        with(editorViews) {
+            if (mode == 1) {
+                viewerCont.removeView(viewer)
+                mainCont.apply {
+                    removeAllViews()
+                    addView(viewer)
+                }
 
-//        with(editorViews) {
-//            if (mode == 1) {
-//                viewerCont.removeView(viewer)
-//                mainCont.apply {
-//                    removeAllViews()
-//                    addView(viewer)
-//                }
-//
-//                btn.setImageResource(R.drawable.ic_piano)
-//            } else {
-//                mainCont.removeAllViews()
-//                viewerCont.apply {
-//                    removeView(viewer)
-//                    addView(viewer)
-//                }
-//                mainCont.apply {
-//                    addView(viewerCont)
-//                    addView(keyboardCont)
-//                }
-//
-//                btn.setImageResource(R.drawable.ic_fullscreen)
-//            }
-//        }
+                btn.setImageResource(R.drawable.ic_piano)
+            } else {
+                mainCont.removeAllViews()
+                viewerCont.apply {
+                    removeView(viewer)
+                    addView(viewer)
+                }
+                mainCont.apply {
+                    addView(viewerCont)
+                    addView(keyboardCont)
+                }
+
+                btn.setImageResource(R.drawable.ic_fullscreen)
+            }
+        }
     }
 
 
     private fun initVerticalBar() {
-        verticalBar.visibility = View.GONE
-        mainView.findViewById<FrameLayout>(R.id.editor_cont).addView(verticalBar)
+        with(verticalBar) {
+            mainView.findViewById<FrameLayout>(R.id.editor_cont).addView(this)
+            visibility = View.GONE
+            findViewById<ImageView>(mg.maniry.doremi.R.id.reset_btn)
+                    .setOnClickListener { editorViewModel.reset() }
+        }
     }
 
 
