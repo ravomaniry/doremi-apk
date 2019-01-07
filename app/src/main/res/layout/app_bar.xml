@@ -19,7 +19,7 @@
         <ImageView
             android:id="@+id/drawer_shower_btn"
             android:layout_width="match_parent"
-            android:layout_height="24dp"
+            android:layout_height="24sp"
             android:layout_gravity="center_vertical"
             android:clickable="true"
             android:contentDescription="@string/appbar_content_descr"
@@ -103,17 +103,19 @@
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:gravity="center">
+        android:gravity="end"
+        android:orientation="horizontal">
 
         <ImageView
             android:id="@+id/additional_menu_btn"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:layout_gravity="end"
             android:clickable="true"
             android:contentDescription="@string/appbar_content_descr"
             android:focusable="true"
             android:soundEffectsEnabled="true"
-            android:src="@drawable/ic_menu"
+            android:src="@drawable/ic_more"
             tools:focusableInTouchMode="true" />
     </LinearLayout>
 </LinearLayout>

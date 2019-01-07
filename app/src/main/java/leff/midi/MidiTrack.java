@@ -9,7 +9,7 @@ import java.lang.reflect.Method;
 import java.util.Iterator;
 import java.util.TreeSet;
 
-import mg.maniry.doremi.partition.Note;
+import mg.maniry.doremi.editor.partition.Note;
 
 
 public class MidiTrack {

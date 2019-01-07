@@ -4,70 +4,34 @@
     android:layout_height="wrap_content"
     android:background="@color/colorAccent"
     android:orientation="horizontal"
-    android:theme="@style/ThemeOverlay.AppCompat.Dark"
-    android:weightSum="3">
+    android:theme="@style/ThemeOverlay.AppCompat.Dark">
 
-    <LinearLayout
+    <TextView
         android:id="@+id/editor_tab_selector"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
+        android:layout_weight=".5"
         android:clickable="true"
+        android:drawableEnd="@drawable/ic_settings"
+        android:drawableRight="@drawable/ic_settings"
+        android:focusable="true"
         android:gravity="center_horizontal"
-        android:paddingTop="10dp">
+        android:paddingTop="10dp"
+        android:paddingBottom="4dp"
+        android:text="@string/text_editor" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/text_editor" />
-
-        <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="10dp"
-            android:src="@drawable/ic_settings" />
-    </LinearLayout>
-
-    <LinearLayout
+    <TextView
         android:id="@+id/song_tab_selector"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
+        android:layout_weight=".5"
         android:clickable="true"
+        android:drawableEnd="@drawable/ic_music_note"
+        android:drawableRight="@drawable/ic_music_note"
+        android:focusable="true"
         android:gravity="center_horizontal"
-        android:paddingTop="10dp">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/text_song" />
-
-        <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="10dp"
-            android:src="@drawable/ic_music_note" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/explorer_tab_selector"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:clickable="true"
-        android:gravity="center_horizontal"
-        android:paddingTop="10dp">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/text_open" />
-
-        <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="10dp"
-            android:src="@drawable/ic_folder_open_black_24dp" />
-    </LinearLayout>
+        android:paddingTop="10dp"
+        android:paddingBottom="4dp"
+        android:text="@string/tex_title" />
 
 </LinearLayout>

@@ -22,7 +22,8 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1.12"
-                android:text="@string/text_signature" />
+                android:text="@string/text_signature"
+                android:textColor="@color/colorPrimaryDark" />
 
             <Spinner
                 android:id="@+id/signature_spinner"
@@ -41,7 +42,8 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/text_key" />
+                android:text="@string/text_key"
+                android:textColor="@color/colorPrimaryDark" />
 
             <Spinner
                 android:id="@+id/key_spinner"
@@ -60,14 +62,18 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/text_tempo" />
+                android:text="@string/text_tempo"
+                android:textColor="@color/colorPrimaryDark" />
 
             <EditText
                 android:id="@+id/tempo_edit_text"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:inputType="number" />
+                android:gravity="end"
+                android:inputType="number"
+                android:paddingEnd="8dp"
+                android:paddingRight="8dp" />
         </LinearLayout>
 
         <LinearLayout
@@ -80,7 +86,8 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/text_swing" />
+                android:text="@string/text_swing"
+                android:textColor="@color/colorPrimaryDark" />
 
             <CheckBox
                 android:id="@+id/swing_checkbx"

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <ProgressBar
+        android:id="@+id/browser_loader"
+        android:layout_width="match_parent"
+        android:layout_height="32dp"
+        android:background="@color/gray"
+        android:theme="@style/Theme.AppCompat.DayNight.DarkActionBar"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/browser_network_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/gray"
+        android:gravity="center"
+        android:text="@string/net_error"
+        android:textColor="@color/colorAccent" />
+
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/remote_files_list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+</LinearLayout>

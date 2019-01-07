@@ -11,7 +11,7 @@ import java.util.*
 import android.content.Intent
 import android.content.res.AssetManager
 import android.net.Uri
-import mg.maniry.doremi.viewModels.FileContent
+import mg.maniry.doremi.editor.viewModels.FileContent
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.uiThread
 
@@ -22,6 +22,7 @@ class FileManager {
         private const val doremi = "Doremi"
         private const val solfa = "solfa"
         private const val export = "export"
+        private const val midi = "midi"
         private val sep = File.separator
         private var parentDir = File("${Environment.getExternalStorageDirectory().absoluteFile}$sep$doremi")
                 .also { if (!it.exists()) it.mkdirs() }
@@ -30,6 +31,8 @@ class FileManager {
                 .also { if (!it.exists()) it.mkdirs() }
         private val solfaDirPath: String = solfaDir.absolutePath + sep
         private val htmlDirPath = htmlDir.absolutePath + sep
+        private val midiExportDirPath = File("${parentDir.absolutePath}$sep$midi")
+                .also { if (!it.exists()) it.mkdirs() }
 
 
         fun listFiles() = solfaDir
@@ -54,12 +57,12 @@ class FileManager {
                 close()
             }
 
-            "Fichier enregistré"
+            Values.saved
         } catch (e: FileNotFoundException) {
-            "Fichier introuvable :("
+            Values.saveError
 
         } catch (e: Exception) {
-            "Erreur inconnue :("
+            Values.unknownErr
         }
 
 
@@ -93,11 +96,11 @@ class FileManager {
                     FileContent(content = content)
 
                 } catch (e: Exception) {
-                    FileContent(error = e.toString())
+                    FileContent(error = Values.fileOpenError)
                 }
 
             } else {
-                FileContent(error = "Le fichier n'existe pas")
+                FileContent(error = Values.notExisting)
             }
         }
 
@@ -105,9 +108,9 @@ class FileManager {
         fun delete(filename: String) = getFileFromName(filename).let {
             return@let if (it.exists()) {
                 it.delete()
-                "Fichier supprimé"
+                Values.deleted
             } else {
-                "Le fichier n'existe pas."
+                Values.notExisting
             }
         }
 
@@ -124,11 +127,11 @@ class FileManager {
                         context.startActivity(Intent.createChooser(it, filename))
                         null
                     } else {
-                        "No sharing application found!"
+                        Values.noSharingApp
                     }
                 }
             } else {
-                "No file specified!"
+                Values.notExisting
             }
         }
 
@@ -178,25 +181,32 @@ class FileManager {
         }
 
 
-        private fun getCopy(name: String): File {
+        fun getCopy(name: String): File {
             val destFile = getFileFromName(getFileFromName(name).name)
 
             if (!destFile.exists())
                 return destFile
 
-            val dirName = getFileFromName(name).parentFile.name
+            var dirName = getFileFromName(name).parentFile.name
+            if (dirName == "solfa")
+                dirName = ""
+
             val desFileName = destFile.name.replace(".drm", "")
 
-            getFileFromName("$desFileName ($dirName)").also {
-                if (!it.exists())
-                    return it
+            if (dirName != "") {
+                getFileFromName("$desFileName ($dirName)").also {
+                    if (!it.exists())
+                        return it
+                }
             }
 
+            dirName = if (dirName == "") "" else "$dirName - "
             var i = 1
-            var copy = getFileFromName("$desFileName ($dirName - $i)")
+            var copy = getFileFromName("$desFileName ($dirName$i)")
+
             while (copy.exists()) {
                 i++
-                copy = getFileFromName("$desFileName ($dirName - $i)")
+                copy = getFileFromName("$desFileName ($dirName$i)")
             }
 
             return copy
@@ -213,6 +223,11 @@ class FileManager {
                 } catch (e: Exception) {
                 }
             }
+        }
+
+
+        fun getMidiExportFile(name: String): File {
+            return File("${midiExportDirPath.absolutePath}$sep$name.mid")
         }
     }
 }

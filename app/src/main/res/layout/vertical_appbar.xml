@@ -16,59 +16,93 @@
         android:paddingRight="2dp"
         tools:ignore="UselessParent">
 
-        <ImageView
-            android:id="@+id/undo_btn"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:layout_marginTop="10dp"
-            android:layout_marginBottom="10dp"
-            android:contentDescription="@string/app_name"
-            android:src="@drawable/ic_undo" />
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:id="@+id/undo_btn"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="10dp"
+                    android:contentDescription="@string/app_name"
+                    android:src="@drawable/ic_undo" />
 
 
-        <ImageView
-            android:id="@+id/redo_btn"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:layout_marginBottom="10dp"
-            android:contentDescription="@string/app_name"
-            android:src="@drawable/ic_redo" />
+                <ImageView
+                    android:id="@+id/redo_btn"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_marginBottom="10dp"
+                    android:contentDescription="@string/app_name"
+                    android:src="@drawable/ic_redo" />
 
-        <ImageView
-            android:id="@+id/reset_btn"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:layout_marginBottom="10dp"
-            android:clickable="true"
-            android:contentDescription="@string/appbar_content_descr"
-            android:focusable="true"
-            android:soundEffectsEnabled="true"
-            android:src="@drawable/ic_new"
-            tools:focusableInTouchMode="true" />
+                <ImageView
+                    android:id="@+id/reset_btn"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_marginBottom="10dp"
+                    android:clickable="true"
+                    android:contentDescription="@string/appbar_content_descr"
+                    android:focusable="true"
+                    android:soundEffectsEnabled="true"
+                    android:src="@drawable/ic_new"
+                    tools:focusableInTouchMode="true" />
 
-        <ImageView
-            android:id="@+id/print_btn"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:layout_marginBottom="10dp"
-            android:contentDescription="@string/app_name"
-            android:src="@drawable/ic_print" />
 
-        <ImageView
-            android:id="@+id/help_btn"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:layout_marginBottom="10dp"
-            android:contentDescription="@string/app_name"
-            android:src="@drawable/ic_help" />
+                <ImageView
+                    android:id="@+id/browse_btn"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_marginBottom="10dp"
+                    android:clickable="true"
+                    android:contentDescription="@string/appbar_content_descr"
+                    android:focusable="true"
+                    android:soundEffectsEnabled="true"
+                    android:src="@drawable/ic_open_solfa"
+                    tools:focusableInTouchMode="true" />
 
-        <ImageView
-            android:id="@+id/about_btn"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:layout_marginBottom="10dp"
-            android:contentDescription="@string/app_name"
-            android:src="@drawable/ic_about" />
+                <ImageView
+                    android:id="@+id/print_btn"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_marginBottom="10dp"
+                    android:contentDescription="@string/app_name"
+                    android:src="@drawable/ic_print" />
+
+                <ImageView
+                    android:id="@+id/save_mid_btn"
+                    android:layout_width="24dp"
+                    android:layout_height="28dp"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginBottom="10dp"
+                    android:contentDescription="@string/app_name"
+                    android:src="@drawable/ic_save_mid" />
+
+                <ImageView
+                    android:id="@+id/help_btn"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_marginBottom="10dp"
+                    android:contentDescription="@string/app_name"
+                    android:src="@drawable/ic_help" />
+
+                <ImageView
+                    android:id="@+id/about_btn"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_marginBottom="10dp"
+                    android:contentDescription="@string/app_name"
+                    android:src="@drawable/ic_about" />
+
+            </LinearLayout>
+        </ScrollView>
 
 
     </LinearLayout>

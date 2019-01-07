@@ -1,43 +1,59 @@
 <resources>
     <string name="app_name">DoReMi</string>
-    <string name="app_version">1.0.0</string>
+    <string name="app_version">2.0.0</string>
 
-    <string name="text_editor">Structure</string>
-    <string name="text_song">Titre</string>
-    <string name="text_open">Explorer</string>
+    <string name="text_editor">Firafitra</string>
+    <string name="tex_title">Lohateny</string>
+    <string name="text_author">Tonony</string>
+    <string name="text_compositor">Feony</string>
+    <string name="text_release_date">Daty</string>
+    <string name="text_singer">Mpihira</string>
 
-    <string name="tex_title">Titre</string>
-    <string name="text_author">Auteur</string>
-    <string name="text_compositor">Compositeur</string>
-    <string name="text_release_date">Date</string>
-    <string name="text_singer">Chanteur</string>
-
-    <string name="text_signature">Signature</string>
-    <string name="text_key">Clé</string>
+    <string name="text_signature">Gadona</string>
+    <string name="text_key">Do dia</string>
     <string name="text_tempo">Tempo</string>
     <string name="text_swing">Swing</string>
-    <string name="text_play_mute">Jouer / Muet</string>
-    <string name="text_voices_instruments">Voix et Instruments</string>
+    <string name="text_voices_instruments">Feo sy zava-maneno</string>
     <string name="voice_s">S</string>
     <string name="voice_a">A</string>
     <string name="voice_t">T</string>
     <string name="voice_b">B</string>
-    <string name="text_loog">Boucles</string>
+    <string name="text_loog">Andininy</string>
 
     <string name="appbar_content_descr">App par button</string>
     <string name="piano_btns_descr">Piano button</string>
 
-    <string name="save_btn">OK</string>
-    <string name="edit_lyrics">Modifier les paroles</string>
-
-    <string name="search">Recherche...</string>
+    <string name="search">Hikaroka …</string>
 
     <string name="cd_coord_placeholder">1 : 1</string>
-    <string name="text_sign">Signe de renvoi</string>
-    <string name="cd_dal">Renvoi</string>
-    <string name="text_ok">OK</string>
-    <string name="text_modulation">Modulation</string>
+    <string name="text_sign">Marika</string>
+    <string name="cd_dal">Fiverenana</string>
+    <string name="text_modulation">Do dia</string>
     <string name="text_velocity">Nuance</string>
+
+    <string name="text_download">Eo am-pakana ny solfa</string>
+    <string name="text_cancel">Ajanona</string>
+
+    <string name="text_about">Mombamomba</string>
+    <string name="text_changelog">Fanovana</string>
+
+    <string name="action_share">Afindra</string>
+    <string name="action_publish">Zaraina</string>
+    <string name="action_delete">Fafana</string>
+
+    <string name="text_name">Anarana</string>
+    <string name="text_code">Kaody</string>
+    <string name="text_uploading">Manaparitaka …</string>
+    <string name="text_upload_done">Voazara soa aman-tsara</string>
+    <string name="text_retry">Averina</string>
+    <string name="text_done">Vita</string>
+
+    <string name="net_error">Misy olana ny aterineto, avereno afaka foroana fohy.</string>
+
+    <string name="login_tips">Alefaso amin\'ny pejy facebook \"Mitombo amin\'ny finoana\" ny hoe \"doremi\"
+        raha mbola tsy manana kaonty ianao.
+    </string>
+
 
     <string name="text_slogan">
         Andriamanitra o, hihira fihiram-baovao ho Anao aho,
@@ -57,7 +73,7 @@
     </string>
     <string name="text_contact">
         Fifandraisana:
-        \n ravomaniry@gmail.com
+        \nFacebook: Ravo Maniry
         \n 034 19 059 36
     </string>
 
@@ -68,9 +84,15 @@
     <string name="help_play">Mandefa ny feon-kira</string>
     <string name="hep_stop">Manajanona ny feon-kira</string>
     <string name="help_save">Mitahiry ny hira na ny fanovana natao taminy</string>
-    <string name="help_new">Hanomboka hira vaovao</string>
     <string name="help_show_keyboard">Mampiseho ny \"clavier\"</string>
     <string name="help_hide_keyboard">Manafina ny \"clavier\"</string>
+    <string name="help_more">Mampiseho ireo bokotra hafa</string>
+    <string name="help_back">Mamerina ny fanovana natao t@ solfa</string>
+    <string name="help_new">Hanomboka hira vaovao</string>
+    <string name="help_explore">Manokatra ny lisitry ny hira, fakana sy fizarana hira @ internet</string>
+    <string name="help_print">Mitahiry ny solfa ho .html afaka afindra @ solosaina</string>
+    <string name="help_midi">Mitahiry ny feon-kira ho .mid afaka sokafana @ application hafa</string>
+
 
     <string name="help_menu">2. Ny \"Menu\"</string>
 

@@ -224,7 +224,7 @@
                 android:paddingTop="1px"
                 android:paddingBottom="2dp">
 
-                <mg.maniry.doremi.ui.views.PianoView
+                <mg.maniry.doremi.editor.views.PianoView
                     android:id="@+id/piano_view"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
