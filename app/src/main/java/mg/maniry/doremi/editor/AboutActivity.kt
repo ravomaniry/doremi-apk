@@ -14,7 +14,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import kotlinx.android.synthetic.main.changelog_item.view.*
 import mg.maniry.doremi.R
-import mg.maniry.doremi.commonUtils.changelogs
+import mg.maniry.doremi.commonUtils.changelog
 
 
 class AboutActivity : AppCompatActivity() {
@@ -94,12 +94,12 @@ class AboutActivity : AppCompatActivity() {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
                 ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.changelog_item, parent, false))
 
-        override fun getItemCount() = changelogs.size
+        override fun getItemCount() = changelog.size
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             holder.apply {
-                versionName.text = changelogs[position].version
-                logDetails.text = changelogs[position].logs.joinToString("\n") { "- $it" }
+                versionName.text = changelog[position].version
+                logDetails.text = changelog[position].logs.joinToString("\n") { "- $it" }
             }
         }
 

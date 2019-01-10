@@ -4,7 +4,7 @@ package mg.maniry.doremi.commonUtils
 class Changelog(val version: String, val logs: Array<String>)
 
 
-var changelogs = arrayOf(
+var changelog = arrayOf(
         Changelog("2.0.0", arrayOf(
                 "Natao @ fiteny malagasy avokoa ny soratra rehetra azo nadika",
                 "Nafindra toerana ny bokotra sasany",

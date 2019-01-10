@@ -11,8 +11,8 @@ android {
         applicationId "mg.maniry.doremi"
         minSdkVersion 14
         targetSdkVersion 28
-        versionCode 3
-        versionName "2.0.0"
+        versionCode 4
+        versionName "2.0.1"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {

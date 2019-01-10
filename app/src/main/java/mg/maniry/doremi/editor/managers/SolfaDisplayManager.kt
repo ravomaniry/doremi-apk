@@ -8,6 +8,7 @@ import android.view.View
 import android.widget.*
 import com.google.android.flexbox.FlexboxLayout
 import mg.maniry.doremi.R.id.*
+import mg.maniry.doremi.R
 import mg.maniry.doremi.editor.EditorActivity
 import mg.maniry.doremi.editor.views.MeasureView
 import mg.maniry.doremi.editor.views.NotesToSpan
@@ -28,6 +29,11 @@ class SolfaDisplayManager constructor(
     private var headerTextViews = mutableListOf<TextView>()
     private var currentSize = 0
     private var playerCursor: TableLayout? = null
+    private val addButton = View.inflate(mainContext, R.layout.add_measure_btn, null).apply {
+        findViewById<ImageView>(R.id.add_measure_btn).setOnClickListener {
+            addMeasure()
+        }
+    }
 
 
     init {
@@ -84,6 +90,11 @@ class SolfaDisplayManager constructor(
     }
 
 
+    private fun addMeasure() {
+        createTables(partitionData.getMaxLength() + (editorVM.partitionData.signature.value ?: 4))
+    }
+
+
     private fun reRender() {
         currentSize = 0
         textViews = Array(4) { mutableListOf<TextView>() }
@@ -108,7 +119,10 @@ class SolfaDisplayManager constructor(
             }
 
             uiThread {
-                viewsCont.removeAllViews()
+                viewsCont.apply {
+                    removeAllViews()
+                    addView(addButton)
+                }
                 printHeaders()
                 tables.forEach { table -> addMeasureTable(table) }
             }
@@ -216,6 +230,6 @@ class SolfaDisplayManager constructor(
 
 
     private fun addMeasureTable(table: TableLayout) {
-        viewsCont.addView(table)
+        viewsCont.addView(table, viewsCont.childCount - 1)
     }
 }
