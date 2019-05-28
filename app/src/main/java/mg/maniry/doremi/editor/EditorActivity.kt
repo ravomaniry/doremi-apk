@@ -14,6 +14,9 @@ import mg.maniry.doremi.commonUtils.FileManager
 import mg.maniry.doremi.commonUtils.PermissionsManager
 import mg.maniry.doremi.editor.partition.Player
 import mg.maniry.doremi.editor.viewModels.UiViewModel
+import mg.maniry.doremi.editor.xlsxExport.ExcelExport
+import org.jetbrains.anko.doAsync
+import org.jetbrains.anko.uiThread
 
 
 class EditorActivity : AppCompatActivity() {
@@ -39,8 +42,11 @@ class EditorActivity : AppCompatActivity() {
         editorViewModel = ViewModelProviders.of(this).get(EditorViewModel::class.java)
                 .apply { start(getPreferences(Context.MODE_PRIVATE), intent) }
                 .also {
-                    val player = Player(this, it)
+                    val player = it.player ?: Player(this, it)
+                    it.player = player
+                    it.cancelPlayerRelease()
                     uiManager = UiManager(this@EditorActivity, mainView, uiVM, it, player)
+                    it.xlsExport = ExcelExport(assets)
                 }
     }
 
@@ -57,6 +63,7 @@ class EditorActivity : AppCompatActivity() {
     override fun onStop() {
         uiManager?.kill()
         super.onStop()
+        editorViewModel?.releasePlayer()
     }
 
 

@@ -72,9 +72,10 @@ class PartitionData {
     }
 
 
-    private fun createMissingCells(voice: Int, index: Int) {
-        while (notes[voice].size <= index)
+    fun createMissingCells(voice: Int, index: Int) {
+        while (notes[voice].size <= index) {
             notes[voice].add("")
+        }
     }
 
 
@@ -104,14 +105,14 @@ class PartitionData {
 
         info.forEach {
             with(it) {
-                when (_key) {
-                    Labels.KEY -> key.value = _value.toInt()
-                    Labels.TEMPO -> tempo = _value.toInt()
-                    Labels.SWING -> swing.value = _value == "1"
-                    Labels.CHANGES -> _value.split(',').forEach { str ->
+                when (mKey) {
+                    Labels.KEY -> key.value = mValue.toInt()
+                    Labels.TEMPO -> tempo = mValue.toInt()
+                    Labels.SWING -> swing.value = mValue == "1"
+                    Labels.CHANGES -> mValue.split(',').forEach { str ->
                         ChangeEvent.fromString(str)?.run { changeEvents.add(this) }
                     }
-                    Labels.INSTR -> _value.split(",").forEachIndexed { i, instr ->
+                    Labels.INSTR -> mValue.split(",").forEachIndexed { i, instr ->
                         if (i < 4) {
                             instruments[i].value = try {
                                 instr.trim().toInt()
@@ -132,8 +133,8 @@ class PartitionData {
 
         // ReRender
         info.forEach {
-            if (it._key == Labels.SIGNATURE)
-                signature.value = it._value.toInt()
+            if (it.mKey == Labels.SIGNATURE)
+                signature.value = it.mValue.toInt()
         }
     }
 
@@ -170,12 +171,18 @@ class PartitionData {
     private fun trim() {
         val changeEventMax = when {
             changeEvents.isEmpty() -> 0
-            else -> changeEvents.asSequence().map { it.position }.reduce(::max)
+            else -> changeEvents.asSequence().map { it.position }.reduce(::max) + 1
         }
 
         notes.forEach {
-            while (it.size > changeEventMax && it.size > 0 && it[it.size - 1].trim() == "") {
-                it.removeAt(it.size - 1)
+            if (it.size > changeEventMax) {
+                while (it.size > changeEventMax && it.size > 0 && it[it.size - 1].trim() == "") {
+                    it.removeAt(it.size - 1)
+                }
+            } else {
+                while (it.size < changeEventMax) {
+                    it.add("")
+                }
             }
         }
     }

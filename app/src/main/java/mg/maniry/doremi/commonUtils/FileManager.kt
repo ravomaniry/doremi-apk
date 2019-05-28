@@ -10,7 +10,7 @@ import java.lang.Exception
 import java.util.*
 import android.content.Intent
 import android.content.res.AssetManager
-import android.net.Uri
+import android.support.v4.content.FileProvider
 import mg.maniry.doremi.editor.viewModels.FileContent
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.uiThread
@@ -23,6 +23,7 @@ class FileManager {
         private const val solfa = "solfa"
         private const val export = "export"
         private const val midi = "midi"
+        private const val authority = "mg.maniry.doremi"
         private val sep = File.separator
         private var parentDir = File("${Environment.getExternalStorageDirectory().absoluteFile}$sep$doremi")
                 .also { if (!it.exists()) it.mkdirs() }
@@ -30,7 +31,7 @@ class FileManager {
         private val htmlDir = File("${parentDir.absolutePath}$sep$export")
                 .also { if (!it.exists()) it.mkdirs() }
         private val solfaDirPath: String = solfaDir.absolutePath + sep
-        private val htmlDirPath = htmlDir.absolutePath + sep
+        val htmlDirPath = htmlDir.absolutePath + sep
         private val midiExportDirPath = File("${parentDir.absolutePath}$sep$midi")
                 .also { if (!it.exists()) it.mkdirs() }
 
@@ -115,20 +116,26 @@ class FileManager {
         }
 
 
-        fun share(filename: String, context: Context): String? {
+        fun share(filename: String, ctx: Context): String? {
             val file = getFileFromName(filename)
             return if (file.exists()) {
-                return Intent().apply {
-                    action = Intent.ACTION_SEND
-                    type = "text/*"
-                    putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file))
-                }.let {
-                    if (it.resolveActivity(context.packageManager) != null) {
-                        context.startActivity(Intent.createChooser(it, filename))
-                        null
-                    } else {
-                        Values.noSharingApp
+                try {
+                    val uri = FileProvider.getUriForFile(ctx, authority, file)
+                    ctx.grantUriPermission(authority, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    return Intent().apply {
+                        action = Intent.ACTION_SEND
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                    }.let {
+                        if (it.resolveActivity(ctx.packageManager) != null) {
+                            ctx.startActivity(Intent.createChooser(it, filename))
+                            null
+                        } else {
+                            Values.noSharingApp
+                        }
                     }
+                } catch (e: Exception) {
+                    Values.shareErr
                 }
             } else {
                 Values.notExisting
@@ -170,7 +177,6 @@ class FileManager {
                             src.renameTo(copy)
                             copy.name.replace(".drm", "")
                         }
-
                     } else {
                         null
                     }

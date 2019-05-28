@@ -17,3 +17,9 @@ fun addOctaveToNote(note: String, octave: Int?): String {
 
     return "$noteToAdd$octaveToAdd"
 }
+
+
+enum class SelectMode {
+    CURSOR,
+    COPY,
+}

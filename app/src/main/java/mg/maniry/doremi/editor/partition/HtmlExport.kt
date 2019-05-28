@@ -226,7 +226,7 @@ class HtmlExport(
             var index = 0
             var skipNext = false
 
-            for (i in 0..(strNotes.length - 1)) {
+            for (i in 0 until strNotes.length) {
                 if (!skipNext) {
                     if (NotesToSpan.symbols.contains(strNotes[i])) {
                         if (strNotes[i] == '-') {

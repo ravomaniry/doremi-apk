@@ -24,17 +24,15 @@ class BrowserActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         val mainView = View.inflate(this, R.layout.browser_activity, null)
-
         setContentView(mainView)
 
-        if (viewModel == null)
+        if (viewModel == null) {
             viewModel = ViewModelProviders.of(this).get(BrowserViewModel::class.java)
+        }
 
         permissionsManager = PermissionsManager(this).apply { network() }
         networking = Networking(this)
-
         UiManager(this, mainView)
-
         prefs = getPreferences(Context.MODE_PRIVATE)
     }
 

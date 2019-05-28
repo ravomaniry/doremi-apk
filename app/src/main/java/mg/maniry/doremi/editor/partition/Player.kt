@@ -12,11 +12,12 @@ import java.io.File
 import java.lang.Exception
 
 
-class Player constructor(
+data class Player constructor(
         private val mainContext: Context,
         private val editorViewModel: EditorViewModel) {
 
-    private var isPlaying = false
+    var isActive = true
+    var isPlaying = false
     private val mediaPlayer = MediaPlayer()
     val playedVoices = MutableLiveData<MutableList<Boolean>>()
     private val tmpMid = File(mainContext.filesDir, "tmp.mid")
@@ -28,7 +29,7 @@ class Player constructor(
         playedVoices.value = mutableListOf(true, true, true, true)
         mediaPlayer.setOnCompletionListener {
             mediaPlayer.reset()
-            isPlaying = false
+            updateState(false)
         }
     }
 
@@ -43,7 +44,10 @@ class Player constructor(
                         prepare()
                         start()
                     }
-                    isPlaying = true
+                    uiThread {
+                        updateState(true)
+                        editorViewModel.message.value = Values.playing
+                    }
                 } catch (e: Exception) {
                     uiThread {
                         Toast.makeText(mainContext, Values.playerErr, Toast.LENGTH_SHORT).show()
@@ -56,9 +60,13 @@ class Player constructor(
 
     fun stop() {
         if (isPlaying) {
-            isPlaying = false
+            editorViewModel.playerIsPlaying.value = true
+            updateState(false)
             doAsync {
-                mediaPlayer.apply { stop(); reset() }
+                mediaPlayer.run {
+                    stop()
+                    reset()
+                }
             }
         }
     }
@@ -68,5 +76,17 @@ class Player constructor(
         val list = playedVoices.value!!
         list[index] = !list[index]
         playedVoices.value = list
+    }
+
+
+    fun release() {
+        mediaPlayer.stop()
+        mediaPlayer.release()
+    }
+
+
+    private fun updateState(nextState: Boolean) {
+        isPlaying = nextState
+        editorViewModel.playerIsPlaying.value = nextState
     }
 }

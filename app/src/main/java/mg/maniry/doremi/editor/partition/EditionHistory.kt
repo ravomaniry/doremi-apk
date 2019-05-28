@@ -4,9 +4,10 @@ class EditionHistory {
     data class Change(val voice: Int, val index: Int, val prev: String, val next: String)
 
     private var anticipations = mutableListOf<Cell>()
-    private val backChanges = mutableListOf<Change>()
-    private val fwdChanges = mutableListOf<Change>()
+    private val backChanges = mutableListOf<List<Change>>()
+    private val fwdChanges = mutableListOf<List<Change>>()
     private val maxHistoryLength = 20
+
 
     fun reset() {
         anticipations.removeAll { true }
@@ -21,27 +22,37 @@ class EditionHistory {
                     partitionData.getCell(voice, index),
                     partitionData.getCell(voice, index + 1))
 
-            if (index > 0)
+            if (index > 0) {
                 anticipations.add(partitionData.getCell(voice, index - 1))
+            }
         }
     }
 
 
     fun handle(updatedCell: Cell) {
-        anticipations.find { it.voice == updatedCell.voice && it.index == updatedCell.index }
-                ?.run {
-                    backChanges.add(Change(voice, index, content, updatedCell.content))
-                }
+        anticipations.find { it.voice == updatedCell.voice && it.index == updatedCell.index }?.run {
+            backChanges.add(listOf(Change(voice, index, content, updatedCell.content)))
+        }
 
-        if (fwdChanges.size > 0)
+        if (fwdChanges.size > 0) {
             fwdChanges.removeAll { true }
+        }
 
-        while (backChanges.size > maxHistoryLength)
+        while (backChanges.size > maxHistoryLength) {
             backChanges.removeAt(0)
+        }
     }
 
 
-    fun restore(partitionData: PartitionData, forward: Boolean): Cell? {
+    fun handleBulkOps(changes: List<Change>) {
+        backChanges.add(changes)
+        while (backChanges.size > maxHistoryLength) {
+            backChanges.removeAt(0)
+        }
+    }
+
+
+    fun restore(partitionData: PartitionData, forward: Boolean): List<Cell>? {
         return if (forward) {
             redo(partitionData)
         } else {
@@ -50,13 +61,14 @@ class EditionHistory {
     }
 
 
-    private fun redo(partitionData: PartitionData): Cell? {
+    private fun redo(partitionData: PartitionData): List<Cell>? {
         if (fwdChanges.size > 0) {
             fwdChanges.last().run {
-                partitionData.notes[voice][index] = prev
-                backChanges.add(copy(prev = next, next = prev))
+                forEach { partitionData.notes[it.voice][it.index] = it.prev }
+                backChanges.add(map { it.copy(prev = it.next, next = it.prev) })
                 fwdChanges.removeAt(fwdChanges.size - 1)
-                return Cell(voice, index, prev)
+
+                return map { Cell(it.voice, it.index, it.prev) }
             }
         }
 
@@ -64,13 +76,14 @@ class EditionHistory {
     }
 
 
-    private fun undo(partitionData: PartitionData): Cell? {
+    private fun undo(partitionData: PartitionData): List<Cell>? {
         if (backChanges.size > 0) {
             backChanges.last().run {
-                partitionData.notes[voice][index] = prev
-                fwdChanges.add(copy(prev = next, next = prev))
+                forEach { partitionData.notes[it.voice][it.index] = it.prev }
+                fwdChanges.add(map { it.copy(prev = it.next, next = it.prev) })
                 backChanges.removeAt(backChanges.size - 1)
-                return Cell(voice, index, prev)
+
+                return map { Cell(it.voice, it.index, it.prev) }
             }
         }
 

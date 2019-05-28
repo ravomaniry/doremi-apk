@@ -61,10 +61,10 @@ class UploadSolfaUiManager(val context: UploadSolfaActivity, mainView: View) {
         var singer = ""
 
         info.forEach {
-            if (it._key == Labels.TITLE)
-                title = it._value
-            else if (it._key == Labels.SINGER)
-                singer = it._value
+            if (it.mKey == Labels.TITLE)
+                title = it.mValue
+            else if (it.mKey == Labels.SINGER)
+                singer = it.mValue
         }
 
         return title + if (singer == "") "" else " - $singer"

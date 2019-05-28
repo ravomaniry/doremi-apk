@@ -20,7 +20,6 @@ class DrawerManager(private val mainView: View) {
 
 
     private fun handleDrawerClicks() {
-        mainView.findViewById<View>(R.id.drawer_shower_btn).setOnClickListener { openDrawer() }
         mainView.findViewById<View>(R.id.drawer_hider).setOnClickListener { closeDrawer() }
     }
 

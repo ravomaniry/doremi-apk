@@ -180,7 +180,7 @@ class ChangesDialogManager(
             notifyDataSetChanged()
         }
 
-        // SELECT THE CORRECT VALUE IN SPINNERS
+        // CURSOR THE CORRECT VALUE IN SPINNERS
         val values = listOf(velocities, signs, dals, keys)
         val spinners = listOf(veloSpinner, signSpinner, dalSpinner, keysSpinner)
         listOf(ChangeEvent.VELOCITY, ChangeEvent.SIGN, ChangeEvent.DAL, ChangeEvent.MOD).forEachIndexed { i, type ->

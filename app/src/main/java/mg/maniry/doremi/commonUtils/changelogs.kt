@@ -5,6 +5,10 @@ class Changelog(val version: String, val logs: Array<String>)
 
 
 var changelog = arrayOf(
+        Changelog("2.1.0", arrayOf(
+                "Mandika (copier/coller)",
+                "Fanitsiana samihafa (Android 8)"
+        )),
         Changelog("2.0.0", arrayOf(
                 "Natao @ fiteny malagasy avokoa ny soratra rehetra azo nadika",
                 "Nafindra toerana ny bokotra sasany",
@@ -12,8 +16,6 @@ var changelog = arrayOf(
                 "Nafidra toerana ny lisitry ny solfa",
                 "Fanitsiana madinika samihafa"
         )),
-
-
         Changelog("1.0.1", arrayOf(
                 "Fanitsiana bugs sy fanatsarana madinika",
                 "Mitahiry ny solfa ho .html mba ho azo atao @ taratasy",

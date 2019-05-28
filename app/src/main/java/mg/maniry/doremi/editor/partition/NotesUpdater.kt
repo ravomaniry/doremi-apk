@@ -1,5 +1,7 @@
 package mg.maniry.doremi.editor.partition
 
+import mg.maniry.doremi.editor.viewModels.ClipBoard
+
 
 class NotesUpdater constructor(
         private val partitionData: PartitionData) {
@@ -164,5 +166,54 @@ class NotesUpdater constructor(
             cell = it
             initVars()
         }
+    }
+
+
+    fun paste(clipBoard: ClipBoard, target: Cell): PartitionPasteResult {
+        val updatedCells = mutableListOf<Cell>()
+        val history = mutableListOf<EditionHistory.Change>()
+        val notes = partitionData.notes
+        clipBoard.run {
+            (start.voice until end.voice + 1).forEach { voice ->
+                val targetVoice = target.voice + voice
+                if (notes.size > targetVoice) {
+                    partitionData.createMissingCells(targetVoice, end.index + target.index - start.index + 1)
+                    (start.index until end.index + 1).forEach { index ->
+                        val targetIndex = target.index + index - start.index
+                        if (notes[voice].size > index) {
+                            history.add(EditionHistory.Change(targetVoice,
+                                    targetIndex, notes[targetVoice][targetIndex],
+                                    notes[voice][index]))
+
+                            notes[targetVoice][targetIndex] = notes[voice][index]
+                            updatedCells.add(partitionData.getCell(targetVoice, targetIndex))
+                        }
+                    }
+                }
+            }
+        }
+        return PartitionPasteResult(updatedCells, history)
+    }
+
+
+    fun massDelete(clipBoard: ClipBoard): PartitionPasteResult {
+        val updatedCells = mutableListOf<Cell>()
+        val history = mutableListOf<EditionHistory.Change>()
+
+        clipBoard.run {
+            (start.voice until end.voice + 1).forEach { voice ->
+                if (partitionData.notes.size > voice) {
+                    (start.index until end.index + 1).forEach { index ->
+                        if (partitionData.notes[voice].size > index) {
+                            history.add(EditionHistory.Change(voice, index, partitionData.notes[voice][index], ""))
+                            partitionData.notes[voice][index] = ""
+                            updatedCells.add(partitionData.getCell(voice, index))
+                        }
+                    }
+                }
+            }
+        }
+
+        return PartitionPasteResult(updatedCells, history)
     }
 }

@@ -9,6 +9,7 @@ import android.net.Uri
 import mg.maniry.doremi.editor.partition.*
 import mg.maniry.doremi.commonUtils.FileManager
 import mg.maniry.doremi.commonUtils.Values
+import mg.maniry.doremi.editor.xlsxExport.ExcelExport
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.uiThread
 import java.io.File
@@ -19,10 +20,11 @@ class EditorViewModel : ViewModel() {
     private val parser = NotesParser()
     val partitionData = PartitionData()
     private val printer = HtmlExport(partitionData)
+    lateinit var xlsExport: ExcelExport
     private val updater = NotesUpdater(partitionData)
     val lyricsEditMode = MutableLiveData<Boolean>().apply { value = false }
     val octave = MutableLiveData<Int>().apply { value = 0 }
-    var updatedCell = MutableLiveData<Cell>()
+    var updatedCells = MutableLiveData<List<Cell?>>()
     var cursorPos = MutableLiveData<Cell>().apply { value = Cell() }
     var dialogPosition = 0
     val dialogOpen = MutableLiveData<Boolean>()
@@ -34,6 +36,10 @@ class EditorViewModel : ViewModel() {
     var playerLoops = 0
     private var filename = ""
     private var history = EditionHistory()
+    var player: Player? = null
+    val playerIsPlaying = MutableLiveData<Boolean>().apply { value = false }
+    var selectMode = MutableLiveData<SelectMode>().apply { value = SelectMode.CURSOR }
+    var clipBoard: ClipBoard? = null
 
 
     init {
@@ -74,7 +80,7 @@ class EditorViewModel : ViewModel() {
     fun addNote(n: String) {
         history.anticipate(cursorPos.value, partitionData)
         updater.add(addOctaveToNote(n, octave.value)).also {
-            updatedCell.value = it
+            updatedCells.value = listOf(it)
             if (it != null) {
                 if (it.index != cursorPos.value?.index) {
                     prevCursorPos = cursorPos.value
@@ -88,9 +94,9 @@ class EditorViewModel : ViewModel() {
 
 
     fun restoreHistory(isForward: Boolean) {
-        history.restore(partitionData, isForward)?.also {
-            updatedCell.value = it
-            moveCursor(it.voice, it.index)
+        history.restore(partitionData, isForward)?.also { cells ->
+            moveCursor(cells.first().voice, cells.first().index)
+            cells.forEach { cell -> updatedCells.value = listOf(cell) }
         }
     }
 
@@ -104,10 +110,10 @@ class EditorViewModel : ViewModel() {
 
 
     fun moveCursor(voice: Int, index: Int) {
+        endClipboard(voice, index)
         if (cursorPos.value?.voice != voice || cursorPos.value?.index != index) {
             prevCursorPos = cursorPos.value
         }
-
         cursorPos.value = updater.moveCursor(voice, index)
     }
 
@@ -119,13 +125,20 @@ class EditorViewModel : ViewModel() {
 
 
     fun deleteNotes() {
-        history.anticipate(cursorPos.value, partitionData)
-        updater.delete().also {
-            updatedCell.value = it
-            if (it != null && (cursorPos.value == null || it.index != cursorPos.value?.index)) {
-                prevCursorPos = cursorPos.value
-                cursorPos.value = it
-                history.handle(it)
+        if (selectMode.value == SelectMode.COPY && clipBoard != null) {
+            val result = updater.massDelete(clipBoard!!)
+            updatedCells.value = result.updatedCell
+            history.handleBulkOps(result.changes)
+            selectMode.value = SelectMode.CURSOR
+        } else {
+            history.anticipate(cursorPos.value, partitionData)
+            updater.delete().also {
+                updatedCells.value = listOf(it)
+                if (it != null && (cursorPos.value == null || it.index != cursorPos.value?.index)) {
+                    prevCursorPos = cursorPos.value
+                    cursorPos.value = it
+                    history.handle(it)
+                }
             }
         }
     }
@@ -206,7 +219,7 @@ class EditorViewModel : ViewModel() {
         playerCursorPosition = 0
         lyricsEditMode.value = false
         moveCursor(0, 0)
-        updatedCell.value = null
+        updatedCells.value = null
     }
 
 
@@ -230,8 +243,9 @@ class EditorViewModel : ViewModel() {
             loopsNumber = playerLoops
             signature = partitionData.signature.value ?: 4
 
-            if (playedVoices != null)
+            if (playedVoices != null) {
                 this.playedVoices = playedVoices
+            }
         }
 
         createMidiFile(CreateMidiParams(
@@ -257,6 +271,66 @@ class EditorViewModel : ViewModel() {
     fun print() {
         printer.print {
             message.value = "${Values.done}:\nexport/${partitionData.songInfo.filename}.html"
+            doAsync {
+                xlsExport.export(partitionData)
+            }
+        }
+    }
+
+
+    fun releasePlayer() {
+        player?.run {
+            isActive = false
+            doAsync {
+                Thread.sleep(5000)
+                if (!isActive) {
+                    release()
+                }
+            }
+        }
+    }
+
+
+    fun cancelPlayerRelease() {
+        player?.apply { isActive = true }
+    }
+
+
+    fun toggleSelectMode() {
+        if (selectMode.value == SelectMode.CURSOR) {
+            initClipBoard()
+        } else {
+            message.value = Values.clipboardSaved
+            selectMode.value = SelectMode.CURSOR
+        }
+    }
+
+
+    private fun initClipBoard() {
+        cursorPos.value?.run {
+            clipBoard = ClipBoard(this, this)
+        }
+        selectMode.value = SelectMode.COPY
+    }
+
+
+    private fun endClipboard(voice: Int, index: Int) {
+        if (selectMode.value == SelectMode.COPY) {
+            if (clipBoard != null) {
+                clipBoard = clipBoard!!.copy(end = Cell(voice, index))
+                        .apply { reorder() }
+            }
+        }
+    }
+
+
+    fun paste() {
+        if (clipBoard == null || cursorPos.value == null) {
+            message.value = Values.emptyClipboard
+        } else {
+            val pasteResult = updater.paste(clipBoard!!, cursorPos.value!!)
+            updatedCells.value = pasteResult.updatedCell
+            history.handleBulkOps(pasteResult.changes)
         }
     }
 }

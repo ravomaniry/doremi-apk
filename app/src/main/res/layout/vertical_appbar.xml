@@ -29,7 +29,7 @@
                     android:id="@+id/undo_btn"
                     android:layout_width="28dp"
                     android:layout_height="28dp"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginTop="5dp"
                     android:layout_marginBottom="10dp"
                     android:contentDescription="@string/app_name"
                     android:src="@drawable/ic_undo" />
@@ -39,9 +39,10 @@
                     android:id="@+id/redo_btn"
                     android:layout_width="28dp"
                     android:layout_height="28dp"
-                    android:layout_marginBottom="10dp"
+                    android:layout_marginBottom="25dp"
                     android:contentDescription="@string/app_name"
                     android:src="@drawable/ic_redo" />
+
 
                 <ImageView
                     android:id="@+id/reset_btn"
@@ -60,7 +61,7 @@
                     android:id="@+id/browse_btn"
                     android:layout_width="28dp"
                     android:layout_height="28dp"
-                    android:layout_marginBottom="10dp"
+                    android:layout_marginBottom="25dp"
                     android:clickable="true"
                     android:contentDescription="@string/appbar_content_descr"
                     android:focusable="true"
@@ -81,7 +82,7 @@
                     android:layout_width="24dp"
                     android:layout_height="28dp"
                     android:layout_gravity="center_horizontal"
-                    android:layout_marginBottom="10dp"
+                    android:layout_marginBottom="25dp"
                     android:contentDescription="@string/app_name"
                     android:src="@drawable/ic_save_mid" />
 

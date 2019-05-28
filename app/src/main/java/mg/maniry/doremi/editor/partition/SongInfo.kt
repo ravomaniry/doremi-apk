@@ -23,12 +23,12 @@ data class SongInfo(val title: MutableLiveData<String> = MutableLiveData(),
 
         keyValues.forEach {
             with(it) {
-                when (_key) {
-                    Labels.TITLE -> title.value = _value
-                    Labels.AUTHOR -> author.value = _value
-                    Labels.COMP -> compositor.value = _value
-                    Labels.DATE -> releaseDate.value = _value
-                    Labels.SINGER -> singer.value = _value
+                when (mKey) {
+                    Labels.TITLE -> title.value = mValue
+                    Labels.AUTHOR -> author.value = mValue
+                    Labels.COMP -> compositor.value = mValue
+                    Labels.DATE -> releaseDate.value = mValue
+                    Labels.SINGER -> singer.value = mValue
                 }
             }
         }

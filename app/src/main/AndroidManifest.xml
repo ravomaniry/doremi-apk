@@ -30,17 +30,26 @@
 
                 <data
                     android:host="*"
+                    android:mimeType="text/plain"
                     android:pathPattern=".*\\.drm"
                     android:scheme="file" />
             </intent-filter>
         </activity>
 
         <activity android:name=".editor.HelpActivity" />
-
         <activity android:name=".editor.AboutActivity" />
         <activity android:name=".browser.BrowserActivity" />
         <activity android:name=".browser.UploadSolfaActivity" />
 
+        <provider
+            android:name="android.support.v4.content.FileProvider"
+            android:authorities="mg.maniry.doremi"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

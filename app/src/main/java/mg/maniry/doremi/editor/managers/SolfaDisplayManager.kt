@@ -14,6 +14,7 @@ import mg.maniry.doremi.editor.views.MeasureView
 import mg.maniry.doremi.editor.views.NotesToSpan
 import mg.maniry.doremi.editor.viewModels.EditorViewModel
 import mg.maniry.doremi.editor.partition.MeasureHeader
+import mg.maniry.doremi.editor.viewModels.SelectMode
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.uiThread
 
@@ -29,8 +30,12 @@ class SolfaDisplayManager constructor(
     private var headerTextViews = mutableListOf<TextView>()
     private var currentSize = 0
     private var playerCursor: TableLayout? = null
+    private val cursorBgColor = Color.DKGRAY
+    private val selectBgColor = Color.rgb(200, 200, 255)
+    private val regularBg = Color.TRANSPARENT
+    private val selectedTextViews = mutableListOf<TextView>()
     private val addButton = View.inflate(mainContext, R.layout.add_measure_btn, null).apply {
-        findViewById<ImageView>(R.id.add_measure_btn).setOnClickListener {
+        findViewById<ImageView>(add_measure_btn).setOnClickListener {
             addMeasure()
         }
     }
@@ -40,6 +45,7 @@ class SolfaDisplayManager constructor(
         observeReRender()
         observeUpdate()
         observeCursor()
+        observeSelectMode()
     }
 
 
@@ -53,12 +59,13 @@ class SolfaDisplayManager constructor(
 
 
     private fun observeUpdate() {
-        editorVM.updatedCell.observe(mainContext as EditorActivity, Observer {
-            if (it != null)
-                with(it) {
+        editorVM.updatedCells.observe(mainContext as EditorActivity, Observer {
+            it?.forEach { cell ->
+                cell?.run {
                     createTables(index + 1)
                     textViews[voice][index].text = NotesToSpan.convert(content)
                 }
+            }
         })
 
         editorVM.headerTvTrigger.observe(mainContext, Observer {
@@ -70,16 +77,55 @@ class SolfaDisplayManager constructor(
 
     private fun observeCursor() {
         editorVM.cursorPos.observe(mainContext as EditorActivity, Observer {
-            with(it) {
-                if (this != null && textViews[voice].size > index)
-                    textViews[voice][index].setBackgroundColor(Color.YELLOW)
+            it?.run {
+                if (textViews[voice].size > index) {
+                    placeCursorOn(textViews[voice][index])
+                }
             }
 
-            with(editorVM.prevCursorPos) {
-                if (this != null && textViews[voice].size > index)
-                    textViews[voice][index].setBackgroundColor(Color.TRANSPARENT)
+            editorVM.prevCursorPos?.run {
+                if (textViews[voice].size > index) {
+                    removeCursorFrom(textViews[voice][index])
+                }
+            }
+
+            highlightClipBoard()
+        })
+    }
+
+
+    private fun observeSelectMode() {
+        editorVM.selectMode.observe(mainContext as EditorActivity, Observer {
+            highlightClipBoard()
+            if (it == SelectMode.CURSOR) {
+                editorVM.cursorPos.value?.run {
+                    if (textViews.size > voice && textViews[voice].size > index) {
+                        placeCursorOn(textViews[voice][index])
+                    }
+                }
             }
         })
+    }
+
+
+    private fun highlightClipBoard() {
+        selectedTextViews.removeAll {
+            it.setBackgroundColor(regularBg)
+            true
+        }
+        if (editorVM.selectMode.value == SelectMode.COPY) {
+            editorVM.clipBoard?.run {
+                editorVM.cursorPos.value?.run { removeCursorFrom(textViews[voice][index]) }
+                (start.voice until end.voice + 1).forEach { voiceIndex ->
+                    (start.index until end.index + 1).forEach { noteIndex ->
+                        textViews[voiceIndex][noteIndex].run {
+                            selectedTextViews.add(this)
+                            setBackgroundColor(selectBgColor)
+                        }
+                    }
+                }
+            }
+        }
     }
 
 
@@ -109,13 +155,14 @@ class SolfaDisplayManager constructor(
 
             partitionData.notes.forEachIndexed { voice, notes ->
                 notes.forEachIndexed { index, note ->
-                    if (note != "" && note != " ")
+                    if (note != "" && note != " ") {
                         textViews[voice][index].text = NotesToSpan.convert(note)
+                    }
                 }
             }
 
             with(editorVM.cursorPos.value) {
-                this?.run { textViews[voice][index].setBackgroundColor(Color.YELLOW) }
+                this?.run { placeCursorOn(textViews[voice][index]) }
             }
 
             uiThread {
@@ -142,10 +189,11 @@ class SolfaDisplayManager constructor(
                     }
                     .also {
                         addTableCells(it, currentSize)
-                        if (addView)
+                        if (addView) {
                             addMeasureTable(it)
-                        else
+                        } else {
                             tables.add(it)
+                        }
                     }
 
             currentSize += partitionData.signature.value!!
@@ -160,7 +208,7 @@ class SolfaDisplayManager constructor(
         table.addView(TableRow(mainContext).apply {
             gravity = Gravity.CENTER
 
-            (0..(signature - 1)).forEach { i ->
+            (0 until signature).forEach { i ->
                 addView(TextView(mainContext)
                         .apply {
                             minWidth = 30
@@ -168,29 +216,31 @@ class SolfaDisplayManager constructor(
                         }
                         .also { tv -> headerTextViews.add(tv) })
 
-                if (i != signature - 1)
+                if (i != signature - 1) {
                     addView(TextView(mainContext))
+                }
             }
         })
 
         Array(4) { TableRow(mainContext) }.forEachIndexed { voice, tRow ->
-            for (i in 0..(signature - 1)) {
+            for (i in 0 until signature) {
                 tRow.addView(TextView(mainContext)
                         .apply {
                             minWidth = 30
                             gravity = Gravity.CENTER_HORIZONTAL
-                            setOnClickListener { editorVM.moveCursor(voice, currentSize + i) }
-                            textViews[voice].add(this)
+                            setTextColor(Color.DKGRAY)
+                            setOnClickListener { selectCell(voice, currentSize + i) }
+                        }.also {
+                            textViews[voice].add(it)
                         }
                 )
 
                 if (i != signature - 1) {
                     tRow.addView(TextView(mainContext).apply {
-                        setTextColor(Color.rgb(40, 100, 50))
-                        text = if (signature > 3 && signature % 2 == 0 && i + 1 == signature / 2) {
-                            " | "
-                        } else {
-                            " : "
+                        setTextColor(Color.rgb(100, 100, 100))
+                        text = when {
+                            signature > 3 && signature % 2 == 0 && i + 1 == signature / 2 -> " | "
+                            else -> " : "
                         }
                     })
                 }
@@ -231,5 +281,34 @@ class SolfaDisplayManager constructor(
 
     private fun addMeasureTable(table: TableLayout) {
         viewsCont.addView(table, viewsCont.childCount - 1)
+    }
+
+
+    private fun placeCursorOn(tv: TextView) {
+        tv.apply {
+            val bg = when (editorVM.selectMode.value) {
+                SelectMode.CURSOR -> cursorBgColor
+                else -> selectBgColor
+            }
+            val fg = when (editorVM.selectMode.value) {
+                SelectMode.CURSOR -> Color.WHITE
+                else -> Color.DKGRAY
+            }
+            setBackgroundColor(bg)
+            setTextColor(fg)
+        }
+    }
+
+
+    private fun removeCursorFrom(tv: TextView) {
+        tv.apply {
+            setBackgroundColor(Color.TRANSPARENT)
+            setTextColor(Color.BLACK)
+        }
+    }
+
+
+    private fun selectCell(voice: Int, index: Int) {
+        editorVM.moveCursor(voice, index)
     }
 }

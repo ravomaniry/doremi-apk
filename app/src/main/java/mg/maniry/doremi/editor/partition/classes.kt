@@ -11,8 +11,8 @@ data class Cell(val voice: Int = 0, val index: Int = 0, val content: String = ""
 
 
 class KeyValue constructor(keyValue: List<String>) {
-    val _key = keyValue[0].trim()
-    val _value = if (keyValue.size < 2) "" else keyValue[1].trim()
+    val mKey = keyValue[0].trim()
+    val mValue = if (keyValue.size < 2) "" else keyValue[1].trim()
 }
 
 
@@ -67,3 +67,6 @@ data class MeasureHeader(val position: Int, var text: String, val types: Mutable
         return span
     }
 }
+
+
+data class PartitionPasteResult(val updatedCell: MutableList<Cell>, val changes: MutableList<EditionHistory.Change>)

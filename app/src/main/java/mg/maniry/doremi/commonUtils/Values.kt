@@ -15,8 +15,11 @@ class Values {
         const val notExisting = "Tsy misy io solfa io"
         const val unknownErr = "Olana tsy fantatra"
         const val noSharingApp = "Tsy misy application afaka mizara io solfa io."
+        const val shareErr = "Tsy mahavita mizara io solfa io ny doremi."
 
         const val playing = "Eo am-pamakiana ny feon-kira"
         const val playerErr = "Tsy afaka vakiana ilay feon-kira"
+        const val emptyClipboard = "Tsy misy azo adika!"
+        const val clipboardSaved = "Tadidy :D"
     }
 }
