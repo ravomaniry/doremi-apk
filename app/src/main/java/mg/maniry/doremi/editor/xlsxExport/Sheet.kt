@@ -383,38 +383,13 @@ class Sheet(private val shared: SharedStrings, private val partitionData: Partit
 
 
     private fun numberToAZ(number: Int): String {
-        var digits = 0
-        val base = 26
         var currentValue = number + 1
-        val numbers = mutableListOf<Int>()
-
-        while (currentValue > Math.pow(base.toDouble(), (digits + 1).toDouble())) {
-            digits++
+        val sb = StringBuilder()
+        while (currentValue > 0) {
+            currentValue--
+            sb.append('A' + currentValue % 26)
+            currentValue /= 26
         }
-
-        var i = digits
-        while (i >= 0) {
-            var j = base
-            var done = false
-            while (j >= 0) {
-                val full = Math.pow(base.toDouble(), i.toDouble())
-                if (!done && currentValue > full * j) {
-                    done = true
-                    numbers.add(j)
-                    currentValue -= (full * j).toInt()
-                }
-                j--
-            }
-            i--
-        }
-
-        var str = ""
-        numbers.forEachIndexed { index, n ->
-            str += when (index) {
-                numbers.size - 1 -> chars[n]
-                else -> chars[n - 1]
-            }
-        }
-        return str
+        return sb.reverse().toString()
     }
 }

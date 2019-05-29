@@ -21,5 +21,7 @@ class Values {
         const val playerErr = "Tsy afaka vakiana ilay feon-kira"
         const val emptyClipboard = "Tsy misy azo adika!"
         const val clipboardSaved = "Tadidy :D"
+
+        const val strange = "hmmm..."
     }
 }

@@ -18,7 +18,8 @@ data class Player constructor(
 
     var isActive = true
     var isPlaying = false
-    private val mediaPlayer = MediaPlayer()
+    private var isReleased = false
+    private var mediaPlayer = MediaPlayer()
     val playedVoices = MutableLiveData<MutableList<Boolean>>()
     private val tmpMid = File(mainContext.filesDir, "tmp.mid")
             .apply { if (!exists()) createNewFile() }
@@ -34,7 +35,18 @@ data class Player constructor(
     }
 
 
+    private fun notify(msg: String) {
+        Toast.makeText(mainContext, msg, Toast.LENGTH_SHORT).show()
+    }
+
+
     fun play() {
+        if (isReleased) {
+            mediaPlayer = MediaPlayer()
+            isReleased = false
+            isActive = true
+        }
+
         if (!isPlaying) {
             doAsync {
                 try {
@@ -50,7 +62,7 @@ data class Player constructor(
                     }
                 } catch (e: Exception) {
                     uiThread {
-                        Toast.makeText(mainContext, Values.playerErr, Toast.LENGTH_SHORT).show()
+                        notify(Values.playerErr)
                     }
                 }
             }
@@ -80,8 +92,11 @@ data class Player constructor(
 
 
     fun release() {
-        mediaPlayer.stop()
-        mediaPlayer.release()
+        if (!isActive) {
+            mediaPlayer.stop()
+            mediaPlayer.release()
+            isReleased = true
+        }
     }
 
 
