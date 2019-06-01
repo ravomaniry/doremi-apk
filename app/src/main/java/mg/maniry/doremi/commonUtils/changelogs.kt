@@ -7,7 +7,8 @@ class Changelog(val version: String, val logs: Array<String>)
 var changelog = arrayOf(
         Changelog("2.1.0", arrayOf(
                 "Mandika (copier/coller)",
-                "Fanitsiana samihafa (Android 8)"
+                "Fanitsiana samihafa (Android 8)",
+                "Famadihana ny solfa ho .xlsx azo sokafana @ MS Excel na LibreOffice"
         )),
         Changelog("2.0.0", arrayOf(
                 "Natao @ fiteny malagasy avokoa ny soratra rehetra azo nadika",
