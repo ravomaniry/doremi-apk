@@ -1,6 +1,7 @@
 package mg.maniry.doremi.editor.xlsxExport
 
 import android.util.Xml
+import mg.maniry.doremi.editor.partition.ChangeEvent
 import mg.maniry.doremi.editor.partition.PartitionData
 import org.xmlpull.v1.XmlSerializer
 import java.io.StringWriter
@@ -14,9 +15,8 @@ class Sheet(private val shared: SharedStrings, private val partitionData: Partit
     private val maxPageWidth = 94
     private lateinit var cellWidths: List<Float>
     private var measurePerRow = 0
-    private var rowSize = 6
-    private val chars = listOf('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-            'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z')
+    private var rowSize = partitionData.notes.size + 3
+    private var lastRow = 0
 
 
     fun createXml(): String {
@@ -69,13 +69,10 @@ class Sheet(private val shared: SharedStrings, private val partitionData: Partit
         }
 
         measurePerRow = 0
-        while (measurePerRow * measureWidth < maxPageWidth) {
+        while ((measurePerRow + 1) * measureWidth + 1 <= maxPageWidth) {
             measurePerRow++
         }
 
-        if (measurePerRow > 1 && measurePerRow * measureWidth > maxPageWidth + 8) {
-            measurePerRow--
-        }
         val oneMeasureCellWidth = cellWidths.map { it }
         for (i in 0 until measurePerRow + 1) {
             cellWidths.addAll(oneMeasureCellWidth)
@@ -87,14 +84,14 @@ class Sheet(private val shared: SharedStrings, private val partitionData: Partit
 
     private fun getRequiredWidth(note: String): Float {
         return when (note.length) {
-            0 -> 3f
-            1 -> 3f
-            2 -> 3f
-            3 -> 4.8f
-            4 -> 4.8f
-            5 -> 5.5f
-            6 -> 5.9f
-            else -> 2f * 0.3f * note.length
+            0 -> 2.4f
+            1 -> 2.8f
+            2 -> 3.2f
+            3 -> 3.8f
+            4 -> 4.2f
+            5 -> 4.8f
+            6 -> 5.2f
+            else -> 1.8f * 0.3f * note.length
         }
     }
 
@@ -103,20 +100,16 @@ class Sheet(private val shared: SharedStrings, private val partitionData: Partit
         serializer.apply {
             setOutput(writer)
             startDocument("UTF-8", true)
-            startTag("", "worksheet")
-            attribute("", "xmlns", xmlns)
-            attribute("", "xmlns:r", xmlnsR)
+            setTagAttrValue(tag = "worksheet", closeTag = false,
+                    attr = arrayOf("xmlns", xmlns, "xmlns:r", xmlnsR))
         }
     }
 
 
     private fun sheetPr() {
         serializer.apply {
-            startTag("", "sheetPr")
-            attribute("", "filterMode", "false")
-            startTag("", "pageSetUpPr")
-            attribute("", "fitToPage", "false")
-            endTag("", "pageSetUpPr")
+            setTagAttrValue("sheetPr", arrayOf("filterMode", "false"), null, false)
+            setTagAttrValue("pageSetUpPr", arrayOf("fitToPage", "false"))
             endTag("", "sheetPr")
         }
     }
@@ -124,32 +117,30 @@ class Sheet(private val shared: SharedStrings, private val partitionData: Partit
 
     private fun sheetViews() {
         serializer.apply {
-            startTag("", "sheetViews")
+            setTagAttrValue(tag = "sheetViews", closeTag = false)
 
-            startTag("", "sheetView")
-            attribute("", "showFormulas", "false")
-            attribute("", "showGridLines", "true")
-            attribute("", "showRowColHeaders", "true")
-            attribute("", "showZeros", "true")
-            attribute("", "rightToLeft", "false")
-            attribute("", "tabSelected", "true")
-            attribute("", "showOutlineSymbols", "true")
-            attribute("", "defaultGridColor", "true")
-            attribute("", "view", "normal")
-            attribute("", "topLeftCell", "A1")
-            attribute("", "colorId", "64")
-            attribute("", "zoomScale", "100")
-            attribute("", "zoomScaleNormal", "100")
-            attribute("", "zoomScalePageLayoutView", "100")
-            attribute("", "workbookViewId", "0")
-            endTag("", "sheetView")
+            setTagAttrValue("sheetView", arrayOf(
+                    "showFormulas", "false",
+                    "showGridLines", "true",
+                    "showRowColHeaders", "true",
+                    "showZeros", "true",
+                    "rightToLeft", "false",
+                    "tabSelected", "true",
+                    "showOutlineSymbols", "true",
+                    "defaultGridColor", "true",
+                    "view", "normal",
+                    "topLeftCell", "A1",
+                    "colorId", "64",
+                    "zoomScale", "100",
+                    "zoomScaleNormal", "100",
+                    "zoomScalePageLayoutView", "100",
+                    "workbookViewId", "0"))
 
-            startTag("", "selection")
-            attribute("", "pane", "topLeft")
-            attribute("", "activeCell", "A1")
-            attribute("", "activeCellId", "0")
-            attribute("", "sqref", "L4")
-            endTag("", "selection")
+            setTagAttrValue("selection", arrayOf(
+                    "pane", "topLeft",
+                    "activeCell", "A1",
+                    "activeCellId", "0",
+                    "sqref", "L4"))
 
             endTag("", "sheetViews")
         }
@@ -161,40 +152,34 @@ class Sheet(private val shared: SharedStrings, private val partitionData: Partit
         val rowsNum = with(partitionData) {
             Math.ceil(getMaxLength().toDouble() / (measurePerRow * signature.value!!.toDouble()))
         }
-        serializer.apply {
-            startTag("", "dimension")
-            attribute("", "ref", "A1:$lastColName${rowsNum * 6}")
-            endTag("", "dimension")
-        }
+        serializer.setTagAttrValue("dimension", arrayOf("ref", "A1:$lastColName${rowsNum * 6}"))
     }
 
 
     private fun sheetFormatPr() {
-        serializer.apply {
-            startTag("", "sheetFormatPr")
-            attribute("", "defaultRowHeight", "12.8")
-            attribute("", "zeroHeight", "false")
-            attribute("", "outlineLevelRow", "0")
-            attribute("", "outlineLevelCol", "0")
-            endTag("", "sheetFormatPr")
-        }
+        serializer.setTagAttrValue("sheetFormatPr", arrayOf(
+                "defaultRowHeight", "12.8",
+                "zeroHeight", "false",
+                "outlineLevelRow", "0",
+                "outlineLevelCol", "0"
+        ))
     }
 
 
     private fun cols() {
         serializer.apply {
-            startTag("", "cols")
+            setTagAttrValue(tag = "cols", closeTag = false)
             cellWidths.forEachIndexed { i, w ->
-                startTag("", "col")
-                attribute("", "collapsed", "false")
-                attribute("", "customWidth", "true")
-                attribute("", "hidden", "false")
-                attribute("", "outlineLevel", "0")
-                attribute("", "max", "${i + 1}")
-                attribute("", "min", "${i + 1}")
-                attribute("", "style", "0")
-                attribute("", "width", "$w")
-                endTag("", "col")
+                setTagAttrValue("col", arrayOf(
+                        "collapsed", "false",
+                        "customWidth", "true",
+                        "hidden", "false",
+                        "outlineLevel", "0",
+                        "max", "${i + 1}",
+                        "min", "${i + 1}",
+                        "style", "0",
+                        "width", "$w"
+                ))
             }
             endTag("", "cols")
         }
@@ -204,6 +189,7 @@ class Sheet(private val shared: SharedStrings, private val partitionData: Partit
     private fun sheetData() {
         val groups = groupNotesPerMeasure()
         val signature = partitionData.signature.value!!
+        val notesPerGroup = measurePerRow * signature
         val colNames = (0 until measurePerRow * 2 * signature * signature + 4).map {
             numberToAZ(it)
         }
@@ -211,66 +197,132 @@ class Sheet(private val shared: SharedStrings, private val partitionData: Partit
         serializer.apply {
             startTag("", "sheetData")
 
-            groups.forEachIndexed { rowIndex, row ->
-                startTag("", "row")
-                attribute("", "r", "${rowIndex + 1}")
-                attribute("", "s", "2")
-                attribute("", "customFormat", "false")
-                attribute("", "ht", "12.8")
-                attribute("", "hidden", "false")
-                attribute("", "customHeight", "false")
-                attribute("", "outlineLevel", "0")
-                attribute("", "collapsed", "false")
+            groups.forEachIndexed { groupIndex, row ->
+                val headerRowIndex = groupIndex * rowSize + 1
+                setTagAttrValue(tag = "row", closeTag = false, attr = arrayOf(
+                        "r", "$headerRowIndex",
+                        "s", "2",
+                        "customFormat", "false",
+                        "ht", "12.8",
+                        "hidden", "false",
+                        "customHeight", "false",
+                        "outlineLevel", "0",
+                        "collapsed", "false"
+                ))
 
-                row.mData.forEachIndexed { measureIndex, measure ->
-                    val startIndex = (2 * signature - 1) * measureIndex
-                    val startRow = 1 + rowIndex * rowSize
-                    measure.mData.forEachIndexed { voiceIndex, voiceNotes ->
-                        voiceNotes.forEachIndexed { indexInMeasure, notes ->
-                            val currentIndex = startIndex + 2 * indexInMeasure
-                            val s = when (indexInMeasure) {
-                                0 -> "2"
-                                signature - 1 -> "3"
-                                else -> "0"
+                for (measureIndex in (0 until row.mData.size)) {
+                    for (timeIndex in 0 until signature) {
+                        val changePosition = notesPerGroup * groupIndex + measureIndex * signature + timeIndex
+                        val colIndex = (signature + signature - 1) * measureIndex + timeIndex * 2
+                        val cellRef = "${colNames[colIndex]}$headerRowIndex"
+                        val events = partitionData.changeEvents.filter { it.position == changePosition }.joinToString(" ") {
+                            when (it.type) {
+                                ChangeEvent.MOD -> "Do=${it.value}"
+                                ChangeEvent.MVMT -> "T=${it.value}"
+                                else -> it.value
                             }
-                            startTag("", "c")
-                            attribute("", "r", "${colNames[currentIndex]}${startRow + voiceIndex}")
-                            attribute("", "t", "s")
-                            attribute("", "s", s)
+                        }
 
-                            if (notes != "") {
-                                startTag("", "v")
-                                text("${shared.getIndex(notes)}")
-                                endTag("", "v")
-                            }
-
+                        if (events != "") {
+                            setTagAttrValue(tag = "c", closeTag = false, attr = arrayOf("r", cellRef, "t", "s", "s", "0"))
+                            setTagAttrValue("v", null, "${shared.getIndex(events, true)}")
                             endTag("", "c")
-
-                            if (indexInMeasure < signature - 1) {
-                                val sep = when {
-                                    signature % 2 == 0 && indexInMeasure % 2 == 1 -> "|"
-                                    else -> ":"
-                                }
-                                startTag("", "c")
-                                attribute("", "r", "${colNames[currentIndex + 1]}${startRow + voiceIndex}")
-                                attribute("", "s", "0")
-                                attribute("", "t", "s")
-
-                                startTag("", "v")
-                                text("${shared.getIndex(sep)}")
-                                endTag("", "v")
-
-                                endTag("", "c")
-                            }
                         }
                     }
                 }
 
                 endTag("", "row")
-            }
 
-            endTag("", "sheetData")
+
+                for (voiceIndex in (0 until partitionData.notes.size)) {
+                    val rowIndex = groupIndex * rowSize + voiceIndex + 2
+                    lastRow = rowIndex
+
+                    setTagAttrValue(tag = "row", closeTag = false, attr = arrayOf(
+                            "r", "$rowIndex",
+                            "s", "2",
+                            "customFormat", "false",
+                            "ht", "12.8",
+                            "hidden", "false",
+                            "customHeight", "false",
+                            "outlineLevel", "0",
+                            "collapsed", "false"
+                    ))
+
+                    row.mData.forEachIndexed { measureIndex, xlsMeasure ->
+                        for (timeIndex in 0 until signature) {
+                            val colIndex = (signature + signature - 1) * measureIndex + timeIndex * 2
+                            val cellName = "${colNames[colIndex]}$rowIndex"
+                            val content = if (xlsMeasure.mData[voiceIndex].size > timeIndex) {
+                                xlsMeasure.mData[voiceIndex][timeIndex]
+                            } else {
+                                ""
+                            }
+
+                            val s = when (timeIndex) {
+                                0 -> "2"
+                                signature - 1 -> "3"
+                                else -> "0"
+                            }
+
+                            setTagAttrValue(tag = "c", closeTag = false, attr = arrayOf(
+                                    "r", cellName, "t", "s", "s", s
+                            ))
+
+                            if (content != "") {
+                                setTagAttrValue("v", null, "${shared.getIndex(content)}")
+                            }
+
+                            endTag("", "c")
+
+                            if (timeIndex < signature - 1) {
+                                val sepColName = "${colNames[colIndex + 1]}$rowIndex"
+                                val sep = when {
+                                    signature % 2 == 0 && timeIndex % 2 == 1 -> "|"
+                                    else -> ":"
+                                }
+
+                                setTagAttrValue(tag = "c", closeTag = false, attr = arrayOf(
+                                        "r", sepColName, "s", "0", "t", "s"
+                                ))
+                                setTagAttrValue("v", null, "${shared.getIndex(sep)}")
+                                endTag("", "c")
+                            }
+                        }
+                    }
+                    endTag("", "row")
+                }
+            }
         }
+
+
+        var rowIndex = lastRow + 2
+        partitionData.lyrics.value?.split('\n')?.forEach {
+            rowIndex++
+
+            serializer.apply {
+                setTagAttrValue(tag = "row", closeTag = false, attr = arrayOf(
+                        "r", "$rowIndex",
+                        "s", "2",
+                        "customFormat", "false",
+                        "ht", "12.8",
+                        "hidden", "false",
+                        "customHeight", "false",
+                        "outlineLevel", "0",
+                        "collapsed", "false"
+                ))
+
+                setTagAttrValue(tag = "c", closeTag = false, attr = arrayOf(
+                        "r", "A$rowIndex", "t", "s", "s", "0"
+                ))
+                setTagAttrValue("v", null, "${shared.getIndex(it, true)}")
+
+                endTag("", "c")
+                endTag("", "row")
+            }
+        }
+
+        serializer.endTag("", "sheetData")
     }
 
 
@@ -311,64 +363,53 @@ class Sheet(private val shared: SharedStrings, private val partitionData: Partit
 
 
     private fun printOptions() {
-        serializer.apply {
-            startTag("", "printOptions")
-            attribute("", "headings", "false")
-            attribute("", "gridLines", "false")
-            attribute("", "gridLinesSet", "true")
-            attribute("", "horizontalCentered", "true")
-            attribute("", "verticalCentered", "false")
-            endTag("", "printOptions")
-        }
+        serializer.setTagAttrValue("printOptions", arrayOf(
+                "headings", "false",
+                "gridLines", "false",
+                "gridLinesSet", "true",
+                "horizontalCentered", "true",
+                "verticalCentered", "false"
+        ))
     }
 
 
     private fun pageMargins() {
-        serializer.apply {
-            startTag("", "pageMargins")
-            attribute("", "left", "0.4")
-            attribute("", "right", "0.4")
-            attribute("", "top", "1")
-            attribute("", "bottom", "1")
-            attribute("", "header", "0.4")
-            attribute("", "footer", "0.4")
-            endTag("", "pageMargins")
-        }
+        serializer.setTagAttrValue("pageMargins", arrayOf(
+                "left", "0.4",
+                "right", "0.4",
+                "top", "1",
+                "bottom", "1",
+                "header", "0.4",
+                "footer", "0.4"
+        ))
     }
 
 
     private fun pageSetup() {
-        serializer.apply {
-            startTag("", "pageSetup")
-            attribute("", "paperSize", "1")
-            attribute("", "scale", "100")
-            attribute("", "firstPageNumber", "1")
-            attribute("", "fitToWidth", "1")
-            attribute("", "fitToHeight", "1")
-            attribute("", "pageOrder", "downThenOver")
-            attribute("", "orientation", "portrait")
-            attribute("", "blackAndWhite", "false")
-            attribute("", "draft", "false")
-            attribute("", "cellComments", "none")
-            attribute("", "useFirstPageNumber", "true")
-            attribute("", "horizontalDpi", "300")
-            attribute("", "verticalDpi", "300")
-            attribute("", "copies", "1")
-            endTag("", "pageSetup")
-        }
+        serializer.setTagAttrValue("pageSetup", arrayOf(
+                "paperSize", "1",
+                "scale", "96",
+                "firstPageNumber", "1",
+                "fitToWidth", "1",
+                "fitToHeight", "1",
+                "pageOrder", "downThenOver",
+                "orientation", "portrait",
+                "blackAndWhite", "false",
+                "draft", "false",
+                "cellComments", "none",
+                "useFirstPageNumber", "true",
+                "horizontalDpi", "300",
+                "verticalDpi", "300",
+                "copies", "1"
+        ))
     }
 
 
     private fun headerFooter() {
         serializer.apply {
-            startTag("", "headerFooter")
-            attribute("", "differentFirst", "false")
-            attribute("", "differentOddEven", "false")
-
-            startTag("", "oddHeader")
-            text(partitionData.songInfo.filename)
-            endTag("", "oddHeader")
-
+            setTagAttrValue(tag = "headerFooter", closeTag = false,
+                    attr = arrayOf("differentFirst", "false", "differentOddEven", "false"))
+            setTagAttrValue("oddHeader", null, partitionData.songInfo.filename)
             endTag("", "headerFooter")
         }
     }

@@ -283,9 +283,7 @@ class EditorViewModel : ViewModel() {
             isActive = false
             doAsync {
                 Thread.sleep(10000)
-                if (!isActive) {
-                    release()
-                }
+                uiThread { release() }
             }
         }
     }

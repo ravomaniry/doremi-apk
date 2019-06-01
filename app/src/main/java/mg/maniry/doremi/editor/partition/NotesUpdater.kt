@@ -175,7 +175,7 @@ class NotesUpdater constructor(
         val notes = partitionData.notes
         clipBoard.run {
             (start.voice until end.voice + 1).forEach { voice ->
-                val targetVoice = target.voice + voice
+                val targetVoice = target.voice + voice - start.voice
                 if (notes.size > targetVoice) {
                     partitionData.createMissingCells(targetVoice, end.index + target.index - start.index + 1)
                     (start.index until end.index + 1).forEach { index ->

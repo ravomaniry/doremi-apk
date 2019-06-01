@@ -8,15 +8,19 @@ import java.io.StringWriter
 class SharedStrings {
     private val xmlns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
     private val values = mutableListOf<String>()
+    private val toPreserve = mutableListOf<String>()
     private var count = 0
 
 
-    fun getIndex(s: String) = when {
-        values.contains(s) -> {
+    fun getIndex(s: String, preserve: Boolean = false): Int {
+        if (preserve && !toPreserve.contains(s)) {
+            toPreserve.add(s)
+        }
+
+        return if (values.contains(s)) {
             count++
             values.indexOf(s)
-        }
-        else -> {
+        } else {
             values.add(s)
             count++
             values.size - 1
@@ -45,7 +49,7 @@ class SharedStrings {
 
 
     private fun supSubOctave(strNotes: String, serializer: XmlSerializer) {
-        if (strNotes.length <= 1) {
+        if (strNotes.length <= 1 || toPreserve.contains(strNotes)) {
             serializer.apply {
                 startTag("", "si")
                 startTag("", "t")
@@ -105,7 +109,7 @@ class SharedStrings {
                     }
 
                     startTag("", "sz")
-                    attribute("", "val", if (it.type == 0) "10" else "6")
+                    attribute("", "val", "10")
                     endTag("", "sz")
 
                     startTag("", "family")

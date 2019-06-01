@@ -93,9 +93,12 @@ data class Player constructor(
 
     fun release() {
         if (!isActive) {
-            mediaPlayer.stop()
+            if (isPlaying) {
+                mediaPlayer.stop()
+            }
             mediaPlayer.release()
             isReleased = true
+            updateState(false)
         }
     }
 

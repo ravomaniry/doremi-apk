@@ -97,7 +97,7 @@ class FilesBrowserManager(
 
     private fun handleSearch() {
         with(mainView) {
-            val editText = findViewById<EditText>(mg.maniry.doremi.R.id.local_search_view)
+            val editText = findViewById<EditText>(R.id.local_search_view)
                     .apply {
                         onChange {
                             listAdapter.apply {
@@ -107,7 +107,7 @@ class FilesBrowserManager(
                         }
                     }
 
-            findViewById<ImageView>(mg.maniry.doremi.R.id.browser_reset_search_btn).setOnClickListener {
+            findViewById<ImageView>(R.id.browser_reset_search_btn).setOnClickListener {
                 listAdapter.search("")
                 editText.setText("")
             }

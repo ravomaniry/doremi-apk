@@ -140,16 +140,14 @@ class HtmlExport(
         val events = mutableListOf<List<List<ChangeEvent?>>>()
         for (h in 0 until (signature)) {
             headerIndex = measureIndex * signature + h
-            events.add(with(ChangeEvent) {
-                listOf(listOf(VELOCITY, SIGN, DAL), listOf(MOD), listOf(MVMT))
-            }.asSequence().map { group ->
-                group.asSequence()
-                        .map { type ->
-                            partitionData.changeEvents.find { it.type == type && it.position == headerIndex }
-                        }
-                        .filter { it != null }
-                        .toList()
-            }.toList())
+            events.add(with(ChangeEvent) { listOf(listOf(VELOCITY, SIGN, DAL), listOf(MOD), listOf(MVMT)) }
+                    .asSequence()
+                    .map { group ->
+                        group.asSequence()
+                                .map { type -> partitionData.changeEvents.find { it.type == type && it.position == headerIndex } }
+                                .filter { it != null }
+                                .toList()
+                    }.toList())
         }
 
         var headerHtml = "<tr>"

@@ -106,7 +106,7 @@ class RemoteBrowserManager(
     }
 
 
-    fun search() {
+    private fun search() {
         val text = searchView.text.toString().trim()
         viewModel.isLoading.value = true
         viewModel.remoteFilesList.value = listOf()
