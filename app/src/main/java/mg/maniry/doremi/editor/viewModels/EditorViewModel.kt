@@ -163,6 +163,15 @@ class EditorViewModel : ViewModel() {
     }
 
 
+    fun updateVoicesNum(n: Int) {
+        if (cursorPos.value != null && cursorPos.value!!.voice >= n) {
+            moveCursor(0, 0)
+        }
+
+        partitionData.updateVoicesNum(n)
+    }
+
+
     private fun loadFile(path: String, onError: ((e: String) -> Unit)? = null) {
         if (filename != path) {
             save()
@@ -230,8 +239,9 @@ class EditorViewModel : ViewModel() {
 
 
     fun createTmpMidFile(file: File, playedVoices: MutableList<Boolean>?) {
-        if (playerCursorPosition % partitionData.signature.value!! > 0)
+        if (playerCursorPosition % partitionData.signature.value!! > 0) {
             playerCursorPosition = 0
+        }
 
         parser.apply {
             key = partitionData.key.value ?: 0
@@ -242,6 +252,8 @@ class EditorViewModel : ViewModel() {
             enableVelocity = enablePlayerVelocity.value ?: false
             loopsNumber = playerLoops
             signature = partitionData.signature.value ?: 4
+            voicesNum = partitionData.voicesNum
+            voiceIds = partitionData.voices
 
             if (playedVoices != null) {
                 this.playedVoices = playedVoices
@@ -252,7 +264,8 @@ class EditorViewModel : ViewModel() {
                 notes = parser.parse(partitionData.notes),
                 tempo = partitionData.tempo,
                 outFile = file,
-                instruments = partitionData.instruments
+                instruments = partitionData.instruments.value,
+                voiceIds = partitionData.voices
         ))
     }
 
@@ -261,7 +274,7 @@ class EditorViewModel : ViewModel() {
         doAsync {
             createTmpMidFile(
                     FileManager.getMidiExportFile(partitionData.songInfo.filename),
-                    partitionData.notes.map { true }.toMutableList())
+                    partitionData.voices.map { true }.toMutableList())
 
             uiThread { message.value = "${Values.done}:\nmidi/${partitionData.songInfo.filename}.mid" }
         }
@@ -270,7 +283,10 @@ class EditorViewModel : ViewModel() {
 
     fun print() {
         printer.print {
-            message.value = "${Values.done}:\nexport/${partitionData.songInfo.filename}.html"
+            message.value = when (it) {
+                Values.saved -> "${Values.done}:\nexport/${partitionData.songInfo.filename}.html"
+                else -> it
+            }
             doAsync {
                 xlsExport.export(partitionData)
             }

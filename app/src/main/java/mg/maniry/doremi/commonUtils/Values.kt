@@ -22,6 +22,6 @@ class Values {
         const val emptyClipboard = "Tsy misy azo adika!"
         const val clipboardSaved = "Tadidy :D"
 
-        const val strange = "hmmm..."
+        const val solfaVersion = "1"
     }
 }

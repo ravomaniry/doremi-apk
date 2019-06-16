@@ -9,7 +9,7 @@ data class SongInfo(val title: MutableLiveData<String> = MutableLiveData(),
                     val releaseDate: MutableLiveData<String> = MutableLiveData(),
                     val singer: MutableLiveData<String> = MutableLiveData()) {
 
-    var filename: String = ""
+    val filename: String
         get() = "${title.value}${if (singer.value != null && singer.value != "") " - ${singer.value}" else ""}"
                 .replace("/", "_")
 

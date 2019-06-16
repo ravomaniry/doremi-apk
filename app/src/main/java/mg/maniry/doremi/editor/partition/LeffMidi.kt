@@ -1,7 +1,5 @@
 package mg.maniry.doremi.editor.partition
 
-
-import android.arch.lifecycle.MutableLiveData
 import leff.midi.*
 import java.io.File
 import java.io.IOException
@@ -12,7 +10,9 @@ data class CreateMidiParams(
         val notes: MutableList<Note>,
         val tempo: Int,
         val outFile: File,
-        val instruments: Array<MutableLiveData<Int>>)
+        val instruments: MutableList<Int>? = mutableListOf(),
+        val voiceIds: MutableList<String>
+)
 
 
 fun createMidiFile(params: CreateMidiParams) {
@@ -44,7 +44,13 @@ fun createMidiFile(params: CreateMidiParams) {
         insertEvent(tempoEvent)
     })
 
-    val programsIndexes = instruments.map { it.value ?: 0 }
+    val programsIndexes = notes.mapIndexed { index, _ ->
+        if (instruments != null && instruments.size > index) {
+            instruments[index]
+        } else {
+            0
+        }
+    }
 
     noteTracks.forEachIndexed { v, track ->
         track.insertEvent(ProgramChange(1, v, InstrumentsList.list[programsIndexes[v]].program))

@@ -15,60 +15,62 @@ class NotesParser {
     private var baseVelocity = 110
     private val timeUnit = 480L
     private val commonDelay = 120L
-    var playedVoices = MutableList(4) { true }
+    var voicesNum = 0
+    var voiceIds = mutableListOf<String>()
+    var playedVoices = mutableListOf<Boolean>()
     var changeEvents = mutableListOf<ChangeEvent>()
     private var tmpChangeEvents = mutableListOf<ParserStructureEvent>()
     private lateinit var notesToParse: Array<MutableList<String>>
 
     var start = 0
-    var tmpStart = 0
+    private var tmpStart = 0
     var key = 0
     var tempo = 120
     var swing = false
     var signature = 4
     var enableVelocity = true
     var loopsNumber = 0
-    private val ticks = MutableList(4) { commonDelay }
+    private var ticks = mutableListOf<Long>()
     private var currentTempo = 0
 
 
-    fun parse(notes: Array<MutableList<String>>): MutableList<Note> {
+    fun parse(notes: MutableList<MutableList<String>>): MutableList<Note> {
+        ticks = notes.map { commonDelay }.toMutableList()
+
         handleRepetitions(notes)
         handleStartAndLoops()
 
         val parsedNotes = mutableListOf<Note>()
 
-        notesToParse
-                .mapIndexed { voice, voiceNotes ->
-                    ticks[voice] = commonDelay
-                    val parsed = mutableListOf<Note>()
+        notesToParse.mapIndexed { voice, voiceNotes ->
+            ticks[voice] = commonDelay
+            val parsed = mutableListOf<Note>()
 
-                    if (playedVoices[voice]) {
-                        cleanNotes(voiceNotes).forEachIndexed { index, timeNotes ->
-                            parsed.addAll(parseSingleTimeNotes(timeNotes, voice, index))
-                        }
-
-                        var lastNoteIndex = -1
-                        parsed.forEachIndexed { index, note ->
-                            if (note.pitch == 0 && lastNoteIndex >= 0)
-                                parsed[lastNoteIndex].addDuration(note.duration)
-                            else
-                                lastNoteIndex = index
-                        }
-                    }
-
-                    return@mapIndexed parsed
+            if (voice < voicesNum && playedVoices.size > voice && playedVoices[voice]) {
+                cleanNotes(voiceNotes).forEachIndexed { index, timeNotes ->
+                    parsed.addAll(parseSingleTimeNotes(timeNotes, voice, index))
                 }
-                .forEach {
-                    parsedNotes.addAll(it)
+
+                var lastNoteIndex = -1
+                parsed.forEachIndexed { index, note ->
+                    if (note.pitch == 0 && lastNoteIndex >= 0)
+                        parsed[lastNoteIndex].addDuration(note.duration)
+                    else
+                        lastNoteIndex = index
                 }
+            }
+
+            return@mapIndexed parsed
+        }.forEach {
+            parsedNotes.addAll(it)
+        }
 
         return parsedNotes
     }
 
 
-    private fun handleRepetitions(notes: Array<MutableList<String>>) {
-        notesToParse = Array(4) { mutableListOf<String>() }
+    private fun handleRepetitions(notes: MutableList<MutableList<String>>) {
+        notesToParse = Array(voicesNum) { mutableListOf<String>() }
         tmpChangeEvents = mutableListOf()
         changeEvents = changeEvents
                 .asSequence()
@@ -89,7 +91,7 @@ class NotesParser {
         tmpStart = if (start == 0) 0 else -1
         var maxIndex = notes.map { it.size }.reduce(::max)
 
-        if (!changeEvents.isEmpty()) {
+        if (changeEvents.isNotEmpty()) {
             maxIndex = max(maxIndex, changeEvents.asSequence().map { it.position }.reduce(::max) + 1)
         }
 
@@ -152,7 +154,7 @@ class NotesParser {
                                 arrayOf(ChangeEvent.MOD, ChangeEvent.MVMT, ChangeEvent.VELOCITY).contains(it.type)
                     }
 
-                    if (!changes.isEmpty()) {
+                    if (changes.isNotEmpty()) {
                         var tmpCh = tmpChangeEvents.find { it.position == realIndex }
                         if (tmpCh == null) {
                             tmpCh = ParserStructureEvent(position = realIndex)
@@ -230,7 +232,7 @@ class NotesParser {
         val newChangeEvents: MutableList<ParserStructureEvent>
 
         if (tmpStart > 0) {
-            tmpNotesToParse = Array(4) { mutableListOf<String>() }
+            tmpNotesToParse = Array(voicesNum) { mutableListOf<String>() }
             val chEvZero = ParserStructureEvent(0)
             var index = tmpStart
 
@@ -308,7 +310,12 @@ class NotesParser {
             ticks[voice] += currentTU
 
         } else if (!note.contains('.') && !note.contains(',')) {
-            return mutableListOf(Note(voice, noteToPitch(note, voice), velocity, ticks[voice], currentTU - release))
+            return mutableListOf(
+                    Note(voice,
+                            noteToPitch(note, voiceIds[voice]),
+                            velocity,
+                            ticks[voice],
+                            currentTU - release))
                     .also { ticks[voice] += currentTU }
         } else {
             val subNotes = note.split(".")
@@ -319,7 +326,7 @@ class NotesParser {
                     if (subNote != "")
                         notes.add(Note(
                                 voice,
-                                noteToPitch(subNote, voice),
+                                noteToPitch(subNote, voiceIds[voice]),
                                 velocity,
                                 ticks[voice],
                                 currentTU / noteCoeff - release))
@@ -333,7 +340,7 @@ class NotesParser {
                         if (finalNote != "")
                             notes.add(Note(
                                     voice,
-                                    noteToPitch(finalNote, voice),
+                                    noteToPitch(finalNote, voiceIds[voice]),
                                     velocity,
                                     ticks[voice],
                                     currentTU / (noteCoeff * finalNoteCoeff) - release
@@ -373,11 +380,11 @@ class NotesParser {
     }
 
 
-    private fun noteToPitch(stringNote: String, voice: Int): Int {
+    private fun noteToPitch(stringNote: String, voice: String): Int {
         var pitch = -1
         val voiceOffset = when (voice) {
-            2 -> -12
-            3 -> -12
+            "T" -> -12
+            "B" -> -12
             else -> 0
         }
 

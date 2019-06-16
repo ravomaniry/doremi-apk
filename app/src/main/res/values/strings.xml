@@ -14,6 +14,7 @@
     <string name="text_tempo">Tempo</string>
     <string name="text_swing">Swing</string>
     <string name="text_voices_instruments">Feo sy zava-maneno</string>
+    <string name="text_voices_num">Isan\'ny feo:</string>
     <string name="voice_s">S</string>
     <string name="voice_a">A</string>
     <string name="voice_t">T</string>

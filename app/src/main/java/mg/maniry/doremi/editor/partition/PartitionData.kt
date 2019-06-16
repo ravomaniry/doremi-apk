@@ -1,6 +1,7 @@
 package mg.maniry.doremi.editor.partition
 
 import android.arch.lifecycle.MutableLiveData
+import mg.maniry.doremi.commonUtils.Values
 import java.lang.Exception
 import java.util.*
 import kotlin.math.max
@@ -10,7 +11,8 @@ class PartitionData {
     private val infoLabels = with(Labels) { listOf(TITLE, AUTHOR, COMP, DATE, SINGER) }
     private val structureLabels = with(Labels) { listOf(KEY, SIGNATURE, TEMPO) }
 
-    var notes = Array(4) { mutableListOf<String>() }
+    var voicesNum = 4
+    var notes = MutableList(voicesNum) { mutableListOf<String>() }
     var signature = MutableLiveData<Int>().apply { value = 4 }
     var tempo = 120
     var key = MutableLiveData<Int>().apply { value = 0 }
@@ -18,7 +20,14 @@ class PartitionData {
     val lyrics = MutableLiveData<String>().apply { value = "" }
     val songInfo = SongInfo()
     var changeEvents = mutableListOf<ChangeEvent>()
-    val instruments = Array(4) { MutableLiveData<Int>().apply { value = 0 } }
+    val instruments = MutableLiveData<MutableList<Int>>()
+            .apply { value = MutableList(voicesNum) { 0 } }
+    lateinit var voices: MutableList<String>
+    var version = Values.solfaVersion
+
+    companion object {
+        val voiceIds = arrayListOf("S", "A", "T", "B")
+    }
 
 
     init {
@@ -27,8 +36,12 @@ class PartitionData {
 
 
     fun reset() {
+        voices = mutableListOf()
         changeEvents = mutableListOf()
-        notes = Array(4) { mutableListOf<String>() }
+        voicesNum = 4
+        notes = MutableList(voicesNum) { mutableListOf<String>() }
+        instruments.value = MutableList(voicesNum) { 0 }
+        completeVoiceIds()
 
         lyrics.value = ""
         songInfo.apply {
@@ -41,6 +54,12 @@ class PartitionData {
     }
 
 
+    fun updateVoiceId(index: Int, voiceIdIndex: Int) {
+        voices[index] = voiceIds[voiceIdIndex]
+        signature.value = signature.value
+    }
+
+
     fun updateNote(cell: Cell) {
         createMissingCells(cell.voice, cell.index)
         notes[cell.voice][cell.index] = cell.content
@@ -48,8 +67,9 @@ class PartitionData {
 
 
     fun updateSignature(i: Int) {
-        if (signature.value != i)
+        if (signature.value != i) {
             signature.value = i
+        }
     }
 
 
@@ -63,6 +83,33 @@ class PartitionData {
     }
 
 
+    fun updateVoicesNum(n: Int) {
+        voicesNum = n
+        completeVoiceIds()
+        createMissingCells(n - 1, 0)
+
+        instruments.value?.run {
+            while (size > n) {
+                removeAt(size - 1)
+            }
+            while (size < n) {
+                add(0)
+            }
+        }
+        signature.value = signature.value
+    }
+
+
+    private fun completeVoiceIds() {
+        while (voices.size < voicesNum) {
+            voices.add(voiceIds[voices.size % voiceIds.size])
+        }
+        while (voices.size > voicesNum) {
+            voices.removeAt(voices.size - 1)
+        }
+    }
+
+
     fun getMaxLength() = notes.map { it.size }.reduce(::max)
 
 
@@ -73,6 +120,9 @@ class PartitionData {
 
 
     fun createMissingCells(voice: Int, index: Int) {
+        while (notes.size <= voice) {
+            notes.add(mutableListOf())
+        }
         while (notes[voice].size <= index) {
             notes[voice].add("")
         }
@@ -88,6 +138,17 @@ class PartitionData {
                     addAll(events)
                     sortBy(ChangeEvent::position)
                 }
+    }
+
+
+    fun setVoiceInstrument(voice: Int, instr: Int) {
+        instruments.value?.run {
+            while (size <= voice) {
+                add(0)
+            }
+            set(voice, instr)
+        }
+        instruments.value = instruments.value?.map { it }?.toMutableList()
     }
 
 
@@ -109,32 +170,46 @@ class PartitionData {
                     Labels.KEY -> key.value = mValue.toInt()
                     Labels.TEMPO -> tempo = mValue.toInt()
                     Labels.SWING -> swing.value = mValue == "1"
+                    Labels.VERSION -> version = mValue
+                    Labels.VOICES -> {
+                        val ids = mValue.split(",")
+                        voices = ids.toMutableList()
+                        voicesNum = ids.size
+                    }
                     Labels.CHANGES -> mValue.split(',').forEach { str ->
                         ChangeEvent.fromString(str)?.run { changeEvents.add(this) }
                     }
                     Labels.INSTR -> mValue.split(",").forEachIndexed { i, instr ->
-                        if (i < 4) {
-                            instruments[i].value = try {
-                                instr.trim().toInt()
-                            } catch (e: Exception) {
-                                0
-                            }
+                        try {
+                            setVoiceInstrument(i, instr.trim().toInt())
+                        } catch (e: Exception) {
+                            setVoiceInstrument(i, 0)
                         }
                     }
                 }
             }
         }
 
-        mainParts.slice(1 until 5).forEachIndexed { index, str ->
-            notes[index] = str.split(':').toMutableList()
+        for (index in 0 until voicesNum) {
+            if (mainParts.size > index + 2) {
+                createMissingCells(index, 0)
+                notes[index] = mainParts[index + 1].split(':').toMutableList()
+            }
         }
 
-        lyrics.value = mainParts[5].replace(';', '\n')
+        if (mainParts.size > voicesNum + 1) {
+            lyrics.value = mainParts[voicesNum + 1].replace(';', '\n')
+        }
 
         // ReRender
         info.forEach {
-            if (it.mKey == Labels.SIGNATURE)
-                signature.value = it.mValue.toInt()
+            if (it.mKey == Labels.SIGNATURE) {
+                signature.value = try {
+                    it.mValue.toInt()
+                } catch (e: Exception) {
+                    4
+                }
+            }
         }
     }
 
@@ -144,6 +219,12 @@ class PartitionData {
 
         var output = ""
         val separator = "__!!__"
+
+        output += "${Labels.VERSION}:$version; "
+        output += "${Labels.SWING}:${if (swing.value == true) 1 else 0}; "
+        output += "${Labels.CHANGES}:${changeEvents.joinToString(",")}; "
+        output += "${Labels.INSTR}:${instruments.value?.joinToString { it.toString() }}; "
+        output += "${Labels.VOICES}:${voices.joinToString(",")}; "
 
         with(songInfo) {
             listOf(title.value, author.value, compositor.value, releaseDate.value, singer.value).forEachIndexed { i, value ->
@@ -156,11 +237,9 @@ class PartitionData {
             output += "${structureLabels[i]}:$value; "
         }
 
-        output += "${Labels.SWING}:${if (swing.value == true) 1 else 0}; "
-        output += "${Labels.CHANGES}:${changeEvents.joinToString(",")}; "
-        output += "${Labels.INSTR}:${instruments.joinToString { (it.value ?: 0).toString() }} "
-
-        notes.forEach { output += separator + it.joinToString(":") }
+        voices.forEachIndexed { i, _ ->
+            output += separator + notes[i].joinToString(":")
+        }
 
         output += separator + lyrics.value?.replace(';', ',')?.replace('\n', ';')
 

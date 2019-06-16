@@ -1,7 +1,5 @@
 package mg.maniry.doremi.editor.partition
 
-import mg.maniry.doremi.editor.viewModels.ClipBoard
-
 
 class NotesUpdater constructor(
         private val partitionData: PartitionData) {
@@ -31,13 +29,11 @@ class NotesUpdater constructor(
             allNtsL = 0
             lastNtL = 0
             nextNtL = 12
-
         } else if (!content.contains('.') && !content.contains(',')) {
             replaceNote = true
             allNtsL = 12
             lastNtL = 12
             nextNtL = 12
-
         } else {
             val unit = 12.div(content.split('.').size)
 
@@ -173,6 +169,8 @@ class NotesUpdater constructor(
         val updatedCells = mutableListOf<Cell>()
         val history = mutableListOf<EditionHistory.Change>()
         val notes = partitionData.notes
+        val notesClone = notes.map { voiceNotes -> voiceNotes.map { it } }
+
         clipBoard.run {
             (start.voice until end.voice + 1).forEach { voice ->
                 val targetVoice = target.voice + voice - start.voice
@@ -180,18 +178,19 @@ class NotesUpdater constructor(
                     partitionData.createMissingCells(targetVoice, end.index + target.index - start.index + 1)
                     (start.index until end.index + 1).forEach { index ->
                         val targetIndex = target.index + index - start.index
-                        if (notes[voice].size > index) {
+                        if (notesClone[voice].size > index) {
                             history.add(EditionHistory.Change(targetVoice,
-                                    targetIndex, notes[targetVoice][targetIndex],
-                                    notes[voice][index]))
+                                    targetIndex, notesClone[targetVoice][targetIndex],
+                                    notesClone[voice][index]))
 
-                            notes[targetVoice][targetIndex] = notes[voice][index]
+                            notes[targetVoice][targetIndex] = notesClone[voice][index]
                             updatedCells.add(partitionData.getCell(targetVoice, targetIndex))
                         }
                     }
                 }
             }
         }
+
         return PartitionPasteResult(updatedCells, history)
     }
 

@@ -17,7 +17,7 @@ data class Player constructor(
         private val editorViewModel: EditorViewModel) {
 
     var isActive = true
-    var isPlaying = false
+    private var isPlaying = false
     private var isReleased = false
     private var mediaPlayer = MediaPlayer()
     val playedVoices = MutableLiveData<MutableList<Boolean>>()
@@ -27,7 +27,7 @@ data class Player constructor(
 
 
     init {
-        playedVoices.value = mutableListOf(true, true, true, true)
+        playedVoices.value = editorViewModel.partitionData.voices.map { true }.toMutableList()
         mediaPlayer.setOnCompletionListener {
             mediaPlayer.reset()
             updateState(false)
@@ -85,9 +85,13 @@ data class Player constructor(
 
 
     fun toggleVoice(index: Int) {
-        val list = playedVoices.value!!
-        list[index] = !list[index]
-        playedVoices.value = list
+        playedVoices.value?.run {
+            while (size <= index) {
+                add(false)
+            }
+            set(index, !get(index))
+        }
+        playedVoices.value = playedVoices.value
     }
 
 

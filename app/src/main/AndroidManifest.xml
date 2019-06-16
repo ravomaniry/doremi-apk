@@ -30,7 +30,7 @@
 
                 <data
                     android:host="*"
-                    android:mimeType="text/plain"
+                    android:mimeType="*/*"
                     android:pathPattern=".*\\.drm"
                     android:scheme="file" />
             </intent-filter>

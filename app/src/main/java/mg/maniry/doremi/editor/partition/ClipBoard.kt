@@ -1,6 +1,5 @@
-package mg.maniry.doremi.editor.viewModels
+package mg.maniry.doremi.editor.partition
 
-import mg.maniry.doremi.editor.partition.Cell
 
 data class ClipBoard(var start: Cell, var end: Cell) {
     fun reorder() {

@@ -40,6 +40,8 @@ class Labels {
 
         const val CHANGES = "CHANGES"
         const val INSTR = "INSTR"
+        const val VOICES = "VOICES"
+        const val VERSION = "VERSION"
     }
 }
 

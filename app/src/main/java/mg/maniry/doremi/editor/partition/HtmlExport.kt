@@ -10,9 +10,12 @@ import org.jetbrains.anko.uiThread
 class HtmlExport(
         private var partitionData: PartitionData) {
 
+    companion object {
+        val notes = listOf("C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B")
+    }
+
     data class MeasureResult(val table: String, val finished: Boolean)
 
-    private val notes = listOf("C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B")
     private val suffix = "</body></html>"
     private val bold = "font-weight:bold;"
     private val center = "text-align:center;"
@@ -37,12 +40,12 @@ class HtmlExport(
     private val collapse = "border-collapse:collapse;"
 
 
-    fun print(callback: () -> Unit) {
+    fun print(callback: (msg: String) -> Unit) {
         doAsync {
             val html = prefix() + header() + solfa() + lyrics() + footer() + suffix
-            FileManager.writeHtml(partitionData.songInfo.filename, html)
+            val msg = FileManager.writeHtml(partitionData.songInfo.filename, html)
 
-            uiThread { callback() }
+            uiThread { callback(msg) }
         }
     }
 
@@ -69,7 +72,7 @@ class HtmlExport(
         with(partitionData) {
             var str = "<div>" +
                     "<div style=\"$bold\">${signature.value}/4</div>" +
-                    "<div style=\"$bold\">Do dia ${this@HtmlExport.notes[key.value!!]}</div>" +
+                    "<div style=\"$bold\">Do dia ${HtmlExport.notes[key.value!!]}</div>" +
                     "<div style=\"$bold\">Tempo: $tempo bpm</div>"
 
             if (swing.value == true) {

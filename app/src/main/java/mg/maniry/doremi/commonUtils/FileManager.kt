@@ -57,23 +57,22 @@ class FileManager {
                 flush()
                 close()
             }
-
             Values.saved
         } catch (e: FileNotFoundException) {
             Values.saveError
-
         } catch (e: Exception) {
             Values.unknownErr
         }
 
 
-        fun writeHtml(filename: String, data: String) {
+        fun writeHtml(filename: String, data: String): String {
             File(htmlDirPath).run {
-                if (!exists())
+                if (!exists()) {
                     mkdirs()
+                }
             }
 
-            write("$htmlDirPath$filename.html", data)
+            return write("$htmlDirPath$filename.html", data)
         }
 
 

@@ -10,6 +10,7 @@ import com.google.android.flexbox.FlexboxLayout
 import mg.maniry.doremi.R.id.*
 import mg.maniry.doremi.R
 import mg.maniry.doremi.editor.EditorActivity
+import mg.maniry.doremi.editor.partition.HtmlExport
 import mg.maniry.doremi.editor.views.MeasureView
 import mg.maniry.doremi.editor.views.NotesToSpan
 import mg.maniry.doremi.editor.viewModels.EditorViewModel
@@ -26,12 +27,13 @@ class SolfaDisplayManager constructor(
 
     private val partitionData = editorVM.partitionData
     private val viewsCont = mainView.findViewById<FlexboxLayout>(partition_cont)
-    private var textViews = Array(4) { mutableListOf<TextView>() }
+    private var textViews = Array(partitionData.voices.size) { mutableListOf<TextView>() }
     private var headerTextViews = mutableListOf<TextView>()
     private var currentSize = 0
     private var playerCursor: TableLayout? = null
     private val cursorBgColor = Color.DKGRAY
     private val selectBgColor = Color.rgb(200, 200, 255)
+    private var voiceIdColor = Color.rgb(40, 180, 60)
     private val regularBg = Color.TRANSPARENT
     private val selectedTextViews = mutableListOf<TextView>()
     private val addButton = View.inflate(mainContext, R.layout.add_measure_btn, null).apply {
@@ -69,26 +71,17 @@ class SolfaDisplayManager constructor(
         })
 
         editorVM.headerTvTrigger.observe(mainContext, Observer {
-            if (it != null)
+            if (it != null) {
                 printHeaders()
+            }
         })
     }
 
 
     private fun observeCursor() {
         editorVM.cursorPos.observe(mainContext as EditorActivity, Observer {
-            it?.run {
-                if (textViews[voice].size > index) {
-                    placeCursorOn(textViews[voice][index])
-                }
-            }
-
-            editorVM.prevCursorPos?.run {
-                if (textViews[voice].size > index) {
-                    removeCursorFrom(textViews[voice][index])
-                }
-            }
-
+            it?.run { placeCursorOn(voice, index) }
+            editorVM.prevCursorPos?.run { removeCursorFrom(voice, index) }
             highlightClipBoard()
         })
     }
@@ -98,11 +91,7 @@ class SolfaDisplayManager constructor(
         editorVM.selectMode.observe(mainContext as EditorActivity, Observer {
             highlightClipBoard()
             if (it == SelectMode.CURSOR) {
-                editorVM.cursorPos.value?.run {
-                    if (textViews.size > voice && textViews[voice].size > index) {
-                        placeCursorOn(textViews[voice][index])
-                    }
-                }
+                editorVM.cursorPos.value?.run { placeCursorOn(voice, index) }
             }
         })
     }
@@ -115,7 +104,7 @@ class SolfaDisplayManager constructor(
         }
         if (editorVM.selectMode.value == SelectMode.COPY) {
             editorVM.clipBoard?.run {
-                editorVM.cursorPos.value?.run { removeCursorFrom(textViews[voice][index]) }
+                editorVM.cursorPos.value?.run { removeCursorFrom(voice, index) }
                 (start.voice until end.voice + 1).forEach { voiceIndex ->
                     (start.index until end.index + 1).forEach { noteIndex ->
                         textViews[voiceIndex][noteIndex].run {
@@ -141,9 +130,33 @@ class SolfaDisplayManager constructor(
     }
 
 
+    private fun voiceIdsTable(): TableLayout {
+        return TableLayout(mainContext).apply {
+            addView(TableRow(mainContext).apply {
+                addView(TextView(mainContext).apply {
+                    setTextColor(Color.RED)
+                    text = when (partitionData.key.value) {
+                        null -> ""
+                        else -> HtmlExport.notes[partitionData.key.value!!]
+                    }
+                })
+            })
+
+            partitionData.voices.forEach {
+                addView(TableRow(mainContext).apply {
+                    addView(TextView(mainContext).apply {
+                        text = it
+                        setTextColor(voiceIdColor)
+                    })
+                })
+            }
+        }
+    }
+
+
     private fun reRender() {
         currentSize = 0
-        textViews = Array(4) { mutableListOf<TextView>() }
+        textViews = Array(partitionData.voices.size) { mutableListOf<TextView>() }
         headerTextViews = mutableListOf()
         viewsCont.apply {
             removeAllViews()
@@ -153,8 +166,9 @@ class SolfaDisplayManager constructor(
         doAsync {
             val tables = createTables(addView = false)
 
-            partitionData.notes.forEachIndexed { voice, notes ->
-                notes.forEachIndexed { index, note ->
+            partitionData.voices.forEachIndexed { voice, _ ->
+                val voiceNotes = partitionData.notes[voice]
+                voiceNotes.forEachIndexed { index, note ->
                     if (note != "" && note != " ") {
                         textViews[voice][index].text = NotesToSpan.convert(note)
                     }
@@ -162,12 +176,13 @@ class SolfaDisplayManager constructor(
             }
 
             with(editorVM.cursorPos.value) {
-                this?.run { placeCursorOn(textViews[voice][index]) }
+                this?.run { placeCursorOn(voice, index) }
             }
 
             uiThread {
                 viewsCont.apply {
                     removeAllViews()
+                    addView(voiceIdsTable())
                     addView(addButton)
                 }
                 printHeaders()
@@ -222,7 +237,7 @@ class SolfaDisplayManager constructor(
             }
         })
 
-        Array(4) { TableRow(mainContext) }.forEachIndexed { voice, tRow ->
+        Array(partitionData.voicesNum) { TableRow(mainContext) }.forEachIndexed { voice, tRow ->
             for (i in 0 until signature) {
                 tRow.addView(TextView(mainContext)
                         .apply {
@@ -284,26 +299,30 @@ class SolfaDisplayManager constructor(
     }
 
 
-    private fun placeCursorOn(tv: TextView) {
-        tv.apply {
-            val bg = when (editorVM.selectMode.value) {
-                SelectMode.CURSOR -> cursorBgColor
-                else -> selectBgColor
+    private fun placeCursorOn(voice: Int, index: Int) {
+        if (textViews.size > voice && textViews[voice].size > index) {
+            textViews[voice][index].apply {
+                val bg = when (editorVM.selectMode.value) {
+                    SelectMode.CURSOR -> cursorBgColor
+                    else -> selectBgColor
+                }
+                val fg = when (editorVM.selectMode.value) {
+                    SelectMode.CURSOR -> Color.WHITE
+                    else -> Color.DKGRAY
+                }
+                setBackgroundColor(bg)
+                setTextColor(fg)
             }
-            val fg = when (editorVM.selectMode.value) {
-                SelectMode.CURSOR -> Color.WHITE
-                else -> Color.DKGRAY
-            }
-            setBackgroundColor(bg)
-            setTextColor(fg)
         }
     }
 
 
-    private fun removeCursorFrom(tv: TextView) {
-        tv.apply {
-            setBackgroundColor(Color.TRANSPARENT)
-            setTextColor(Color.BLACK)
+    private fun removeCursorFrom(voice: Int, index: Int) {
+        if (textViews.size > voice && textViews[voice].size > index) {
+            textViews[voice][index].apply {
+                setBackgroundColor(Color.TRANSPARENT)
+                setTextColor(Color.BLACK)
+            }
         }
     }
 
