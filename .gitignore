@@ -10,3 +10,4 @@
 /app/release/*
 .externalNativeBuild
 /.idea
+doremi_key.jks
