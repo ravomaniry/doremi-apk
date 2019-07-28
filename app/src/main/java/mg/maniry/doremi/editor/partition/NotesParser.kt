@@ -1,5 +1,6 @@
 package mg.maniry.doremi.editor.partition
 
+
 import java.util.regex.Pattern
 import kotlin.math.max
 
@@ -15,23 +16,23 @@ class NotesParser {
     private var baseVelocity = 110
     private val timeUnit = 480L
     private val commonDelay = 120L
+    private var tmpChangeEvents = mutableListOf<ParserStructureEvent>()
+    private lateinit var notesToParse: Array<MutableList<String>>
+    private var ticks = mutableListOf<Long>()
+    private var currentTempo = 0
+
+    private var tmpStart = 0
     var voicesNum = 0
     var voiceIds = mutableListOf<String>()
     var playedVoices = mutableListOf<Boolean>()
     var changeEvents = mutableListOf<ChangeEvent>()
-    private var tmpChangeEvents = mutableListOf<ParserStructureEvent>()
-    private lateinit var notesToParse: Array<MutableList<String>>
-
     var start = 0
-    private var tmpStart = 0
     var key = 0
     var tempo = 120
     var swing = false
     var signature = 4
     var enableVelocity = true
     var loopsNumber = 0
-    private var ticks = mutableListOf<Long>()
-    private var currentTempo = 0
 
 
     fun parse(notes: MutableList<MutableList<String>>): MutableList<Note> {
@@ -190,7 +191,6 @@ class NotesParser {
 
             if (reachedEnd && fine != null) {
                 return
-
             } else if (nextIndex == lastDalIndex && nextIndex > 0) {
                 reachedEnd = true
             }
@@ -200,14 +200,12 @@ class NotesParser {
 
             if (dal == null) {
                 nextIndex++
-
             } else {
                 dal.treated = true
                 initTempoKey = true
 
                 if (dal.value == "DC") {
                     nextIndex = 0
-
                 } else {
                     val target = changeEvents.find {
                         it.type == ChangeEvent.SIGN &&
@@ -217,7 +215,6 @@ class NotesParser {
 
                     if (target != null) {
                         nextIndex = target.position
-
                     } else {
                         nextIndex++
                     }
@@ -388,10 +385,12 @@ class NotesParser {
             else -> 0
         }
 
-        if (stringNote == "")
+        if (stringNote == "") {
             return -1
-        if (stringNote == "-")
+        }
+        if (stringNote == "-") {
             return 0
+        }
 
         val noteMatch = noteP.matcher(stringNote)
         if (noteMatch.find()) {
@@ -409,7 +408,11 @@ class NotesParser {
 
     private fun searchNote(stringNote: String): Int {
         var pitch = -1
-        scale.forEachIndexed { i, n -> if (n == stringNote) pitch = 60 + i }
+        scale.forEachIndexed { i, n ->
+            if (n == stringNote) {
+                pitch = 60 + i
+            }
+        }
         return pitch
     }
 }

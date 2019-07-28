@@ -54,22 +54,18 @@ class EditorViewModel : ViewModel() {
                 val fileToOpen = getStringExtra("fileToOpen")
                 if (fileToOpen != null) {
                     loadFile(fileToOpen)
-
                 } else if (action == Intent.ACTION_VIEW && data is Uri && data != null && data?.path != null) {
                     val path = FileManager.moveIntoDoremiDir(path = data?.path) ?: ""
 
                     if (path == "") {
                         loadRecentFile()
                         message.value = Values.fileOpenError
-
                     } else {
                         loadFile(path)
                     }
-
                 } else {
                     loadRecentFile()
                 }
-
             } else {
                 loadRecentFile()
             }
@@ -86,7 +82,6 @@ class EditorViewModel : ViewModel() {
                     prevCursorPos = cursorPos.value
                 }
                 cursorPos.value = it
-
                 history.handle(it)
             }
         }
@@ -96,16 +91,19 @@ class EditorViewModel : ViewModel() {
     fun restoreHistory(isForward: Boolean) {
         history.restore(partitionData, isForward)?.also { cells ->
             moveCursor(cells.first().voice, cells.first().index)
-            cells.forEach { cell -> updatedCells.value = listOf(cell) }
+            cells.forEach { cell ->
+                updatedCells.value = listOf(cell)
+            }
         }
     }
 
 
     fun changeOctave(increment: Boolean) {
-        if (increment && octave.value!! < 2)
+        if (increment && octave.value!! < 2) {
             octave.value = octave.value!! + 1
-        else if (!increment && octave.value!! > -2)
+        } else if (!increment && octave.value!! > -2) {
             octave.value = octave.value!! - 1
+        }
     }
 
 
@@ -145,12 +143,13 @@ class EditorViewModel : ViewModel() {
 
 
     fun save() {
-        if (filename == "")
+        if (filename == "") {
             filename = partitionData.songInfo.filename
-
-        if (partitionData.getMaxLength() > 4)
+        }
+        if (partitionData.getMaxLength() > 4) {
             FileManager.write(filename, partitionData.toString())
                     .also { if (it != "") message.value = it }
+        }
     }
 
 
@@ -167,7 +166,6 @@ class EditorViewModel : ViewModel() {
         if (cursorPos.value != null && cursorPos.value!!.voice >= n) {
             moveCursor(0, 0)
         }
-
         partitionData.updateVoicesNum(n)
     }
 
@@ -199,8 +197,9 @@ class EditorViewModel : ViewModel() {
 
     private fun loadRecentFile() {
         prefs?.getString("recent", "").run {
-            if (this != "" && this != null)
+            if (this != "" && this != null) {
                 loadFile(this) {}
+            }
         }
     }
 
@@ -276,7 +275,9 @@ class EditorViewModel : ViewModel() {
                     FileManager.getMidiExportFile(partitionData.songInfo.filename),
                     partitionData.voices.map { true }.toMutableList())
 
-            uiThread { message.value = "${Values.done}:\nmidi/${partitionData.songInfo.filename}.mid" }
+            uiThread {
+                message.value = "${Values.done}:\nmidi/${partitionData.songInfo.filename}.mid"
+            }
         }
     }
 
@@ -306,7 +307,9 @@ class EditorViewModel : ViewModel() {
 
 
     fun cancelPlayerRelease() {
-        player?.apply { isActive = true }
+        player?.apply {
+            isActive = true
+        }
     }
 
 
@@ -331,8 +334,9 @@ class EditorViewModel : ViewModel() {
     private fun endClipboard(voice: Int, index: Int) {
         if (selectMode.value == SelectMode.COPY) {
             if (clipBoard != null) {
-                clipBoard = clipBoard!!.copy(end = Cell(voice, index))
-                        .apply { reorder() }
+                clipBoard = clipBoard!!.copy(end = Cell(voice, index)).apply {
+                    reorder()
+                }
             }
         }
     }
