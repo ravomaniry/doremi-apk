@@ -7,7 +7,7 @@
 .DS_Store
 /build
 /captures
-/app/release/*
 .externalNativeBuild
 /.idea
-doremi_key.jks
+*doremi_key.jks
+/app/.attach_pid*
