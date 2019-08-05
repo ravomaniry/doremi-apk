@@ -21,6 +21,10 @@ data class Note(var channel: Int, var pitch: Int, var velocity: Int, var tick: L
         duration += additional
     }
 
+    fun tickEqual(expectedTick: Long): Boolean {
+        return expectedTick == tick
+    }
+
     override fun toString() = "$pitch $tick $duration $velocity"
 }
 

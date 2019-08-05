@@ -35,6 +35,8 @@ class SolfaDisplayManager constructor(
     private val selectBgColor = Color.rgb(200, 200, 255)
     private var voiceIdColor = Color.rgb(40, 180, 60)
     private val regularBg = Color.TRANSPARENT
+    private var isRendering = false
+    private var shouldRerender = false
     private val selectedTextViews = mutableListOf<TextView>()
     private val addButton = View.inflate(mainContext, R.layout.add_measure_btn, null).apply {
         findViewById<ImageView>(add_measure_btn).setOnClickListener {
@@ -155,38 +157,49 @@ class SolfaDisplayManager constructor(
 
 
     private fun reRender() {
-        currentSize = 0
-        textViews = Array(partitionData.voices.size) { mutableListOf<TextView>() }
-        headerTextViews = mutableListOf()
-        viewsCont.apply {
-            removeAllViews()
-            addView(ProgressBar(mainContext))
-        }
+        if (isRendering) {
+            shouldRerender = true
+        } else {
+            isRendering = true
+            currentSize = 0
+            textViews = Array(partitionData.voices.size) { mutableListOf<TextView>() }
+            headerTextViews = mutableListOf()
+            viewsCont.apply {
+                removeAllViews()
+                addView(ProgressBar(mainContext))
+            }
 
-        doAsync {
-            val tables = createTables(addView = false)
+            doAsync {
+                val tables = createTables(addView = false)
 
-            partitionData.voices.forEachIndexed { voice, _ ->
-                val voiceNotes = partitionData.notes[voice]
-                voiceNotes.forEachIndexed { index, note ->
-                    if (note != "" && note != " ") {
-                        textViews[voice][index].text = NotesToSpan.convert(note)
+                partitionData.voices.forEachIndexed { voice, _ ->
+                    val voiceNotes = partitionData.notes[voice]
+                    voiceNotes.forEachIndexed { index, note ->
+                        if (note != "" && note != " ") {
+                            textViews[voice][index].text = NotesToSpan.convert(note)
+                        }
                     }
                 }
-            }
 
-            with(editorVM.cursorPos.value) {
-                this?.run { placeCursorOn(voice, index) }
-            }
-
-            uiThread {
-                viewsCont.apply {
-                    removeAllViews()
-                    addView(voiceIdsTable())
-                    addView(addButton)
+                with(editorVM.cursorPos.value) {
+                    this?.run { placeCursorOn(voice, index) }
                 }
-                printHeaders()
-                tables.forEach { table -> addMeasureTable(table) }
+
+                uiThread {
+                    isRendering = false
+                    if (shouldRerender) {
+                        shouldRerender = false
+                        reRender()
+                    } else {
+                        viewsCont.apply {
+                            removeAllViews()
+                            addView(voiceIdsTable())
+                            addView(addButton)
+                        }
+                        printHeaders()
+                        tables.forEach { table -> addMeasureTable(table) }
+                    }
+                }
             }
         }
     }

@@ -143,7 +143,7 @@ class HtmlExport(
         val events = mutableListOf<List<List<ChangeEvent?>>>()
         for (h in 0 until (signature)) {
             headerIndex = measureIndex * signature + h
-            events.add(with(ChangeEvent) { listOf(listOf(VELOCITY, SIGN, DAL), listOf(MOD), listOf(MVMT)) }
+            events.add(with(ChangeEvent) { listOf(listOf(VELOCITY, SIGN, DAL), listOf(MOD), listOf(TEMPO)) }
                     .asSequence()
                     .map { group ->
                         group.asSequence()
@@ -164,7 +164,7 @@ class HtmlExport(
                             e?.value?.run {
                                 headerHtml += " " + when (e.type) {
                                     ChangeEvent.MOD -> "<b>Do=${e.value}</b>"
-                                    ChangeEvent.MVMT -> "T=${e.value}"
+                                    ChangeEvent.TEMPO -> "T=${e.value}"
                                     else -> e.value
                                 }
                             }

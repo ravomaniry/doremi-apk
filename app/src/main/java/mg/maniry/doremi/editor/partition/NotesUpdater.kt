@@ -172,17 +172,24 @@ class NotesUpdater constructor(
         val notesClone = notes.map { voiceNotes -> voiceNotes.map { it } }
 
         clipBoard.run {
-            (start.voice until end.voice + 1).forEach { voice ->
+            val voices = start.voice until end.voice + 1
+            voices.forEach { voice ->
                 val targetVoice = target.voice + voice - start.voice
                 if (notes.size > targetVoice) {
                     partitionData.createMissingCells(targetVoice, end.index + target.index - start.index + 1)
-                    (start.index until end.index + 1).forEach { index ->
+                    val indexes = start.index until end.index + 1
+                    indexes.forEach { index ->
                         val targetIndex = target.index + index - start.index
                         if (notesClone[voice].size > index) {
-                            history.add(EditionHistory.Change(targetVoice,
-                                    targetIndex, notesClone[targetVoice][targetIndex],
-                                    notesClone[voice][index]))
+                            val nextNote = notesClone[voice][index]
+                            val prevValue = when {
+                                notesClone.size > targetVoice && notesClone[targetVoice].size > targetIndex ->
+                                    notesClone[targetVoice][targetIndex]
+                                else -> ""
+                            }
+                            val historyItem = EditionHistory.Change(targetVoice, targetIndex, prevValue, nextNote)
 
+                            history.add(historyItem)
                             notes[targetVoice][targetIndex] = notesClone[voice][index]
                             updatedCells.add(partitionData.getCell(targetVoice, targetIndex))
                         }

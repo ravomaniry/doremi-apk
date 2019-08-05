@@ -13,7 +13,7 @@ data class ParserStructureEvent(
 class ChangeEvent(val position: Int, val type: String, val value: String = "", var treated: Boolean = false) {
     companion object {
         const val MOD = "MD"
-        const val MVMT = "MV"
+        const val TEMPO = "MV"
         const val DAL = "DL"
         const val SIGN = "SI"
         const val VELOCITY = "VEL"
@@ -23,16 +23,17 @@ class ChangeEvent(val position: Int, val type: String, val value: String = "", v
             val parts = str.split('_')
             val pos = if (parts[0] == "") null else parts[0].toInt()
 
-            return if (pos == null)
+            return if (pos == null) {
                 null
-            else
+            } else {
                 ChangeEvent(pos, parts[1], parts[2])
+            }
         }
     }
 
 
     fun isValid(): Boolean {
-        if (type == MVMT) {
+        if (type == TEMPO) {
             return try {
                 value.toInt()
                 true

@@ -251,7 +251,6 @@ class EditorViewModel : ViewModel() {
             enableVelocity = enablePlayerVelocity.value ?: false
             loopsNumber = playerLoops
             signature = partitionData.signature.value ?: 4
-            voicesNum = partitionData.voicesNum
             voiceIds = partitionData.voices
 
             if (playedVoices != null) {

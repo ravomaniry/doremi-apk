@@ -116,15 +116,15 @@ class ChangesDialogManager(
                 onChange {
                     if (it == "") {
                         setBackgroundColor(Color.rgb(255, 120, 100))
-                        handleChange(ChangeEvent.MVMT, "")
+                        handleChange(ChangeEvent.TEMPO, "")
                     } else {
                         val t = it.toInt()
 
                         if (t in 31..399) {
-                            handleChange(ChangeEvent.MVMT, it)
+                            handleChange(ChangeEvent.TEMPO, it)
                             setBackgroundColor(Color.WHITE)
                         } else {
-                            handleChange(ChangeEvent.MVMT, "")
+                            handleChange(ChangeEvent.TEMPO, "")
                             setBackgroundColor(Color.rgb(255, 120, 100))
                         }
                     }
@@ -194,7 +194,7 @@ class ChangesDialogManager(
         }
 
         // TEMPO ET
-        changesInScope.find { it.type == ChangeEvent.MVMT }.also {
+        changesInScope.find { it.type == ChangeEvent.TEMPO }.also {
             tempoEt.setText(it?.value ?: "")
         }
     }

@@ -218,7 +218,7 @@ class Sheet(private val shared: SharedStrings, private val partitionData: Partit
                         val events = partitionData.changeEvents.filter { it.position == changePosition }.joinToString(" ") {
                             when (it.type) {
                                 ChangeEvent.MOD -> "Do=${it.value}"
-                                ChangeEvent.MVMT -> "T=${it.value}"
+                                ChangeEvent.TEMPO -> "T=${it.value}"
                                 else -> it.value
                             }
                         }

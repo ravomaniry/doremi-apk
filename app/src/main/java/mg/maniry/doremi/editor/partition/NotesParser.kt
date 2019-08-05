@@ -8,8 +8,8 @@ import kotlin.math.max
 class NotesParser {
     private val scale = arrayOf("d", "di", "r", "ri", "m", "f", "fi", "s", "si", "l", "ta", "t")
     private val modulationKeys = listOf("C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B")
-    private val velLetters = listOf("pp", "p", "mp", "mf", "f", "ff")
-    private val velNumbers = listOf(78, 84, 90, 100, 110, 120)
+    private val velocityLetters = listOf("pp", "p", "mp", "mf", "f", "ff")
+    private val velocityNumbers = listOf(78, 84, 90, 100, 110, 120)
     private val noteP = Pattern.compile("^[a-z]+")
     private val octaveP = Pattern.compile("[0-9-]+$")
     private val release = 5
@@ -22,7 +22,6 @@ class NotesParser {
     private var currentTempo = 0
 
     private var tmpStart = 0
-    var voicesNum = 0
     var voiceIds = mutableListOf<String>()
     var playedVoices = mutableListOf<Boolean>()
     var changeEvents = mutableListOf<ChangeEvent>()
@@ -42,8 +41,9 @@ class NotesParser {
         handleStartAndLoops()
 
         val parsedNotes = mutableListOf<Note>()
+        val voicesNum = voiceIds.size
 
-        notesToParse.mapIndexed { voice, voiceNotes ->
+        val perVoiceNotes = notesToParse.mapIndexed { voice, voiceNotes ->
             ticks[voice] = commonDelay
             val parsed = mutableListOf<Note>()
 
@@ -54,15 +54,18 @@ class NotesParser {
 
                 var lastNoteIndex = -1
                 parsed.forEachIndexed { index, note ->
-                    if (note.pitch == 0 && lastNoteIndex >= 0)
+                    if (note.pitch == 0 && lastNoteIndex >= 0) {
                         parsed[lastNoteIndex].addDuration(note.duration)
-                    else
+                    } else {
                         lastNoteIndex = index
+                    }
                 }
             }
 
-            return@mapIndexed parsed
-        }.forEach {
+            return@mapIndexed parsed.filter { it.pitch > 0 }
+        }
+
+        perVoiceNotes.forEach {
             parsedNotes.addAll(it)
         }
 
@@ -71,7 +74,7 @@ class NotesParser {
 
 
     private fun handleRepetitions(notes: MutableList<MutableList<String>>) {
-        notesToParse = Array(voicesNum) { mutableListOf<String>() }
+        notesToParse = voiceIds.map { mutableListOf<String>() }.toTypedArray()
         tmpChangeEvents = mutableListOf()
         changeEvents = changeEvents
                 .asSequence()
@@ -112,7 +115,7 @@ class NotesParser {
 
                 changeEvents
                         .find { it.position == 0 && it.type == ChangeEvent.VELOCITY }
-                        ?.run { tmpEvent.velocity = velNumbers[velLetters.indexOf(value)] }
+                        ?.run { tmpEvent.velocity = velocityNumbers[velocityLetters.indexOf(value)] }
 
                 initTempoKey = false
 
@@ -127,7 +130,7 @@ class NotesParser {
                     while (i > 0 && (tmpTempo == -1 || tmpKey == -1)) {
                         if (tmpTempo == -1)
                             changeEvents
-                                    .find { it.position == i && it.type == ChangeEvent.MVMT }
+                                    .find { it.position == i && it.type == ChangeEvent.TEMPO }
                                     ?.run { tmpTempo = value.toInt() }
 
                         if (tmpKey == -1)
@@ -138,7 +141,7 @@ class NotesParser {
                         if (tmpKey == -1)
                             changeEvents
                                     .find { it.position == i && it.type == ChangeEvent.VELOCITY }
-                                    ?.run { tmpVelo = velNumbers[velLetters.indexOf(value)] }
+                                    ?.run { tmpVelo = velocityNumbers[velocityLetters.indexOf(value)] }
 
                         i -= 1
                     }
@@ -152,7 +155,7 @@ class NotesParser {
                 } else {
                     val changes = changeEvents.filter {
                         it.position == nextIndex &&
-                                arrayOf(ChangeEvent.MOD, ChangeEvent.MVMT, ChangeEvent.VELOCITY).contains(it.type)
+                                arrayOf(ChangeEvent.MOD, ChangeEvent.TEMPO, ChangeEvent.VELOCITY).contains(it.type)
                     }
 
                     if (changes.isNotEmpty()) {
@@ -165,8 +168,8 @@ class NotesParser {
                         changes.forEach { ch ->
                             when (ch.type) {
                                 ChangeEvent.MOD -> tmpCh.key = modulationKeys.indexOf(ch.value)
-                                ChangeEvent.MVMT -> tmpCh.tempo = ch.value.toInt()
-                                ChangeEvent.VELOCITY -> tmpCh.velocity = velNumbers[velLetters.indexOf(ch.value)]
+                                ChangeEvent.TEMPO -> tmpCh.tempo = ch.value.toInt()
+                                ChangeEvent.VELOCITY -> tmpCh.velocity = velocityNumbers[velocityLetters.indexOf(ch.value)]
                             }
                         }
                     }
@@ -229,7 +232,7 @@ class NotesParser {
         val newChangeEvents: MutableList<ParserStructureEvent>
 
         if (tmpStart > 0) {
-            tmpNotesToParse = Array(voicesNum) { mutableListOf<String>() }
+            tmpNotesToParse = voiceIds.map { mutableListOf<String>() }.toTypedArray()
             val chEvZero = ParserStructureEvent(0)
             var index = tmpStart
 
@@ -286,12 +289,15 @@ class NotesParser {
         tmpChangeEvents
                 .find { it.position == index }
                 ?.also {
-                    if (it.key >= 0)
+                    if (it.key >= 0) {
                         key = it.key
-                    if (it.tempo >= 0)
+                    }
+                    if (it.tempo >= 0) {
                         currentTempo = it.tempo
-                    if (enableVelocity && it.velocity >= 0)
+                    }
+                    if (enableVelocity && it.velocity >= 0) {
                         baseVelocity = it.velocity
+                    }
                 }
 
         val currentTU = timeUnit * tempo / currentTempo
@@ -305,51 +311,41 @@ class NotesParser {
 
         if (note == "") {
             ticks[voice] += currentTU
-
         } else if (!note.contains('.') && !note.contains(',')) {
-            return mutableListOf(
-                    Note(voice,
-                            noteToPitch(note, voiceIds[voice]),
-                            velocity,
-                            ticks[voice],
-                            currentTU - release))
+            val pitch = noteToPitch(note, voiceIds[voice])
+            val duration = currentTU - getCorrectRelease(pitch)
+            return mutableListOf(Note(voice, pitch, velocity, ticks[voice], duration))
                     .also { ticks[voice] += currentTU }
         } else {
             val subNotes = note.split(".")
-            val noteCoeff = subNotes.size
+            val noteWeight = subNotes.size
 
             subNotes.forEach { subNote ->
                 if (!subNote.contains(',')) {
-                    if (subNote != "")
-                        notes.add(Note(
-                                voice,
-                                noteToPitch(subNote, voiceIds[voice]),
-                                velocity,
-                                ticks[voice],
-                                currentTU / noteCoeff - release))
-
-                    ticks[voice] += currentTU / noteCoeff
+                    if (subNote != "") {
+                        val pitch = noteToPitch(subNote, voiceIds[voice])
+                        val duration = currentTU / noteWeight - getCorrectRelease(pitch)
+                        notes.add(Note(voice, pitch, velocity, ticks[voice], duration))
+                    }
+                    ticks[voice] += currentTU / noteWeight
                 } else {
                     val finalNotes = subNote.split(",")
-                    val finalNoteCoeff = finalNotes.size
+                    val finalNoteWeight = finalNotes.size
 
                     finalNotes.forEach { finalNote ->
-                        if (finalNote != "")
-                            notes.add(Note(
-                                    voice,
-                                    noteToPitch(finalNote, voiceIds[voice]),
-                                    velocity,
-                                    ticks[voice],
-                                    currentTU / (noteCoeff * finalNoteCoeff) - release
-                            ))
-
-                        ticks[voice] += currentTU / (noteCoeff * finalNoteCoeff)
+                        if (finalNote != "") {
+                            val pitch = noteToPitch(finalNote, voiceIds[voice])
+                            val duration = currentTU / (noteWeight * finalNoteWeight) - getCorrectRelease(pitch)
+                            notes.add(Note(voice, pitch, velocity, ticks[voice], duration))
+                        }
+                        ticks[voice] += currentTU / (noteWeight * finalNoteWeight)
                     }
                 }
             }
         }
 
         ticks[voice] = nextTick
+
         return notes
     }
 
@@ -392,7 +388,7 @@ class NotesParser {
             return 0
         }
 
-        val noteMatch = noteP.matcher(stringNote)
+        val noteMatch = noteP.matcher(stringNote.trim())
         if (noteMatch.find()) {
             pitch = searchNote(noteMatch.group(0)) + key + voiceOffset
 
@@ -414,5 +410,14 @@ class NotesParser {
             }
         }
         return pitch
+    }
+
+
+    private fun getCorrectRelease(pitch: Int): Int {
+        return if (pitch == 0) {
+            0
+        } else {
+            release
+        }
     }
 }
