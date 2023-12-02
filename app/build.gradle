@@ -5,12 +5,12 @@ apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-android-extensions'
 
 android {
-    compileSdkVersion 30
-    defaultConfig {
 
+    defaultConfig {
         applicationId "mg.maniry.doremi"
         minSdkVersion 14
-        targetSdkVersion 30
+        compileSdk 32
+        targetSdkVersion 32
         versionCode 7
         versionName "2.1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
@@ -21,6 +21,7 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    namespace 'mg.maniry.doremi'
 }
 
 dependencies {

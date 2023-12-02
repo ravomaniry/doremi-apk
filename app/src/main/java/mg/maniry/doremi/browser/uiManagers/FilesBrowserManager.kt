@@ -19,8 +19,8 @@ import org.jetbrains.anko.alert
 
 
 class FilesBrowserManager(
-        val context: BrowserActivity,
-        val mainView: View) {
+    val context: BrowserActivity, val mainView: View
+) {
 
     private val listAdapter = FileBrowserAdapter(listOf(), ::clickHandler)
     private val viewModel = context.viewModel!!
@@ -30,7 +30,6 @@ class FilesBrowserManager(
         initFilesList()
         observeFilesList()
         handleSearch()
-        viewModel.importDoremiFiles()
     }
 
 
@@ -43,9 +42,9 @@ class FilesBrowserManager(
 
 
     private fun observeFilesList() {
-        viewModel.filesList.observe(context, Observer {
+        viewModel.filesList.observe(context) {
             it?.run { listAdapter.update(it) }
-        })
+        }
     }
 
 
@@ -60,11 +59,10 @@ class FilesBrowserManager(
 
 
     private fun openFile(filename: String) {
-        val intent = Intent(context, EditorActivity::class.java)
-                .apply {
-                    putExtra("fileToOpen", filename)
-                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                }
+        val intent = Intent(context, EditorActivity::class.java).apply {
+            putExtra("fileToOpen", filename)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
 
         context.startActivity(intent)
     }
@@ -89,23 +87,22 @@ class FilesBrowserManager(
 
 
     private fun publishFile(name: String) {
-        val intent = Intent(context, UploadSolfaActivity::class.java)
-                .apply { putExtra("filename", name) }
+        val intent =
+            Intent(context, UploadSolfaActivity::class.java).apply { putExtra("filename", name) }
         context.startActivity(intent)
     }
 
 
     private fun handleSearch() {
         with(mainView) {
-            val editText = findViewById<EditText>(R.id.local_search_view)
-                    .apply {
-                        onChange {
-                            listAdapter.apply {
-                                filterValue = it
-                                search()
-                            }
-                        }
+            val editText = findViewById<EditText>(R.id.local_search_view).apply {
+                onChange {
+                    listAdapter.apply {
+                        filterValue = it
+                        search()
                     }
+                }
+            }
 
             findViewById<ImageView>(R.id.browser_reset_search_btn).setOnClickListener {
                 listAdapter.search("")

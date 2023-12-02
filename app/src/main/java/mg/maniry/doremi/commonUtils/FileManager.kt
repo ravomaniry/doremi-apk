@@ -12,8 +12,6 @@ import android.content.Intent
 import android.content.res.AssetManager
 import android.support.v4.content.FileProvider
 import mg.maniry.doremi.editor.viewModels.FileContent
-import org.jetbrains.anko.doAsync
-import org.jetbrains.anko.uiThread
 
 
 class FileManager {
@@ -25,27 +23,28 @@ class FileManager {
         private const val midi = "midi"
         private const val authority = "mg.maniry.doremi"
         private val sep = File.separator
-        private var parentDir = File("${Environment.getExternalStorageDirectory().absoluteFile}$sep$doremi")
-                .also { if (!it.exists()) it.mkdirs() }
+        private var parentDir =
+            File("${Environment.getExternalStorageDirectory().absoluteFile}${sep}Documents$sep$doremi").also {
+                if (!it.exists()) it.mkdirs()
+            }
         private val solfaDir = File("${parentDir.absolutePath}$sep$solfa")
-        private val htmlDir = File("${parentDir.absolutePath}$sep$export")
-                .also { if (!it.exists()) it.mkdirs() }
+        private val htmlDir =
+            File("${parentDir.absolutePath}$sep$export").also { if (!it.exists()) it.mkdirs() }
         private val solfaDirPath: String = solfaDir.absolutePath + sep
         val htmlDirPath = htmlDir.absolutePath + sep
-        private val midiExportDirPath = File("${parentDir.absolutePath}$sep$midi")
-                .also { if (!it.exists()) it.mkdirs() }
+        private val midiExportDirPath =
+            File("${parentDir.absolutePath}$sep$midi").also { if (!it.exists()) it.mkdirs() }
 
 
-        fun listFiles() = solfaDir
-                .listFiles { f -> f.extension == "drm" }
-                .map { it.name.replace(".drm", "") }.sorted()
+        fun listFiles() =
+            solfaDir.listFiles { f -> f.extension == "drm" }?.map { it.name.replace(".drm", "") }
+                ?.sorted()
 
 
         fun rename(oldName: String?, newName: String) {
             if (oldName != null && newName != "") {
                 with(getFileFromName(oldName)) {
-                    if (exists())
-                        renameTo(File("$solfaDirPath$newName.drm"))
+                    if (exists()) renameTo(File("$solfaDirPath$newName.drm"))
                 }
             }
         }
@@ -90,8 +89,7 @@ class FileManager {
                 return try {
                     var content = ""
                     Scanner(file).run {
-                        while (hasNextLine())
-                            content += nextLine()
+                        while (hasNextLine()) content += nextLine()
                     }
                     FileContent(content = content)
 
@@ -141,25 +139,6 @@ class FileManager {
             }
         }
 
-
-        fun importAllDoremiFiles(callback: (() -> Unit)? = null) {
-            doAsync {
-                val path = Environment.getExternalStorageDirectory().absolutePath + sep
-
-                listOf("Download", "Bluetooth", "Xender", "Xender/other", "Documents", "Music/doremi").forEach { dirName ->
-                    File("$path$dirName").also { dir ->
-                        if (dir.exists())
-                            dir.listFiles { f -> f.extension == "drm" }.forEach { file ->
-                                moveIntoDoremiDir(file = file)
-                            }
-                    }
-                }
-
-                uiThread { callback?.invoke() }
-            }
-        }
-
-
         fun moveIntoDoremiDir(file: File? = null, path: String? = null): String? {
             return try {
                 when {
@@ -189,19 +168,16 @@ class FileManager {
         fun getCopy(name: String): File {
             val destFile = getFileFromName(getFileFromName(name).name)
 
-            if (!destFile.exists())
-                return destFile
+            if (!destFile.exists()) return destFile
 
             var dirName = getFileFromName(name).parentFile.name
-            if (dirName == "solfa")
-                dirName = ""
+            if (dirName == "solfa") dirName = ""
 
             val desFileName = destFile.name.replace(".drm", "")
 
             if (dirName != "") {
                 getFileFromName("$desFileName ($dirName)").also {
-                    if (!it.exists())
-                        return it
+                    if (!it.exists()) return it
                 }
             }
 
@@ -226,6 +202,7 @@ class FileManager {
                         assets.open("demo/$name").copyTo(FileOutputStream(getFileFromName(name)))
                     }
                 } catch (e: Exception) {
+                    println(e)
                 }
             }
         }
