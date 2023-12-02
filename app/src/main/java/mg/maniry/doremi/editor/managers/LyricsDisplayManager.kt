@@ -5,8 +5,8 @@ import android.arch.lifecycle.Observer
 import android.content.Context
 import android.view.KeyEvent
 import android.view.View
+import android.widget.Button
 import android.widget.EditText
-import android.widget.ImageButton
 import android.widget.TextView
 import mg.maniry.doremi.R
 import mg.maniry.doremi.editor.EditorActivity
@@ -15,16 +15,17 @@ import mg.maniry.doremi.editor.viewModels.UiViewModel
 
 
 class LyricsDisplayManager(
-        private val mainContext: Context,
-        private val mainView: View,
-        private val uiViewModel: UiViewModel,
-        private val editorViewModel: EditorViewModel) {
+    private val mainContext: Context,
+    private val mainView: View,
+    private val uiViewModel: UiViewModel,
+    private val editorViewModel: EditorViewModel
+) {
 
     private val lyrics = editorViewModel.partitionData.lyrics
     private val textView = mainView.findViewById<TextView>(R.id.lyrics_text_view)
     private val editText = mainView.findViewById<EditText>(R.id.lyrics_edit_text)
-    private val editBtn = mainView.findViewById<ImageButton>(R.id.lyrics_edit_btn)
-    private val saveBtn = mainView.findViewById<ImageButton>(R.id.lyrics_save_btn)
+    private val editBtn = mainView.findViewById<Button>(R.id.lyrics_edit_btn)
+    private val saveBtn = mainView.findViewById<Button>(R.id.lyrics_save_btn)
 
     init {
         initLyricsDisplay()
@@ -32,17 +33,18 @@ class LyricsDisplayManager(
 
 
     private fun initLyricsDisplay() {
-        editorViewModel.lyricsEditMode.observe(mainContext as EditorActivity, Observer {
+        editorViewModel.lyricsEditMode.observe(mainContext as EditorActivity) {
             toggleViewMode(it == true)
-        })
+        }
 
 
-        lyrics.observe(mainContext, Observer {
-            if (editorViewModel.lyricsEditMode.value == true)
+        lyrics.observe(mainContext) {
+            if (editorViewModel.lyricsEditMode.value == true) {
                 editText.setText(it)
-            else
+            } else {
                 textView.text = it
-        })
+            }
+        }
 
 
         saveBtn.setOnClickListener {

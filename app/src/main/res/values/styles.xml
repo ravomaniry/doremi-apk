@@ -11,6 +11,63 @@
         <item name="windowNoTitle">true</item>
     </style>
 
+    <style name="AppTheme.PrimaryButton" parent="Widget.AppCompat.Button">
+        <item name="android:background">@color/colorPrimary</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+
+    <style name="AppTheme.PrimaryIconButton" parent="android:style/MediaButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">match_parent</item>
+    </style>
+
+    <style name="AppTheme.AppBarButtonContainer">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:gravity">center</item>
+    </style>
+
+    <style name="AppTheme.AppBarButton" parent="AppTheme.PrimaryIconButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:clickable">false</item>
+        <item name="android:focusable">false</item>
+        <item name="android:soundEffectsEnabled">true</item>
+    </style>
+
+    <style name="AppTheme.VerticalAppBarButton" parent="AppTheme.WhiteIconButton">
+        <item name="android:layout_width">28dp</item>
+        <item name="android:layout_height">28dp</item>
+        <item name="android:layout_marginTop">5dp</item>
+        <item name="android:layout_marginBottom">10dp</item>
+        <item name="android:contentDescription">@string/app_name</item>
+    </style>
+
+    <style name="AppTheme.WhiteIconButton" parent="AppTheme.PrimaryIconButton">
+        <item name="android:tint">@color/white</item>
+    </style>
+
+    <style name="AppTheme.ColoredIconButton" parent="android:style/MediaButton">
+        <item name="android:background">@color/colorPrimary</item>
+    </style>
+
+    <style name="AppTheme.LegendText" parent="TextAppearance.AppCompat.Body1">
+        <item name="android:drawableTint">@color/colorPrimary</item>
+        <item name="android:drawablePadding">10dp</item>
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+    </style>
+
+    <style name="AppTheme.Headline4" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="textAllCaps">true</item>
+        <item name="android:textColor">@color/colorAccent</item>
+    </style>
+
     <style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
 
     <style name="AppTheme.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />

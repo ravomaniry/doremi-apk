@@ -75,26 +75,28 @@
                             android:hint="@string/app_name"
                             android:textSize="14sp" />
 
-                        <ImageButton
+                        <Button
                             android:id="@+id/lyrics_edit_btn"
+                            style="@style/AppTheme.PrimaryButton"
                             android:layout_width="wrap_content"
                             android:layout_height="32dp"
-                            android:background="@drawable/button"
                             android:contentDescription="@string/app_name"
+                            android:drawableLeft="@drawable/ic_edit"
                             android:paddingLeft="10dp"
                             android:paddingRight="10dp"
-                            android:src="@drawable/ic_edit"
+                            android:text="@string/text_lyrics"
                             android:textAllCaps="false"
                             android:textColor="#FFF" />
 
-                        <ImageButton
+                        <Button
                             android:id="@+id/lyrics_save_btn"
+                            style="@style/AppTheme.PrimaryButton"
                             android:layout_width="wrap_content"
                             android:layout_height="32dp"
-                            android:background="@drawable/button"
                             android:contentDescription="@string/app_name"
+                            android:drawableLeft="@drawable/ic_done"
                             android:padding="8sp"
-                            android:src="@drawable/ic_done"
+                            android:text="@string/text_done"
                             android:textColor="#FFF" />
 
                     </LinearLayout>

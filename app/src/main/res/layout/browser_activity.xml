@@ -16,7 +16,7 @@
             android:id="@+id/search_forms_cont"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/design_default_color_primary_dark"
+            android:background="@color/colorPrimary"
             android:orientation="vertical"
             android:paddingLeft="10dp"
             android:paddingTop="5dp"
@@ -110,7 +110,7 @@
                         android:id="@+id/browser_local_tab_btn_deco"
                         android:layout_width="match_parent"
                         android:layout_height="4dp"
-                        android:background="@color/colorAccentDark" />
+                        android:background="@color/colorPrimaryDark" />
                 </LinearLayout>
 
                 <LinearLayout

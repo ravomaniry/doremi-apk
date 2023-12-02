@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/design_default_color_primary_dark"
+    android:background="@color/colorPrimary"
     android:baselineAligned="false"
     android:orientation="horizontal"
     android:paddingTop="6dp"
@@ -13,35 +13,21 @@
 
     <LinearLayout
         android:id="@+id/play_btn"
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:clickable="true"
-        android:focusable="true"
-        android:gravity="center">
+        style="@style/AppTheme.AppBarButtonContainer">
 
-        <ImageView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clickable="false"
+        <ImageButton
+            style="@style/AppTheme.AppBarButton"
             android:contentDescription="@string/appbar_content_descr"
-            android:focusable="false"
-            android:soundEffectsEnabled="true"
             android:src="@drawable/ic_play" />
+
     </LinearLayout>
 
     <LinearLayout
         android:id="@+id/stop_btn"
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:clickable="true"
-        android:focusable="true"
-        android:gravity="center">
+        style="@style/AppTheme.AppBarButtonContainer">
 
         <ImageView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            style="@style/AppTheme.WhiteIconButton"
             android:clickable="false"
             android:contentDescription="@string/appbar_content_descr"
             android:focusable="false"
