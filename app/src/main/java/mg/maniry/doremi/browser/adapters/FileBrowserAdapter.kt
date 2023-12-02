@@ -15,16 +15,17 @@ import org.jetbrains.anko.uiThread
 
 
 class FileBrowserAdapter(
-        private var fileNames: List<String>,
-        private val onClick: (type: Int, value: String) -> Unit) : RecyclerView.Adapter<FileBrowserAdapter.ViewHolder>() {
+    private var fileNames: List<String>, private val onClick: (type: Int, value: String) -> Unit
+) : RecyclerView.Adapter<FileBrowserAdapter.ViewHolder>() {
 
     var filterValue = ""
     private var tmpValues = fileNames.toList()
     private var activeFile = ""
 
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
-            ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.files_list_item, parent, false))
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = ViewHolder(
+        LayoutInflater.from(parent.context).inflate(R.layout.files_list_item, parent, false)
+    )
 
 
     override fun getItemCount() = tmpValues.size
@@ -70,14 +71,12 @@ class FileBrowserAdapter(
         if (str == "") {
             tmpValues = fileNames
             notifyDataSetChanged()
-
         } else {
             doAsync {
                 val tmpFilterValue = filterValue
                 tmpValues = fileNames.filter(this@FileBrowserAdapter::searchCallback)
                 uiThread {
-                    if (tmpFilterValue == filterValue)
-                        notifyDataSetChanged()
+                    if (tmpFilterValue == filterValue) notifyDataSetChanged()
                 }
             }
         }
@@ -89,8 +88,7 @@ class FileBrowserAdapter(
         val filename = value.trim().toLowerCase()
 
         parts.forEach {
-            if (it != "" && !filename.contains(it))
-                return false
+            if (it != "" && !filename.contains(it)) return false
         }
 
         return true
@@ -103,9 +101,7 @@ class FileBrowserAdapter(
             MenuInflater(v.context).inflate(R.menu.actions_menu, this)
             onSelect {
                 when (it.itemId) {
-                    R.id.share_action -> onClick(ActionTypes.SHARE, activeFile)
                     R.id.delete_action -> onClick(ActionTypes.DELETE, activeFile)
-                    R.id.publish_action -> onClick(ActionTypes.PUBLISH, activeFile)
                 }
             }
         }

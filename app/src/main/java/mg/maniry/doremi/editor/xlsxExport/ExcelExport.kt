@@ -13,13 +13,13 @@ import java.util.zip.ZipOutputStream
 class ExcelExport(private val asset: AssetManager) {
     private var fileName = "doremi"
     private val files = listOf(
-            FileAddress("content_type", "[Content_Types].xml"),
-            FileAddress("app", "docProps/app.xml"),
-            FileAddress("core", "docProps/core.xml"),
-            FileAddress("rels", "_rels/.rels"),
-            FileAddress("workbook_rels", "xl/_rels/workbook.xml.rels"),
-            FileAddress("workbook", "xl/workbook.xml"),
-            FileAddress("styles", "xl/styles.xml")
+        FileAddress("content_type", "[Content_Types].xml"),
+        FileAddress("app", "docProps/app.xml"),
+        FileAddress("core", "docProps/core.xml"),
+        FileAddress("rels", "_rels/.rels"),
+        FileAddress("workbook_rels", "xl/_rels/workbook.xml.rels"),
+        FileAddress("workbook", "xl/workbook.xml"),
+        FileAddress("styles", "xl/styles.xml")
     )
 
 
@@ -34,10 +34,8 @@ class ExcelExport(private val asset: AssetManager) {
 
     private fun writeFile(sharedStrings: String, sheet: String) {
         try {
-            val rootFolder = FileManager.htmlDirPath
             val resultOut = ByteArrayOutputStream()
             val zipOut = ZipOutputStream(resultOut)
-
             zipOut.apply {
                 files.forEach {
                     putNextEntry(ZipEntry(it.dest))
@@ -45,20 +43,17 @@ class ExcelExport(private val asset: AssetManager) {
                     write(bytes)
                     closeEntry()
                 }
-
                 putNextEntry(ZipEntry("xl/sharedStrings.xml"))
                 val sharedBytes = sharedStrings.toByteArray()
                 write(sharedBytes)
                 closeEntry()
-
                 putNextEntry(ZipEntry("xl/worksheets/sheet1.xml"))
                 val sheetBytes = sheet.toByteArray()
                 write(sheetBytes)
                 closeEntry()
             }
-
             zipOut.finish()
-            val fileOut = FileOutputStream("$rootFolder$fileName.xlsx")
+            val fileOut = FileOutputStream(FileManager.createExportFilePath(fileName, ".xlsx"))
             resultOut.apply {
                 writeTo(fileOut)
                 close()

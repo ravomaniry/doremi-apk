@@ -85,54 +85,6 @@
                         android:src="@drawable/ic_search" />
                 </LinearLayout>
             </FrameLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:baselineAligned="false"
-                android:orientation="horizontal">
-
-                <LinearLayout
-                    android:id="@+id/browser_local_tab_btn"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight=".5"
-                    android:gravity="center_horizontal"
-                    android:orientation="vertical">
-
-                    <ImageView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:contentDescription="@string/app_name"
-                        android:src="@drawable/ic_local_phone" />
-
-                    <View
-                        android:id="@+id/browser_local_tab_btn_deco"
-                        android:layout_width="match_parent"
-                        android:layout_height="4dp"
-                        android:background="@color/colorPrimaryDark" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/browser_online_tab_btn"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight=".5"
-                    android:gravity="center_horizontal"
-                    android:orientation="vertical">
-
-                    <ImageView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:contentDescription="@string/app_name"
-                        android:src="@drawable/ic_cloud_download" />
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="4dp"
-                        android:background="@color/design_default_color_primary_dark" />
-                </LinearLayout>
-            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout

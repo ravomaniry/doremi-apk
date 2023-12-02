@@ -148,7 +148,7 @@ class EditorViewModel : ViewModel() {
         }
         if (partitionData.getMaxLength() > 4) {
             FileManager.write(filename, partitionData.toString())
-                    .also { if (it != "") message.value = it }
+                .also { if (it != "") message.value = it }
         }
     }
 
@@ -213,7 +213,7 @@ class EditorViewModel : ViewModel() {
     }
 
 
-    fun reset() {
+    fun createNew() {
         save()
         resetCursors()
         history.reset()
@@ -258,21 +258,24 @@ class EditorViewModel : ViewModel() {
             }
         }
 
-        createMidiFile(CreateMidiParams(
+        createMidiFile(
+            CreateMidiParams(
                 notes = parser.parse(partitionData.notes),
                 tempo = partitionData.tempo,
                 outFile = file,
                 instruments = partitionData.instruments.value,
                 voiceIds = partitionData.voices
-        ))
+            )
+        )
     }
 
 
     fun exportMidiFile() {
         doAsync {
             createTmpMidFile(
-                    FileManager.getMidiExportFile(partitionData.songInfo.filename),
-                    partitionData.voices.map { true }.toMutableList())
+                File(FileManager.createExportFilePath(partitionData.songInfo.filename, ".mid")),
+                partitionData.voices.map { true }.toMutableList()
+            )
 
             uiThread {
                 message.value = "${Values.done}:\nmidi/${partitionData.songInfo.filename}.mid"

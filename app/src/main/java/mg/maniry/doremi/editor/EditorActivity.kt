@@ -26,10 +26,10 @@ class EditorActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         permissionsManager = PermissionsManager(this as Activity).apply { disk() }
         mainView = inflateMainView(this)
         setContentView(mainView)
+        FileManager.initDir(baseContext)
         FileManager.copyDemoFiles(assets)
         initUi()
     }
@@ -38,8 +38,7 @@ class EditorActivity : AppCompatActivity() {
     private fun initUi() {
         val uiVM = ViewModelProviders.of(this).get(UiViewModel::class.java)
         editorViewModel = ViewModelProviders.of(this).get(EditorViewModel::class.java)
-            .apply { start(getPreferences(Context.MODE_PRIVATE), intent) }
-            .also {
+            .apply { start(getPreferences(Context.MODE_PRIVATE), intent) }.also {
                 val player = it.player ?: Player(this, it)
                 it.player = player
                 it.cancelPlayerRelease()
@@ -66,9 +65,7 @@ class EditorActivity : AppCompatActivity() {
 
 
     override fun onRequestPermissionsResult(
-        reqCode: Int,
-        permissions: Array<out String>,
-        results: IntArray
+        reqCode: Int, permissions: Array<out String>, results: IntArray
     ) {
         permissionsManager.grantPermission(reqCode, results) {
             FileManager.copyDemoFiles(assets)

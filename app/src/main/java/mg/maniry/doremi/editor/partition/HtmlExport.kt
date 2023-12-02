@@ -8,7 +8,8 @@ import org.jetbrains.anko.uiThread
 
 
 class HtmlExport(
-        private var partitionData: PartitionData) {
+    private var partitionData: PartitionData
+) {
 
     companion object {
         val notes = listOf("C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B")
@@ -44,7 +45,6 @@ class HtmlExport(
         doAsync {
             val html = prefix() + header() + solfa() + lyrics() + footer() + suffix
             val msg = FileManager.writeHtml(partitionData.songInfo.filename, html)
-
             uiThread { callback(msg) }
         }
     }
@@ -143,14 +143,20 @@ class HtmlExport(
         val events = mutableListOf<List<List<ChangeEvent?>>>()
         for (h in 0 until (signature)) {
             headerIndex = measureIndex * signature + h
-            events.add(with(ChangeEvent) { listOf(listOf(VELOCITY, SIGN, DAL), listOf(MOD), listOf(TEMPO)) }
-                    .asSequence()
-                    .map { group ->
-                        group.asSequence()
-                                .map { type -> partitionData.changeEvents.find { it.type == type && it.position == headerIndex } }
-                                .filter { it != null }
-                                .toList()
-                    }.toList())
+            events.add(with(ChangeEvent) {
+                listOf(
+                    listOf(VELOCITY, SIGN, DAL),
+                    listOf(MOD),
+                    listOf(TEMPO)
+                )
+            }
+                .asSequence()
+                .map { group ->
+                    group.asSequence()
+                        .map { type -> partitionData.changeEvents.find { it.type == type && it.position == headerIndex } }
+                        .filter { it != null }
+                        .toList()
+                }.toList())
         }
 
         var headerHtml = "<tr>"
@@ -264,12 +270,14 @@ class HtmlExport(
         var html = "<div style=\"$lyricsMargins$flex$spaceAround\">"
 
         html += partitionData.lyrics.value
-                ?.replace(linebreakRegex, "\n\n")
-                ?.split("\n\n")
-                ?.asSequence()
-                ?.map {
-                    "<div><pre style=\"$fontFamily$verseMargin\">${it.replace(">", "").replace("<", "")}</pre></div>"
-                }?.joinToString("")
+            ?.replace(linebreakRegex, "\n\n")
+            ?.split("\n\n")
+            ?.asSequence()
+            ?.map {
+                "<div><pre style=\"$fontFamily$verseMargin\">${
+                    it.replace(">", "").replace("<", "")
+                }</pre></div>"
+            }?.joinToString("")
 
         html += "</div>"
 

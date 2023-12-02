@@ -72,7 +72,12 @@ class PianoView(context: Context, attrs: AttributeSet) : View(context, attrs) {
                 bLeft = (i + 0.6f) * keyWidth
                 bRight = bLeft + keyWidth * 0.8f
                 bHeight = h * 0.6f
-                blackKeys[blackKeyIndex] = mg.maniry.doremi.editor.views.PianoKey(bLeft, bRight, bHeight, blackNotes[blackKeyIndex])
+                blackKeys[blackKeyIndex] = PianoKey(
+                    bLeft,
+                    bRight,
+                    bHeight,
+                    blackNotes[blackKeyIndex]
+                )
                 blackKeyIndex++
             }
         }
@@ -103,7 +108,14 @@ class PianoView(context: Context, attrs: AttributeSet) : View(context, attrs) {
         black.textSize = 18f
         if (octave != 0) {
             val octY = if (octave < 0) keyHeight - 16f else keyHeight - 54f
-            (0..6).forEach { canvas.drawText(Math.abs(octave).toString(), (it + 0.5f) * keyWidth + 14, octY, black) }
+            (0..6).forEach {
+                canvas.drawText(
+                    Math.abs(octave).toString(),
+                    (it + 0.5f) * keyWidth + 14,
+                    octY,
+                    black
+                )
+            }
         }
 
         if (octave != -1) {

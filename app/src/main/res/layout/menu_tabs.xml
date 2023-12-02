@@ -2,36 +2,22 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/colorAccent"
-    android:orientation="horizontal"
-    android:theme="@style/ThemeOverlay.AppCompat.Dark">
+    android:orientation="horizontal">
 
-    <TextView
+    <Button
         android:id="@+id/editor_tab_selector"
+        style="@style/AppTheme.Tab"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight=".5"
-        android:clickable="true"
-        android:drawableEnd="@drawable/ic_settings"
-        android:drawableRight="@drawable/ic_settings"
-        android:focusable="true"
-        android:gravity="center_horizontal"
-        android:paddingTop="10dp"
-        android:paddingBottom="4dp"
         android:text="@string/text_editor" />
 
-    <TextView
+    <Button
         android:id="@+id/song_tab_selector"
+        style="@style/AppTheme.Tab"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight=".5"
-        android:clickable="true"
-        android:drawableEnd="@drawable/ic_music_note"
-        android:drawableRight="@drawable/ic_music_note"
-        android:focusable="true"
-        android:gravity="center_horizontal"
-        android:paddingTop="10dp"
-        android:paddingBottom="4dp"
         android:text="@string/tex_title" />
 
 </LinearLayout>
