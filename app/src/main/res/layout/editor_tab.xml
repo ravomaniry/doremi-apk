@@ -4,37 +4,36 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:paddingStart="15dp"
-    android:paddingLeft="15dp">
+    android:padding="@dimen/spacing2">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:padding="@dimen/spacing4">
 
         <LinearLayout
-            android:layout_width="180dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="10dp"
             android:orientation="horizontal"
-            android:weightSum="2.5">
+            android:weightSum="2">
 
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1.12"
-                android:text="@string/text_signature"
-                android:textColor="@color/colorPrimaryDark" />
+                android:layout_weight="1"
+                android:text="@string/text_signature" />
 
             <Spinner
                 android:id="@+id/signature_spinner"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1.38" />
+                android:layout_weight="1" />
         </LinearLayout>
 
         <LinearLayout
-            android:layout_width="160dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:weightSum="2">
@@ -43,8 +42,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/text_key"
-                android:textColor="@color/colorPrimaryDark" />
+                android:text="@string/text_key" />
 
             <Spinner
                 android:id="@+id/key_spinner"
@@ -54,7 +52,7 @@
         </LinearLayout>
 
         <LinearLayout
-            android:layout_width="160dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:weightSum="2">
@@ -63,8 +61,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/text_tempo"
-                android:textColor="@color/colorPrimaryDark" />
+                android:text="@string/text_tempo" />
 
             <EditText
                 android:id="@+id/tempo_edit_text"
@@ -74,12 +71,11 @@
                 android:gravity="end"
                 android:inputType="number"
                 android:paddingEnd="8dp"
-                android:paddingRight="8dp"
                 tools:ignore="RtlSymmetry" />
         </LinearLayout>
 
         <LinearLayout
-            android:layout_width="160dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:weightSum="2">
@@ -88,8 +84,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/text_swing"
-                android:textColor="@color/colorPrimaryDark" />
+                android:text="@string/text_swing" />
 
             <CheckBox
                 android:id="@+id/swing_checkbx"
@@ -107,7 +102,7 @@
 
 
         <LinearLayout
-            android:layout_width="160dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:weightSum="1">
@@ -126,43 +121,49 @@
         </LinearLayout>
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:weightSum="2">
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:text="@string/text_loog"
                 android:textColor="@color/colorPrimaryDark" />
 
             <Spinner
                 android:id="@+id/loop_spinner"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
 
         </LinearLayout>
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/text_voices_instruments"
             android:textColor="@color/colorPrimaryDark" />
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:weightSum="2">
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:text="@string/text_voices_num" />
 
             <Spinner
                 android:id="@+id/voices_num_spin"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
 
         </LinearLayout>
 
