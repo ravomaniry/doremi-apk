@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bottom_app_bar_background"
+    android:baselineAligned="false"
+    android:gravity="center"
+    android:orientation="horizontal"
+    android:paddingVertical="5dp"
+    android:weightSum="60">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="10">
+
+        <ImageButton
+            android:id="@+id/menu_btn"
+            style="@style/AppTheme.DarkIconButton"
+            android:contentDescription="@string/appbar_content_descr"
+            android:src="@drawable/ic_music_logo" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="10">
+
+        <ImageButton
+            android:id="@+id/undo_btn"
+            style="@style/AppTheme.DarkIconButton"
+            android:contentDescription="@string/appbar_content_descr"
+            android:src="@drawable/ic_undo" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:layout_weight="20"
+        android:orientation="vertical"
+        android:paddingHorizontal="5dp">
+
+        <ImageButton
+            android:id="@+id/play_btn"
+            style="@style/AppTheme.PlayPauseButton"
+            android:contentDescription="@string/appbar_content_descr"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_play" />
+
+        <ImageButton
+            android:id="@+id/stop_btn"
+            style="@style/AppTheme.PlayPauseButton"
+            android:contentDescription="@string/appbar_content_descr"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_stop_circle" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="10">
+
+        <ImageButton
+            android:id="@+id/preview_btn"
+            style="@style/AppTheme.DarkIconButton"
+            android:contentDescription="@string/appbar_content_descr"
+            android:src="@drawable/ic_piano" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="10">
+
+        <ImageButton
+            android:id="@+id/additional_menu_btn"
+            style="@style/AppTheme.DarkIconButton"
+            android:contentDescription="@string/appbar_content_descr"
+            android:src="@drawable/ic_more" />
+    </LinearLayout>
+</LinearLayout>

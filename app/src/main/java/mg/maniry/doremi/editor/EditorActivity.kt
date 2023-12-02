@@ -15,8 +15,6 @@ import mg.maniry.doremi.commonUtils.PermissionsManager
 import mg.maniry.doremi.editor.partition.Player
 import mg.maniry.doremi.editor.viewModels.UiViewModel
 import mg.maniry.doremi.editor.xlsxExport.ExcelExport
-import org.jetbrains.anko.doAsync
-import org.jetbrains.anko.uiThread
 
 
 class EditorActivity : AppCompatActivity() {
@@ -40,14 +38,14 @@ class EditorActivity : AppCompatActivity() {
     private fun initUi() {
         val uiVM = ViewModelProviders.of(this).get(UiViewModel::class.java)
         editorViewModel = ViewModelProviders.of(this).get(EditorViewModel::class.java)
-                .apply { start(getPreferences(Context.MODE_PRIVATE), intent) }
-                .also {
-                    val player = it.player ?: Player(this, it)
-                    it.player = player
-                    it.cancelPlayerRelease()
-                    uiManager = UiManager(this@EditorActivity, mainView, uiVM, it, player)
-                    it.xlsExport = ExcelExport(assets)
-                }
+            .apply { start(getPreferences(Context.MODE_PRIVATE), intent) }
+            .also {
+                val player = it.player ?: Player(this, it)
+                it.player = player
+                it.cancelPlayerRelease()
+                uiManager = UiManager(this@EditorActivity, mainView, uiVM, it, player)
+                it.xlsExport = ExcelExport(assets)
+            }
     }
 
 
@@ -67,7 +65,11 @@ class EditorActivity : AppCompatActivity() {
     }
 
 
-    override fun onRequestPermissionsResult(reqCode: Int, permissions: Array<out String>, results: IntArray) {
+    override fun onRequestPermissionsResult(
+        reqCode: Int,
+        permissions: Array<out String>,
+        results: IntArray
+    ) {
         permissionsManager.grantPermission(reqCode, results) {
             FileManager.copyDemoFiles(assets)
         }

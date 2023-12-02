@@ -1,6 +1,5 @@
 package mg.maniry.doremi.editor.managers
 
-import android.arch.lifecycle.Observer
 import android.content.Context
 import android.content.Intent
 import android.view.KeyEvent
@@ -24,8 +23,8 @@ class AppBarManager(
     private val player: Player
 ) {
 
-    private lateinit var playBtn: LinearLayout
-    private lateinit var stopBtn: LinearLayout
+    private lateinit var playBtn: ImageButton
+    private lateinit var stopBtn: ImageButton
     private val verticalBar = View.inflate(mainContext, R.layout.vertical_appbar, null)
     private val editorViews = EditorViews(
         mainCont = mainView.findViewById(R.id.editor_body_content),
@@ -48,42 +47,45 @@ class AppBarManager(
 
     private fun initTopBarButtons() {
         with(mainView) {
-            playBtn = findViewById<LinearLayout>(R.id.play_btn).apply {
+            playBtn = findViewById<ImageButton>(R.id.play_btn).apply {
                 setOnClickListener { player.play() }
             }
 
-            stopBtn = findViewById<LinearLayout>(R.id.stop_btn).apply {
+            stopBtn = findViewById<ImageButton>(R.id.stop_btn).apply {
                 setOnClickListener { player.stop() }
             }
 
-            findViewById<ImageView>(R.id.additional_menu_btn)
-                .setOnClickListener { toggleVerticalBar() }
+            findViewById<ImageButton>(R.id.additional_menu_btn).setOnClickListener { toggleVerticalBar() }
 
-            findViewById<ImageView>(R.id.save_btn)
-                .setOnClickListener { editorViewModel.save() }
-
-            findViewById<ImageView>(R.id.copy_btn)
-                .setOnClickListener { editorViewModel.toggleSelectMode() }
-
-            findViewById<ImageView>(R.id.paste_btn)
-                .setOnClickListener { editorViewModel.paste() }
+//            findViewById<ImageView>(R.id.save_btn)
+//                .setOnClickListener { editorViewModel.save() }
+//
+//            findViewById<ImageView>(R.id.copy_btn)
+//                .setOnClickListener { editorViewModel.toggleSelectMode() }
+//
+//            findViewById<ImageView>(R.id.paste_btn)
+//                .setOnClickListener { editorViewModel.paste() }
         }
     }
 
 
     private fun initSidebarButtons() {
         with(verticalBar) {
-            findViewById<ImageView>(R.id.print_btn)
-                .setOnClickListener { editorViewModel.print() }
+            findViewById<ImageView>(R.id.print_btn).setOnClickListener { editorViewModel.print() }
 
-            findViewById<ImageView>(R.id.undo_btn)
-                .setOnClickListener { editorViewModel.restoreHistory(false) }
+            findViewById<ImageView>(R.id.undo_btn).setOnClickListener {
+                editorViewModel.restoreHistory(
+                    false
+                )
+            }
 
-            findViewById<ImageView>(R.id.redo_btn)
-                .setOnClickListener { editorViewModel.restoreHistory(true) }
+            findViewById<ImageView>(R.id.redo_btn).setOnClickListener {
+                editorViewModel.restoreHistory(
+                    true
+                )
+            }
 
-            findViewById<ImageView>(R.id.save_mid_btn)
-                .setOnClickListener { editorViewModel.exportMidiFile() }
+            findViewById<ImageView>(R.id.save_mid_btn).setOnClickListener { editorViewModel.exportMidiFile() }
         }
     }
 
@@ -101,14 +103,11 @@ class AppBarManager(
 
     private fun initDialogButtons() {
         with(verticalBar) {
-            findViewById<ImageView>(R.id.help_btn)
-                .setOnClickListener { startHelpActivity() }
+            findViewById<ImageView>(R.id.help_btn).setOnClickListener { startHelpActivity() }
 
-            findViewById<ImageView>(R.id.about_btn)
-                .setOnClickListener { startAboutActivity() }
+            findViewById<ImageView>(R.id.about_btn).setOnClickListener { startAboutActivity() }
 
-            findViewById<ImageView>(R.id.browse_btn)
-                .setOnClickListener { startBrowserActivity() }
+            findViewById<ImageView>(R.id.browse_btn).setOnClickListener { startBrowserActivity() }
         }
     }
 
@@ -134,7 +133,6 @@ class AppBarManager(
                     removeAllViews()
                     addView(viewer)
                 }
-
                 btn.setImageResource(R.drawable.ic_piano)
             } else {
                 mainCont.removeAllViews()
@@ -146,7 +144,6 @@ class AppBarManager(
                     addView(viewerCont)
                     addView(keyboardCont)
                 }
-
                 btn.setImageResource(R.drawable.ic_fullscreen)
             }
         }
@@ -157,8 +154,7 @@ class AppBarManager(
         with(verticalBar) {
             mainView.findViewById<FrameLayout>(R.id.editor_cont).addView(this)
             visibility = View.GONE
-            findViewById<ImageView>(R.id.reset_btn)
-                .setOnClickListener { editorViewModel.reset() }
+            findViewById<ImageView>(R.id.reset_btn).setOnClickListener { editorViewModel.reset() }
         }
     }
 

@@ -19,6 +19,18 @@
     <style name="AppTheme.PrimaryIconButton" parent="android:style/MediaButton">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">match_parent</item>
+        <item name="android:tint">@color/colorPrimary</item>
+    </style>
+
+    <style name="AppTheme.DarkIconButton" parent="AppTheme.PrimaryIconButton">
+        <item name="android:tint">@color/colorPrimaryDark</item>
+    </style>
+
+    <style name="AppTheme.PlayPauseButton" parent="android:style/MediaButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:tint">@color/white</item>
+        <item name="android:background">@drawable/round_button</item>
     </style>
 
     <style name="AppTheme.AppBarButtonContainer">
