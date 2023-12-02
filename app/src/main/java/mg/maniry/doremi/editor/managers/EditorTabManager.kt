@@ -1,6 +1,5 @@
 package mg.maniry.doremi.editor.managers
 
-import android.arch.lifecycle.Observer
 import android.content.Context
 import android.graphics.Color
 import android.view.View
@@ -15,10 +14,11 @@ import mg.maniry.doremi.editor.partition.Player
 
 
 class EditorTabManager(
-        private val mainContext: Context,
-        private val editorTab: View,
-        private val editorViewModel: EditorViewModel,
-        private val player: Player) {
+    private val mainContext: Context,
+    private val editorTab: View,
+    private val editorViewModel: EditorViewModel,
+    private val player: Player
+) {
 
     private var signSpinInit = false
     private var keySpinInit = false
@@ -49,7 +49,7 @@ class EditorTabManager(
 
     private fun observeReRender() {
         with(editorViewModel.partitionData) {
-            signature.observe(mainContext as EditorActivity, Observer {
+            signature.observe(mainContext as EditorActivity) {
                 tempoEditText.setText(tempo.toString())
 
                 for (i in 0 until voicesNum) {
@@ -57,7 +57,7 @@ class EditorTabManager(
                 }
                 trimInstrConfig(voicesNum)
                 voicesNumSpinner.setSelection(voicesNum - 1)
-            })
+            }
         }
     }
 
@@ -66,10 +66,8 @@ class EditorTabManager(
         tempoEditText.onChange {
             if (it == "") {
                 tempoEditText.setBackgroundColor(Color.rgb(255, 120, 100))
-
             } else {
                 val t = it.toInt()
-
                 if (t in 31..399) {
                     editorViewModel.partitionData.tempo = t
                     tempoEditText.setBackgroundColor(Color.WHITE)
@@ -84,9 +82,9 @@ class EditorTabManager(
     private fun initSwingCheck() {
         with(editorTab.findViewById<CheckBox>(swing_checkbx)) {
             setOnClickListener { editorViewModel.partitionData.toggleSwing() }
-            editorViewModel.partitionData.swing.observe(mainContext as EditorActivity, Observer {
+            editorViewModel.partitionData.swing.observe(mainContext as EditorActivity) {
                 isChecked = editorViewModel.partitionData.swing.value ?: false
-            })
+            }
         }
     }
 
@@ -109,8 +107,10 @@ class EditorTabManager(
         }
 
         voicesNumSpinner.apply {
-            adapter = ArrayAdapter(mainContext, simpleListItem, (1..12).map { it.toString() })
-                    .apply { setDropDownViewResource(dropDownItem) }
+            adapter = ArrayAdapter(
+                mainContext,
+                simpleListItem,
+                (1..12).map { it.toString() }).apply { setDropDownViewResource(dropDownItem) }
             onChange {
                 if (voicesNumSpinInit) {
                     editorViewModel.updateVoicesNum(it + 1)
@@ -121,13 +121,13 @@ class EditorTabManager(
         }
 
         with(editorViewModel.partitionData) {
-            signature.observe(mainContext as EditorActivity, Observer {
+            signature.observe(mainContext as EditorActivity) {
                 it?.run { signatureSpinner.setSelection(it - 2) }
-            })
+            }
 
-            key.observe(mainContext, Observer {
+            key.observe(mainContext) {
                 it?.run { keySpinner.setSelection(it) }
-            })
+            }
         }
     }
 
@@ -147,8 +147,11 @@ class EditorTabManager(
                 instrConfigs.add(this)
 
                 voiceIdSpinner.apply {
-                    adapter = ArrayAdapter(mainContext, simpleListItem, PartitionData.voiceIds)
-                            .apply { setDropDownViewResource(dropDownItem) }
+                    adapter = ArrayAdapter(
+                        mainContext,
+                        simpleListItem,
+                        PartitionData.voiceIds
+                    ).apply { setDropDownViewResource(dropDownItem) }
                     onChange {
                         if (voiceIdsSPinInit[index]) {
                             partitionData.updateVoiceId(index, it)
@@ -160,8 +163,11 @@ class EditorTabManager(
                 }
 
                 instrSpinner.apply {
-                    adapter = ArrayAdapter(mainContext, simpleListItem, instrList)
-                            .apply { setDropDownViewResource(dropDownItem) }
+                    adapter = ArrayAdapter(
+                        mainContext,
+                        simpleListItem,
+                        instrList
+                    ).apply { setDropDownViewResource(dropDownItem) }
                     onChange { partitionData.setVoiceInstrument(index, it) }
                 }
 
@@ -170,7 +176,8 @@ class EditorTabManager(
                 }
 
                 muteCheckbox.apply {
-                    isChecked = playedVoices != null && playedVoices.size > index && playedVoices[index]
+                    isChecked =
+                        playedVoices != null && playedVoices.size > index && playedVoices[index]
                     setOnClickListener { player.toggleVoice(index) }
                 }
             }
@@ -190,7 +197,9 @@ class EditorTabManager(
 
     private fun prepareSpinner(spinner: Spinner, listId: Int, callback: (i: Int) -> Unit) {
         spinner.apply {
-            adapter = ArrayAdapter.createFromResource(mainContext, listId, android.R.layout.simple_spinner_item).apply {
+            adapter = ArrayAdapter.createFromResource(
+                mainContext, listId, android.R.layout.simple_spinner_item
+            ).apply {
                 setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
             }
             onChange(callback)
@@ -199,12 +208,12 @@ class EditorTabManager(
 
 
     private fun observeMutedVoices() {
-        player.playedVoices.observe(mainContext as EditorActivity, Observer { voices ->
+        player.playedVoices.observe(mainContext as EditorActivity) { voices ->
             voices?.forEachIndexed { i, value ->
                 completeInstrConfig(i)
                 instrConfigs[i].muteCheckbox.isChecked = value
             }
-        })
+        }
     }
 
 
@@ -217,26 +226,28 @@ class EditorTabManager(
             }
         }
 
-        editorViewModel.enablePlayerVelocity.observe(mainContext as EditorActivity, Observer {
+        editorViewModel.enablePlayerVelocity.observe(mainContext as EditorActivity) {
             chb.isChecked = it ?: false
-        })
+        }
     }
 
 
     private fun observeInstruments() {
-        editorViewModel.partitionData.instruments.observe(mainContext as EditorActivity, Observer {
+        editorViewModel.partitionData.instruments.observe(mainContext as EditorActivity) {
             it?.forEachIndexed { index, instr ->
                 completeInstrConfig(index)
                 instrConfigs[index].instrSpinner.setSelection(instr)
             }
-        })
+        }
     }
 
 
     private fun initLoopSpinner() {
         editorTab.findViewById<Spinner>(loop_spinner).apply {
-            adapter = ArrayAdapter(mainContext, simpleListItem, (1..10).map { it.toString() })
-                    .apply { setDropDownViewResource(dropDownItem) }
+            adapter = ArrayAdapter(
+                mainContext,
+                simpleListItem,
+                (1..10).map { it.toString() }).apply { setDropDownViewResource(dropDownItem) }
             onChange { editorViewModel.playerLoops = it }
         }
     }

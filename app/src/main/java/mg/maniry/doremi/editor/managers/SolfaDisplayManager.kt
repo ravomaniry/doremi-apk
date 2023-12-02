@@ -1,8 +1,8 @@
 package mg.maniry.doremi.editor.managers
 
-import android.arch.lifecycle.Observer
 import android.content.Context
 import android.graphics.Color
+import android.support.v4.content.ContextCompat
 import android.view.Gravity
 import android.view.View
 import android.widget.*
@@ -21,9 +21,8 @@ import org.jetbrains.anko.uiThread
 
 
 class SolfaDisplayManager constructor(
-        private val mainContext: Context,
-        mainView: View,
-        private val editorVM: EditorViewModel) {
+    private val mainContext: Context, mainView: View, private val editorVM: EditorViewModel
+) {
 
     private val partitionData = editorVM.partitionData
     private val viewsCont = mainView.findViewById<FlexboxLayout>(partition_cont)
@@ -31,9 +30,12 @@ class SolfaDisplayManager constructor(
     private var headerTextViews = mutableListOf<TextView>()
     private var currentSize = 0
     private var playerCursor: TableLayout? = null
-    private val cursorBgColor = Color.DKGRAY
-    private val selectBgColor = Color.rgb(200, 200, 255)
-    private var voiceIdColor = Color.rgb(40, 180, 60)
+    private val cursorBgColor = ContextCompat.getColor(mainContext, R.color.colorPrimary)
+    private val selectBgColor = ContextCompat.getColor(mainContext, R.color.colorAccent)
+    private val voiceIdColor = ContextCompat.getColor(mainContext, R.color.gray)
+    private val separatorColor = ContextCompat.getColor(mainContext, R.color.dark_gray)
+    private val accentColor = ContextCompat.getColor(mainContext, R.color.colorAccent)
+    private val accentColorLight = ContextCompat.getColor(mainContext, R.color.colorAccentLight)
     private val regularBg = Color.TRANSPARENT
     private var isRendering = false
     private var shouldRerender = false
@@ -56,46 +58,46 @@ class SolfaDisplayManager constructor(
     fun movePlayerCursor(table: TableLayout?): Boolean {
         playerCursor?.setBackgroundColor(Color.WHITE)
         playerCursor = table
-                ?.apply { setBackgroundColor(Color.rgb(200, 255, 205)) }
-                ?.also { editorVM.playerCursorPosition = table.tag as Int }
+            ?.apply { setBackgroundColor(accentColorLight) }
+            ?.also { editorVM.playerCursorPosition = table.tag as Int }
         return true
     }
 
 
     private fun observeUpdate() {
-        editorVM.updatedCells.observe(mainContext as EditorActivity, Observer {
+        editorVM.updatedCells.observe(mainContext as EditorActivity) {
             it?.forEach { cell ->
                 cell?.run {
                     createTables(index + 1)
                     textViews[voice][index].text = NotesToSpan.convert(content)
                 }
             }
-        })
+        }
 
-        editorVM.headerTvTrigger.observe(mainContext, Observer {
+        editorVM.headerTvTrigger.observe(mainContext) {
             if (it != null) {
                 printHeaders()
             }
-        })
+        }
     }
 
 
     private fun observeCursor() {
-        editorVM.cursorPos.observe(mainContext as EditorActivity, Observer {
+        editorVM.cursorPos.observe(mainContext as EditorActivity) {
             it?.run { placeCursorOn(voice, index) }
             editorVM.prevCursorPos?.run { removeCursorFrom(voice, index) }
             highlightClipBoard()
-        })
+        }
     }
 
 
     private fun observeSelectMode() {
-        editorVM.selectMode.observe(mainContext as EditorActivity, Observer {
+        editorVM.selectMode.observe(mainContext as EditorActivity) {
             highlightClipBoard()
             if (it == SelectMode.CURSOR) {
                 editorVM.cursorPos.value?.run { placeCursorOn(voice, index) }
             }
-        })
+        }
     }
 
 
@@ -121,9 +123,9 @@ class SolfaDisplayManager constructor(
 
 
     private fun observeReRender() {
-        editorVM.partitionData.signature.observe(mainContext as EditorActivity, Observer {
+        editorVM.partitionData.signature.observe(mainContext as EditorActivity) {
             it?.run { reRender() }
-        })
+        }
     }
 
 
@@ -136,7 +138,7 @@ class SolfaDisplayManager constructor(
         return TableLayout(mainContext).apply {
             addView(TableRow(mainContext).apply {
                 addView(TextView(mainContext).apply {
-                    setTextColor(Color.RED)
+                    setTextColor(accentColor)
                     text = when (partitionData.key.value) {
                         null -> ""
                         else -> HtmlExport.notes[partitionData.key.value!!]
@@ -205,24 +207,24 @@ class SolfaDisplayManager constructor(
     }
 
 
-    private fun createTables(maxSize: Int = partitionData.getMaxLength(), addView: Boolean = true): MutableList<TableLayout> {
+    private fun createTables(
+        maxSize: Int = partitionData.getMaxLength(), addView: Boolean = true
+    ): MutableList<TableLayout> {
         val tables = mutableListOf<TableLayout>()
 
         while (currentSize < maxSize || currentSize == 0) {
-            MeasureView(mainContext)
-                    .apply {
-                        setBackgroundColor(Color.WHITE)
-                        tag = currentSize
-                        setOnClickListener { movePlayerCursor(this) }
-                    }
-                    .also {
-                        addTableCells(it, currentSize)
-                        if (addView) {
-                            addMeasureTable(it)
-                        } else {
-                            tables.add(it)
-                        }
-                    }
+            MeasureView(mainContext).apply {
+                setBackgroundColor(Color.WHITE)
+                tag = currentSize
+                setOnClickListener { movePlayerCursor(this) }
+            }.also {
+                addTableCells(it, currentSize)
+                if (addView) {
+                    addMeasureTable(it)
+                } else {
+                    tables.add(it)
+                }
+            }
 
             currentSize += partitionData.signature.value!!
         }
@@ -237,13 +239,10 @@ class SolfaDisplayManager constructor(
             gravity = Gravity.CENTER
 
             (0 until signature).forEach { i ->
-                addView(TextView(mainContext)
-                        .apply {
-                            minWidth = 30
-                            setOnClickListener { editorVM.openDialog(currentSize + i) }
-                        }
-                        .also { tv -> headerTextViews.add(tv) })
-
+                addView(TextView(mainContext).apply {
+                    minWidth = 30
+                    setOnClickListener { editorVM.openDialog(currentSize + i) }
+                }.also { tv -> headerTextViews.add(tv) })
                 if (i != signature - 1) {
                     addView(TextView(mainContext))
                 }
@@ -252,20 +251,18 @@ class SolfaDisplayManager constructor(
 
         Array(partitionData.voicesNum) { TableRow(mainContext) }.forEachIndexed { voice, tRow ->
             for (i in 0 until signature) {
-                tRow.addView(TextView(mainContext)
-                        .apply {
-                            minWidth = 30
-                            gravity = Gravity.CENTER_HORIZONTAL
-                            setTextColor(Color.DKGRAY)
-                            setOnClickListener { selectCell(voice, currentSize + i) }
-                        }.also {
-                            textViews[voice].add(it)
-                        }
-                )
+                tRow.addView(TextView(mainContext).apply {
+                    minWidth = 30
+                    gravity = Gravity.CENTER_HORIZONTAL
+                    setTextColor(Color.DKGRAY)
+                    setOnClickListener { selectCell(voice, currentSize + i) }
+                }.also {
+                    textViews[voice].add(it)
+                })
 
                 if (i != signature - 1) {
                     tRow.addView(TextView(mainContext).apply {
-                        setTextColor(Color.rgb(100, 100, 100))
+                        setTextColor(separatorColor)
                         text = when {
                             signature > 3 && signature % 2 == 0 && i + 1 == signature / 2 -> " | "
                             else -> " : "
