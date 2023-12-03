@@ -193,12 +193,28 @@ class FileManager {
             if (!solfaDir.exists()) {
                 try {
                     solfaDir.mkdirs()
-                    assets.list("demo")?.forEach { name ->
-                        assets.open("demo/$name").copyTo(FileOutputStream(getFileFromName(name)))
-                    }
+                    copyFromAssets(assets)
+                    attemptToCopyFromDoremiDir()
                 } catch (e: Exception) {
-                    println(e)
+                    println("Unable to copy demo files $e")
                 }
+            }
+        }
+
+        private fun attemptToCopyFromDoremiDir() {
+            try {
+                val dir = File("${Environment.getExternalStorageDirectory()}${sep}Doremi", "solfa")
+                dir.listFiles()?.forEach {
+                    it.copyTo(getFileFromName(it.nameWithoutExtension))
+                }
+            } catch (e: Throwable) {
+                println("Unable to copy form Doremi external storage dir $e")
+            }
+        }
+
+        private fun copyFromAssets(assets: AssetManager) {
+            assets.list("demo")?.forEach { name ->
+                assets.open("demo/$name").copyTo(FileOutputStream(getFileFromName(name)))
             }
         }
     }

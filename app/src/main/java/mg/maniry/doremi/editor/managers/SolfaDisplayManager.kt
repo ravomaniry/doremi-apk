@@ -2,7 +2,6 @@ package mg.maniry.doremi.editor.managers
 
 import android.content.Context
 import android.graphics.Color
-import android.support.v4.content.ContextCompat
 import android.view.Gravity
 import android.view.View
 import android.widget.*
@@ -30,13 +29,7 @@ class SolfaDisplayManager constructor(
     private var headerTextViews = mutableListOf<TextView>()
     private var currentSize = 0
     private var playerCursor: TableLayout? = null
-    private val cursorBgColor = ContextCompat.getColor(mainContext, R.color.colorPrimary)
-    private val selectBgColor = ContextCompat.getColor(mainContext, R.color.colorAccent)
-    private val voiceIdColor = ContextCompat.getColor(mainContext, R.color.gray)
-    private val separatorColor = ContextCompat.getColor(mainContext, R.color.dark_gray)
-    private val accentColor = ContextCompat.getColor(mainContext, R.color.colorAccent)
-    private val accentColorLight = ContextCompat.getColor(mainContext, R.color.colorAccentLight)
-    private val regularBg = Color.TRANSPARENT
+    private val colors = SolfaColors(mainContext)
     private var isRendering = false
     private var shouldRerender = false
     private val selectedTextViews = mutableListOf<TextView>()
@@ -57,8 +50,7 @@ class SolfaDisplayManager constructor(
 
     fun movePlayerCursor(table: TableLayout?): Boolean {
         playerCursor?.setBackgroundColor(Color.WHITE)
-        playerCursor = table
-            ?.apply { setBackgroundColor(accentColorLight) }
+        playerCursor = table?.apply { setBackgroundColor(colors.playerCursor) }
             ?.also { editorVM.playerCursorPosition = table.tag as Int }
         return true
     }
@@ -103,7 +95,7 @@ class SolfaDisplayManager constructor(
 
     private fun highlightClipBoard() {
         selectedTextViews.removeAll {
-            it.setBackgroundColor(regularBg)
+            it.setBackgroundColor(colors.regularBg)
             true
         }
         if (editorVM.selectMode.value == SelectMode.COPY) {
@@ -113,7 +105,7 @@ class SolfaDisplayManager constructor(
                     (start.index until end.index + 1).forEach { noteIndex ->
                         textViews[voiceIndex][noteIndex].run {
                             selectedTextViews.add(this)
-                            setBackgroundColor(selectBgColor)
+                            setBackgroundColor(colors.selectBg)
                         }
                     }
                 }
@@ -138,7 +130,7 @@ class SolfaDisplayManager constructor(
         return TableLayout(mainContext).apply {
             addView(TableRow(mainContext).apply {
                 addView(TextView(mainContext).apply {
-                    setTextColor(accentColor)
+                    setTextColor(colors.key)
                     text = when (partitionData.key.value) {
                         null -> ""
                         else -> HtmlExport.notes[partitionData.key.value!!]
@@ -150,7 +142,7 @@ class SolfaDisplayManager constructor(
                 addView(TableRow(mainContext).apply {
                     addView(TextView(mainContext).apply {
                         text = it
-                        setTextColor(voiceIdColor)
+                        setTextColor(colors.voiceId)
                     })
                 })
             }
@@ -262,7 +254,7 @@ class SolfaDisplayManager constructor(
 
                 if (i != signature - 1) {
                     tRow.addView(TextView(mainContext).apply {
-                        setTextColor(separatorColor)
+                        setTextColor(colors.separator)
                         text = when {
                             signature > 3 && signature % 2 == 0 && i + 1 == signature / 2 -> " | "
                             else -> " : "
@@ -298,7 +290,7 @@ class SolfaDisplayManager constructor(
             if (scopeHeader == null) {
                 textView.text = ""
             } else {
-                textView.text = scopeHeader.toSpan()
+                textView.text = scopeHeader.toSpan(colors)
             }
         }
     }
@@ -313,8 +305,8 @@ class SolfaDisplayManager constructor(
         if (textViews.size > voice && textViews[voice].size > index) {
             textViews[voice][index].apply {
                 val bg = when (editorVM.selectMode.value) {
-                    SelectMode.CURSOR -> cursorBgColor
-                    else -> selectBgColor
+                    SelectMode.CURSOR -> colors.cursorBg
+                    else -> colors.selectBg
                 }
                 val fg = when (editorVM.selectMode.value) {
                     SelectMode.CURSOR -> Color.WHITE
