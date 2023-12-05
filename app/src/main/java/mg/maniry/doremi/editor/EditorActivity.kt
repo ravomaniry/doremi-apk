@@ -13,6 +13,7 @@ import mg.maniry.doremi.editor.viewModels.EditorViewModel
 import mg.maniry.doremi.commonUtils.FileManager
 import mg.maniry.doremi.commonUtils.PermissionsManager
 import mg.maniry.doremi.editor.partition.Player
+import mg.maniry.doremi.editor.sfplayer.SfPlayer
 import mg.maniry.doremi.editor.viewModels.UiViewModel
 import mg.maniry.doremi.editor.xlsxExport.ExcelExport
 
@@ -44,6 +45,7 @@ class EditorActivity : AppCompatActivity() {
                 it.cancelPlayerRelease()
                 uiManager = UiManager(this@EditorActivity, mainView, uiVM, it, player)
                 it.xlsExport = ExcelExport(assets)
+                it.sfPlayer = SfPlayer(this)
             }
     }
 

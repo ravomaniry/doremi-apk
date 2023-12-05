@@ -9,6 +9,7 @@ import android.net.Uri
 import mg.maniry.doremi.editor.partition.*
 import mg.maniry.doremi.commonUtils.FileManager
 import mg.maniry.doremi.commonUtils.Values
+import mg.maniry.doremi.editor.sfplayer.SfPlayer
 import mg.maniry.doremi.editor.xlsxExport.ExcelExport
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.uiThread
@@ -38,6 +39,7 @@ class EditorViewModel : ViewModel() {
     private var history = EditionHistory()
     var player: Player? = null
     val playerIsPlaying = MutableLiveData<Boolean>().apply { value = false }
+    lateinit var sfPlayer: SfPlayer
     var selectMode = MutableLiveData<SelectMode>().apply { value = SelectMode.CURSOR }
     var clipBoard: ClipBoard? = null
 
@@ -75,7 +77,8 @@ class EditorViewModel : ViewModel() {
 
     fun addNote(n: String) {
         history.anticipate(cursorPos.value, partitionData)
-        updater.add(addOctaveToNote(n, octave.value)).also {
+        val noteWithOctave = addOctaveToNote(n, octave.value)
+        updater.add(noteWithOctave).also {
             updatedCells.value = listOf(it)
             if (it != null) {
                 if (it.index != cursorPos.value?.index) {
@@ -83,7 +86,16 @@ class EditorViewModel : ViewModel() {
                 }
                 cursorPos.value = it
                 history.handle(it)
+                playAddedNote(noteWithOctave, it)
             }
+        }
+    }
+
+    private fun playAddedNote(noteWithOctave: String, cell: Cell) {
+        parser.key = partitionData.key.value ?: 0
+        val pitch = parser.noteToPitch(noteWithOctave, partitionData.voices[cell.voice])
+        if (pitch > 0) {
+            sfPlayer.playSingleNote(pitch)
         }
     }
 
@@ -298,6 +310,7 @@ class EditorViewModel : ViewModel() {
 
 
     fun releasePlayer() {
+        sfPlayer.dispose()
         player?.run {
             isActive = false
             doAsync {
