@@ -127,14 +127,14 @@
 
             <ImageButton
                 android:id="@+id/play_btn"
-                style="@style/AppTheme.PlayPauseButton"
+                style="@style/AppTheme.PlayButton"
                 android:contentDescription="@string/appbar_content_descr"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_play" />
 
             <ImageButton
                 android:id="@+id/stop_btn"
-                style="@style/AppTheme.PlayPauseButton"
+                style="@style/AppTheme.StopButton"
                 android:contentDescription="@string/appbar_content_descr"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_stop_circle" />

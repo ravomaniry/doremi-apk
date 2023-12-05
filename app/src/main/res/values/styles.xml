@@ -42,12 +42,17 @@
         <item name="android:tint">@color/colorPrimary</item>
     </style>
 
-    <style name="AppTheme.PlayPauseButton" parent="android:style/MediaButton">
+    <style name="AppTheme.PlayButton" parent="android:style/MediaButton">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">match_parent</item>
         <item name="android:tint">@color/white</item>
-        <item name="android:background">@drawable/play_pause_button</item>
+        <item name="android:background">@drawable/play_button_background</item>
     </style>
+
+    <style name="AppTheme.StopButton" parent="AppTheme.PlayButton">
+        <item name="android:background">@drawable/stop_button_background</item>
+    </style>
+
 
     <style name="AppTheme.WhiteIconButton" parent="AppTheme.PrimaryIconButton">
         <item name="android:tint">@color/white</item>

@@ -311,10 +311,7 @@ class EditorViewModel : ViewModel() {
     fun releasePlayer() {
         player?.run {
             isActive = false
-            doAsync {
-                Thread.sleep(10000)
-                uiThread { release() }
-            }
+            release()
         }
     }
 
