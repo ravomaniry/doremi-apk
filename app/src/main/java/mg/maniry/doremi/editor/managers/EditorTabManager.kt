@@ -6,7 +6,6 @@ import android.view.View
 import android.widget.*
 import mg.maniry.doremi.R
 import mg.maniry.doremi.R.id.*
-import mg.maniry.doremi.editor.partition.InstrumentsList
 import mg.maniry.doremi.editor.EditorActivity
 import mg.maniry.doremi.editor.partition.PartitionData
 import mg.maniry.doremi.editor.viewModels.EditorViewModel
@@ -41,7 +40,6 @@ class EditorTabManager(
         initSwingCheck()
         initVelocityChb()
         observeMutedVoices()
-        observeInstruments()
         initLoopSpinner()
         observeReRender()
     }
@@ -135,8 +133,6 @@ class EditorTabManager(
     private fun completeInstrConfig(index: Int) {
         val partitionData = editorViewModel.partitionData
         val voices = partitionData.voices
-        val instruments = partitionData.instruments.value
-        val instrList = InstrumentsList.list.map { it.name }
         val playedVoices = player.playedVoices.value
 
         while (instrConfigs.size <= index) {
@@ -148,9 +144,7 @@ class EditorTabManager(
 
                 voiceIdSpinner.apply {
                     adapter = ArrayAdapter(
-                        mainContext,
-                        simpleListItem,
-                        PartitionData.voiceIds
+                        mainContext, simpleListItem, PartitionData.voiceIds
                     ).apply { setDropDownViewResource(dropDownItem) }
                     onChange {
                         if (voiceIdsSPinInit[index]) {
@@ -160,19 +154,6 @@ class EditorTabManager(
                         }
                     }
                     setSelection(PartitionData.voiceIds.indexOf(voices[index]))
-                }
-
-                instrSpinner.apply {
-                    adapter = ArrayAdapter(
-                        mainContext,
-                        simpleListItem,
-                        instrList
-                    ).apply { setDropDownViewResource(dropDownItem) }
-                    onChange { partitionData.setVoiceInstrument(index, it) }
-                }
-
-                if (instruments != null && instruments.size > index) {
-                    instrSpinner.setSelection(instruments[index])
                 }
 
                 muteCheckbox.apply {
@@ -230,17 +211,6 @@ class EditorTabManager(
             chb.isChecked = it ?: false
         }
     }
-
-
-    private fun observeInstruments() {
-        editorViewModel.partitionData.instruments.observe(mainContext as EditorActivity) {
-            it?.forEachIndexed { index, instr ->
-                completeInstrConfig(index)
-                instrConfigs[index].instrSpinner.setSelection(instr)
-            }
-        }
-    }
-
 
     private fun initLoopSpinner() {
         editorTab.findViewById<Spinner>(loop_spinner).apply {
