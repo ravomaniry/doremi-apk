@@ -9,7 +9,6 @@ import android.net.Uri
 import mg.maniry.doremi.editor.partition.*
 import mg.maniry.doremi.commonUtils.FileManager
 import mg.maniry.doremi.commonUtils.Values
-import mg.maniry.doremi.editor.sfplayer.SfPlayer
 import mg.maniry.doremi.editor.xlsxExport.ExcelExport
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.uiThread
@@ -39,7 +38,6 @@ class EditorViewModel : ViewModel() {
     private var history = EditionHistory()
     var player: Player? = null
     val playerIsPlaying = MutableLiveData<Boolean>().apply { value = false }
-    lateinit var sfPlayer: SfPlayer
     var selectMode = MutableLiveData<SelectMode>().apply { value = SelectMode.CURSOR }
     var clipBoard: ClipBoard? = null
 
@@ -95,7 +93,7 @@ class EditorViewModel : ViewModel() {
         parser.key = partitionData.key.value ?: 0
         val pitch = parser.noteToPitch(noteWithOctave, partitionData.voices[cell.voice])
         if (pitch > 0) {
-            sfPlayer.playSingleNote(pitch)
+            player?.playSingleNote(pitch)
         }
     }
 
@@ -249,11 +247,22 @@ class EditorViewModel : ViewModel() {
     }
 
 
-    fun createTmpMidFile(file: File, playedVoices: MutableList<Boolean>?) {
+    fun createTmpMidFile(file: File, playedVoices: List<Boolean>?) {
+        val notes = buildNotes(playedVoices)
+        createMidiFile(
+            CreateMidiParams(
+                notes = notes,
+                tempo = partitionData.tempo,
+                outFile = file,
+                instruments = partitionData.instruments.value,
+            )
+        )
+    }
+
+    fun buildNotes(playedVoices: List<Boolean>?): List<Note> {
         if (playerCursorPosition % partitionData.signature.value!! > 0) {
             playerCursorPosition = 0
         }
-
         parser.apply {
             key = partitionData.key.value ?: 0
             swing = partitionData.swing.value ?: false
@@ -264,21 +273,11 @@ class EditorViewModel : ViewModel() {
             loopsNumber = playerLoops
             signature = partitionData.signature.value ?: 4
             voiceIds = partitionData.voices
-
             if (playedVoices != null) {
                 this.playedVoices = playedVoices
             }
         }
-
-        createMidiFile(
-            CreateMidiParams(
-                notes = parser.parse(partitionData.notes),
-                tempo = partitionData.tempo,
-                outFile = file,
-                instruments = partitionData.instruments.value,
-                voiceIds = partitionData.voices
-            )
-        )
+        return parser.parse(partitionData.notes)
     }
 
 
@@ -310,7 +309,6 @@ class EditorViewModel : ViewModel() {
 
 
     fun releasePlayer() {
-        sfPlayer.dispose()
         player?.run {
             isActive = false
             doAsync {

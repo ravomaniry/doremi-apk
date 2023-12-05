@@ -3,28 +3,22 @@ package mg.maniry.doremi.editor.partition
 import android.arch.lifecycle.MutableLiveData
 import android.content.Context
 import android.media.MediaPlayer
-import android.widget.Toast
-import mg.maniry.doremi.commonUtils.Values
+import mg.maniry.doremi.editor.sfplayer.SfPlayer
 import mg.maniry.doremi.editor.viewModels.EditorViewModel
 import org.jetbrains.anko.doAsync
-import org.jetbrains.anko.uiThread
-import java.io.File
-import java.lang.Exception
 
 
 data class Player constructor(
-        private val mainContext: Context,
-        private val editorViewModel: EditorViewModel) {
+    private val mainContext: Context,
+    private val editorViewModel: EditorViewModel,
+) {
 
     var isActive = true
+    private val sfPlayer = SfPlayer(mainContext)
     private var isPlaying = false
     private var isReleased = false
     private var mediaPlayer = MediaPlayer()
     val playedVoices = MutableLiveData<MutableList<Boolean>>()
-    private val tmpMid = File(mainContext.filesDir, "tmp.mid")
-            .apply { if (!exists()) createNewFile() }
-            .apply { setReadable(true, false) }
-
 
     init {
         playedVoices.value = editorViewModel.partitionData.voices.map { true }.toMutableList()
@@ -35,40 +29,19 @@ data class Player constructor(
     }
 
 
-    private fun notify(msg: String) {
-        Toast.makeText(mainContext, msg, Toast.LENGTH_SHORT).show()
+    fun playSingleNote(pitch: Int) {
+        sfPlayer.playSingleNote(pitch)
     }
 
 
     fun play() {
-        if (isReleased) {
-            mediaPlayer = MediaPlayer()
-            isReleased = false
-            isActive = true
-        }
-
-        if (!isPlaying) {
-            doAsync {
-                try {
-                    editorViewModel.createTmpMidFile(tmpMid, playedVoices.value)
-                    mediaPlayer.apply {
-                        setDataSource(tmpMid.absolutePath)
-                        prepare()
-                        start()
-                    }
-                    uiThread {
-                        updateState(true)
-                        editorViewModel.message.value = Values.playing
-                    }
-                } catch (e: Exception) {
-                    uiThread {
-                        notify(Values.playerErr)
-                    }
-                }
-            }
-        }
+        playUsingSfPlayer()
     }
 
+    private fun playUsingSfPlayer() {
+        val notes = editorViewModel.buildNotes(playedVoices.value)
+        sfPlayer.play(notes, editorViewModel.partitionData.tempo)
+    }
 
     fun stop() {
         if (isPlaying) {
@@ -96,6 +69,7 @@ data class Player constructor(
 
 
     fun release() {
+        sfPlayer.dispose()
         if (!isActive) {
             if (isPlaying) {
                 mediaPlayer.stop()

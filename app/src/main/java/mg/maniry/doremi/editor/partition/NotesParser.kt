@@ -24,7 +24,7 @@ class NotesParser {
 
     private var tmpStart = 0
     var voiceIds = mutableListOf<String>()
-    var playedVoices = mutableListOf<Boolean>()
+    var playedVoices = listOf<Boolean>()
     var changeEvents = mutableListOf<ChangeEvent>()
     var start = 0
     var key = 0
