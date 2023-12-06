@@ -16,15 +16,17 @@ class SfPlayer(
     private var completionListener: (() -> Unit)? = null
     private var synth: SoftSynthesizer? = null
     private val receiver: Receiver? get() = synth?.receiver
-    private val soundfontName = "SmallTimGM6mb.sf2"
+    private var instrumentName = "Piano"
     private var sessionId = 0
+
+    private data class InstrumentConfig(val assetPath: String, val program: Int)
 
     fun setOnCompletionListener(listener: () -> Unit) {
         completionListener = listener
     }
 
-    fun play(notes: List<Note>, tempo: Int) {
-        ensureInitialization()
+    fun play(notes: List<Note>, tempo: Int, instrument: String) {
+        ensureInitialization(instrument)
         var timeout = 0L
         synth?.run {
             val t0 = microsecondPosition + 1_000_000
@@ -46,7 +48,7 @@ class SfPlayer(
     }
 
     fun playSingleNote(pitch: Int) {
-        ensureInitialization()
+        ensureInitialization(instrumentName)
         val velocity = 100
         receiver?.send(ShortMessage().apply {
             setMessage(ShortMessage.NOTE_ON, 0, pitch, velocity)
@@ -72,15 +74,30 @@ class SfPlayer(
         )
     }
 
-    private fun ensureInitialization() {
+    private fun ensureInitialization(instrument: String) {
+        if (instrument !== this.instrumentName) {
+            instrumentName = instrument
+            stop()
+        }
         if (synth == null) {
-            val sf = SF2Soundbank(mainContext.assets.open("soundfonts/$soundfontName"))
+            val instrumentConfig = parseInstrumentName()
+            val sf = SF2Soundbank(mainContext.assets.open(instrumentConfig.assetPath))
             val synth = SoftSynthesizer()
             synth.open()
             synth.loadAllInstruments(sf)
-            synth.channels[0].programChange(0)
+            synth.channels[0].programChange(instrumentConfig.program)
             this.synth = synth
         }
+    }
+
+    private fun parseInstrumentName(): InstrumentConfig {
+        val colonIndex = instrumentName.indexOf(':')
+        val fileName =
+            if (colonIndex > 0) instrumentName.subSequence(0, colonIndex) else instrumentName
+        return InstrumentConfig(
+            "soundfonts/$fileName.sf2",
+            if (colonIndex > 0) instrumentName.substring(colonIndex + 1).toInt() else 0
+        )
     }
 
     private fun tickToMicroseconds(tick: Long, tempo: Int): Long {

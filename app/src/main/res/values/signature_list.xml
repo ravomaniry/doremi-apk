@@ -14,4 +14,20 @@
         <item>T</item>
         <item>B</item>
     </string-array>
+
+    <string-array name="instruments_list">
+        <item>Piano</item>
+        <item>Strings:0</item>
+        <item>Strings:1</item>
+        <item>EP Verby</item>
+        <item>EP Rhodes</item>
+        <item>Organ:0</item>
+        <item>Organ:1</item>
+        <item>Organ:2</item>
+        <item>Organ:3</item>
+        <item>Organ:4</item>
+        <item>Organ:5</item>
+        <item>Organ:6</item>
+        <item>Organ:7</item>
+    </string-array>
 </resources>

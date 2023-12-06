@@ -17,6 +17,7 @@ import mg.maniry.doremi.editor.viewModels.FileContent
 class FileManager {
 
     companion object {
+        private const val instrumentFileName = "instrument.txt"
         private const val authority = "mg.maniry.doremi"
         private val sep = File.separator
         private lateinit var solfaDir: File
@@ -98,6 +99,14 @@ class FileManager {
             }
         }
 
+        fun redInstrumentName(): String {
+            val content = read(instrumentFileName)
+            return if (content.content == "") "Piano" else content.content
+        }
+
+        fun saveInstrumentName(value: String) {
+            write(instrumentFileName, value)
+        }
 
         fun delete(filename: String) = getFileFromName(filename).let {
             return@let if (it.exists()) {

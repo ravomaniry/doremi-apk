@@ -29,7 +29,9 @@ data class Player constructor(
     fun play() {
         updateState(true)
         val notes = editorViewModel.buildNotes(playedVoices.value)
-        sfPlayer.play(notes, editorViewModel.partitionData.tempo)
+        sfPlayer.play(
+            notes, editorViewModel.partitionData.tempo, editorViewModel.instrument.value!!
+        )
     }
 
     fun stop() {

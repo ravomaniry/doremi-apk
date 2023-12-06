@@ -40,12 +40,14 @@ class EditorViewModel : ViewModel() {
     val playerIsPlaying = MutableLiveData<Boolean>().apply { value = false }
     var selectMode = MutableLiveData<SelectMode>().apply { value = SelectMode.CURSOR }
     var clipBoard: ClipBoard? = null
+    val instrument = MutableLiveData<String>().apply {
+        value = FileManager.redInstrumentName()
+    }
 
 
     init {
         updater.moveCursor(0, 0)
     }
-
 
     fun start(preferences: SharedPreferences, intent: Intent?) {
         prefs = preferences
@@ -220,6 +222,11 @@ class EditorViewModel : ViewModel() {
             putString("recent", filename)
             apply()
         }
+    }
+
+    fun onInstrumentChanged(newValue: String) {
+        instrument.value = newValue
+        FileManager.saveInstrumentName(newValue)
     }
 
 
