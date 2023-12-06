@@ -7,11 +7,11 @@ import java.util.ArrayList
 
 
 data class CreateMidiParams(
-        val notes: MutableList<Note>,
-        val tempo: Int,
-        val outFile: File,
-        val instruments: MutableList<Int>? = mutableListOf(),
-        val voiceIds: MutableList<String>
+    val notes: List<Note>,
+    val tempo: Int,
+    val outFile: File,
+    val instruments: MutableList<Int>? = mutableListOf(),
+//    val voiceIds: MutableList<String>
 )
 
 

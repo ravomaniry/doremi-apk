@@ -40,12 +40,14 @@ class EditorViewModel : ViewModel() {
     val playerIsPlaying = MutableLiveData<Boolean>().apply { value = false }
     var selectMode = MutableLiveData<SelectMode>().apply { value = SelectMode.CURSOR }
     var clipBoard: ClipBoard? = null
+    val instrument = MutableLiveData<String>().apply {
+        value = FileManager.redInstrumentName()
+    }
 
 
     init {
         updater.moveCursor(0, 0)
     }
-
 
     fun start(preferences: SharedPreferences, intent: Intent?) {
         prefs = preferences
@@ -75,7 +77,8 @@ class EditorViewModel : ViewModel() {
 
     fun addNote(n: String) {
         history.anticipate(cursorPos.value, partitionData)
-        updater.add(addOctaveToNote(n, octave.value)).also {
+        val noteWithOctave = addOctaveToNote(n, octave.value)
+        updater.add(noteWithOctave).also {
             updatedCells.value = listOf(it)
             if (it != null) {
                 if (it.index != cursorPos.value?.index) {
@@ -83,7 +86,16 @@ class EditorViewModel : ViewModel() {
                 }
                 cursorPos.value = it
                 history.handle(it)
+                playAddedNote(noteWithOctave, it)
             }
+        }
+    }
+
+    private fun playAddedNote(noteWithOctave: String, cell: Cell) {
+        parser.key = partitionData.key.value ?: 0
+        val pitch = parser.noteToPitch(noteWithOctave, partitionData.voices[cell.voice])
+        if (pitch > 0) {
+            player?.playSingleNote(pitch)
         }
     }
 
@@ -212,6 +224,11 @@ class EditorViewModel : ViewModel() {
         }
     }
 
+    fun onInstrumentChanged(newValue: String) {
+        instrument.value = newValue
+        FileManager.saveInstrumentName(newValue)
+    }
+
 
     fun createNew() {
         save()
@@ -237,11 +254,22 @@ class EditorViewModel : ViewModel() {
     }
 
 
-    fun createTmpMidFile(file: File, playedVoices: MutableList<Boolean>?) {
+    fun createTmpMidFile(file: File, playedVoices: List<Boolean>?) {
+        val notes = buildNotes(playedVoices)
+        createMidiFile(
+            CreateMidiParams(
+                notes = notes,
+                tempo = partitionData.tempo,
+                outFile = file,
+                instruments = partitionData.instruments.value,
+            )
+        )
+    }
+
+    fun buildNotes(playedVoices: List<Boolean>?): List<Note> {
         if (playerCursorPosition % partitionData.signature.value!! > 0) {
             playerCursorPosition = 0
         }
-
         parser.apply {
             key = partitionData.key.value ?: 0
             swing = partitionData.swing.value ?: false
@@ -252,21 +280,11 @@ class EditorViewModel : ViewModel() {
             loopsNumber = playerLoops
             signature = partitionData.signature.value ?: 4
             voiceIds = partitionData.voices
-
             if (playedVoices != null) {
                 this.playedVoices = playedVoices
             }
         }
-
-        createMidiFile(
-            CreateMidiParams(
-                notes = parser.parse(partitionData.notes),
-                tempo = partitionData.tempo,
-                outFile = file,
-                instruments = partitionData.instruments.value,
-                voiceIds = partitionData.voices
-            )
-        )
+        return parser.parse(partitionData.notes)
     }
 
 
@@ -300,10 +318,7 @@ class EditorViewModel : ViewModel() {
     fun releasePlayer() {
         player?.run {
             isActive = false
-            doAsync {
-                Thread.sleep(10000)
-                uiThread { release() }
-            }
+            release()
         }
     }
 

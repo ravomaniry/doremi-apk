@@ -42,9 +42,9 @@ class AppBarManager(
 
     private fun initButtons() {
         with(mainView) {
-            playBtn = findViewById<ImageButton>(R.id.play_btn)
+            playBtn = findViewById(R.id.play_btn)
             playBtn.setOnClickListener { player.play() }
-            stopBtn = findViewById<ImageButton>(R.id.stop_btn)
+            stopBtn = findViewById(R.id.stop_btn)
             stopBtn.setOnClickListener { player.stop() }
             findViewById<ImageView>(R.id.print_btn).setOnClickListener { editorViewModel.print() }
             findViewById<ImageView>(R.id.undo_btn).setOnClickListener {

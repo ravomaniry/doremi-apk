@@ -19,13 +19,16 @@ class FileManager {
     companion object {
         private const val authority = "mg.maniry.doremi"
         private val sep = File.separator
+        private lateinit var rootDir: File
         private lateinit var solfaDir: File
         private val exportDir =
             "${Environment.getExternalStorageDirectory().absoluteFile}${sep}${Environment.DIRECTORY_DOWNLOADS}$sep"
+        private val instrumentFilePath get() = File(rootDir, "instrument.txt").absolutePath
 
         private fun buildSolfaPath(name: String) = "${solfaDir.absolutePath}$sep$name"
 
         fun initDir(context: Context) {
+            rootDir = context.filesDir
             solfaDir = File(context.filesDir, "solfa")
         }
 
@@ -98,6 +101,14 @@ class FileManager {
             }
         }
 
+        fun redInstrumentName(): String {
+            val content = read(instrumentFilePath)
+            return if (content.content == "") "Piano" else content.content
+        }
+
+        fun saveInstrumentName(value: String) {
+            write(instrumentFilePath, value)
+        }
 
         fun delete(filename: String) = getFileFromName(filename).let {
             return@let if (it.exists()) {

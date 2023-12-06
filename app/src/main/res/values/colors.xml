@@ -10,4 +10,5 @@
     <color name="gray">#CCC</color>
     <color name="dark_gray">#777</color>
     <color name="dark">#555</color>
+    <color name="secondaryColor">#00FF9E</color>
 </resources>

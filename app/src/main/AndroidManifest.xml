@@ -19,7 +19,9 @@
         android:roundIcon="@drawable/doremi_logo"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-
+        <activity
+            android:name=".player.PlayerActivity"
+            android:exported="false" />
         <activity
             android:name=".editor.EditorActivity"
             android:exported="true"
@@ -41,7 +43,6 @@
                     android:scheme="file" />
             </intent-filter>
         </activity>
-
         <activity android:name=".editor.HelpActivity" />
         <activity android:name=".editor.AboutActivity" />
         <activity android:name=".browser.BrowserActivity" />
