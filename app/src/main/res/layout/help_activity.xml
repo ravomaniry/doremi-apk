@@ -77,11 +77,6 @@
 
             <TextView
                 style="@style/AppTheme.LegendText"
-                android:drawableStart="@drawable/ic_save"
-                android:text="@string/help_save" />
-
-            <TextView
-                style="@style/AppTheme.LegendText"
                 android:drawableStart="@drawable/ic_piano"
                 android:text="@string/help_show_keyboard" />
 
@@ -89,11 +84,6 @@
                 style="@style/AppTheme.LegendText"
                 android:drawableStart="@drawable/ic_fullscreen"
                 android:text="@string/help_hide_keyboard" />
-
-            <TextView
-                style="@style/AppTheme.LegendText"
-                android:drawableStart="@drawable/ic_more"
-                android:text="@string/help_more" />
 
             <TextView
                 style="@style/AppTheme.LegendText"
@@ -114,6 +104,11 @@
                 style="@style/AppTheme.LegendText"
                 android:drawableStart="@drawable/ic_folder_open_black_24dp"
                 android:text="@string/help_explore" />
+
+            <TextView
+                style="@style/AppTheme.LegendText"
+                android:drawableStart="@drawable/ic_save"
+                android:text="@string/help_save" />
 
             <TextView
                 style="@style/AppTheme.LegendText"
@@ -157,11 +152,58 @@
                 android:text="@string/help_delete_note" />
 
             <TextView
+                style="@style/AppTheme.LegendText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/help_keyboard_other" />
         </LinearLayout>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20sp"
+            android:orientation="vertical">
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#ccc" />
+
+            <TextView
+                style="@style/AppTheme.Headline4"
+                android:text="@string/help_copy_paste_title" />
+
+            <TextView
+                style="@style/AppTheme.LegendText"
+                android:drawableStart="@drawable/ic_touch"
+                android:text="@string/help_copy_paste_1" />
+
+            <TextView
+                style="@style/AppTheme.LegendText"
+                android:drawableStart="@drawable/ic_content_copy"
+                android:text="@string/help_copy_paste_2" />
+
+            <TextView
+                style="@style/AppTheme.LegendText"
+                android:drawableStart="@drawable/ic_touch"
+                android:text="@string/help_copy_paste_3" />
+
+            <TextView
+                style="@style/AppTheme.LegendText"
+                android:drawableStart="@drawable/ic_content_copy"
+                android:text="@string/help_copy_paste_4" />
+
+            <TextView
+                style="@style/AppTheme.LegendText"
+                android:drawableStart="@drawable/ic_touch"
+                android:text="@string/help_copy_paste_5" />
+
+            <TextView
+                style="@style/AppTheme.LegendText"
+                android:drawableStart="@drawable/ic_content_paste"
+                android:text="@string/help_copy_paste_6" />
+
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -180,9 +222,21 @@
 
             <TextView
                 style="@style/AppTheme.LegendText"
-                android:text="@string/help_solfa_details" />
-        </LinearLayout>
+                android:drawableStart="@drawable/ic_touch"
+                android:text="@string/help_solfa_1" />
 
+            <TextView
+                style="@style/AppTheme.LegendText"
+                android:drawableStart="@drawable/ic_music_logo"
+                android:text="@string/help_solfa_2" />
+
+
+            <TextView
+                style="@style/AppTheme.LegendText"
+                android:drawableStart="@drawable/ic_touch"
+                android:text="@string/help_solfa_3" />
+
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
