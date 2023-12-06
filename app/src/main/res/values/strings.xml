@@ -13,7 +13,7 @@
     <string name="text_key">Do dia</string>
     <string name="text_tempo">Tempo</string>
     <string name="text_swing">Swing</string>
-    <string name="text_voices_instruments">Feo sy zava-maneno</string>
+    <string name="instrument">Zava-maneno</string>
     <string name="text_voices_num">Isan\'ny feo:</string>
     <string name="voice_s">S</string>
     <string name="voice_a">A</string>
@@ -48,6 +48,7 @@
     <string name="text_upload_done">Voazara soa aman-tsara</string>
     <string name="text_retry">Averina</string>
     <string name="text_done">Vita</string>
+    <string name="text_lyrics">Tononkira</string>
 
     <string name="net_error">Misy olana ny aterineto, avereno afaka foroana fohy.</string>
 
@@ -114,7 +115,11 @@
     </string>
 
     <string name="help_keyboard">3. NY \"Clavier\"</string>
-    <string name="help_keyboard_octave">Mampidina sy mampiakatra \"Octave\"</string>
+
+    <string name="help_octave_left">Mampidina octave</string>
+
+    <string name="help_octave_right">Mampiakatra octave</string>
+
     <string name="help_delete_note">Mamafa naoty</string>
     <string name="help_keyboard_other">
         Ireo bokotra hafa dia mifanaraka amin\'izay hita ao anaty solfa

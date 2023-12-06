@@ -17,24 +17,20 @@ import mg.maniry.doremi.editor.viewModels.FileContent
 class FileManager {
 
     companion object {
-        private const val doremi = "Doremi"
-        private const val solfa = "solfa"
-        private const val export = "export"
-        private const val midi = "midi"
         private const val authority = "mg.maniry.doremi"
         private val sep = File.separator
-        private var parentDir =
-            File("${Environment.getExternalStorageDirectory().absoluteFile}${sep}Documents$sep$doremi").also {
-                if (!it.exists()) it.mkdirs()
-            }
-        private val solfaDir = File("${parentDir.absolutePath}$sep$solfa")
-        private val htmlDir =
-            File("${parentDir.absolutePath}$sep$export").also { if (!it.exists()) it.mkdirs() }
-        private val solfaDirPath: String = solfaDir.absolutePath + sep
-        val htmlDirPath = htmlDir.absolutePath + sep
-        private val midiExportDirPath =
-            File("${parentDir.absolutePath}$sep$midi").also { if (!it.exists()) it.mkdirs() }
+        private lateinit var rootDir: File
+        private lateinit var solfaDir: File
+        private val exportDir =
+            "${Environment.getExternalStorageDirectory().absoluteFile}${sep}${Environment.DIRECTORY_DOWNLOADS}$sep"
+        private val instrumentFilePath get() = File(rootDir, "instrument.txt").absolutePath
 
+        private fun buildSolfaPath(name: String) = "${solfaDir.absolutePath}$sep$name"
+
+        fun initDir(context: Context) {
+            rootDir = context.filesDir
+            solfaDir = File(context.filesDir, "solfa")
+        }
 
         fun listFiles() =
             solfaDir.listFiles { f -> f.extension == "drm" }?.map { it.name.replace(".drm", "") }
@@ -44,14 +40,15 @@ class FileManager {
         fun rename(oldName: String?, newName: String) {
             if (oldName != null && newName != "") {
                 with(getFileFromName(oldName)) {
-                    if (exists()) renameTo(File("$solfaDirPath$newName.drm"))
+                    if (exists()) renameTo(File(buildSolfaPath("$newName.drm")))
                 }
             }
         }
 
 
         fun write(filename: String?, data: String) = try {
-            FileOutputStream(getFileFromName(filename)).run {
+            val file = getFileFromName(filename)
+            FileOutputStream(file).run {
                 write(data.toByteArray())
                 flush()
                 close()
@@ -63,23 +60,25 @@ class FileManager {
             Values.unknownErr
         }
 
+        fun createExportFilePath(filename: String, extension: String): String {
+            // It's possible that the app does not have permission to write to the file
+            val defaultFile = File("$exportDir$filename$extension")
+            if (defaultFile.exists() || defaultFile.createNewFile()) {
+                return defaultFile.absolutePath
+            }
+            return "$exportDir$filename${Date().time}$extension"
+        }
 
         fun writeHtml(filename: String, data: String): String {
-            File(htmlDirPath).run {
-                if (!exists()) {
-                    mkdirs()
-                }
-            }
-
-            return write("$htmlDirPath$filename.html", data)
+            return write(createExportFilePath(filename, ".html"), data)
         }
 
 
         fun getFileFromName(filename: String?) = when {
-            filename == null -> File("${solfaDirPath}doremi.drm")
+            filename == null -> File(buildSolfaPath("doremi.drm"))
             filename.contains('/') -> File(filename)
-            filename.endsWith(".drm") -> File("$solfaDirPath$filename")
-            else -> File("$solfaDirPath$filename.drm")
+            filename.endsWith(".drm") -> File(buildSolfaPath(filename))
+            else -> File(buildSolfaPath("$filename.drm"))
         }
 
 
@@ -102,6 +101,14 @@ class FileManager {
             }
         }
 
+        fun redInstrumentName(): String {
+            val content = read(instrumentFilePath)
+            return if (content.content == "") "Piano" else content.content
+        }
+
+        fun saveInstrumentName(value: String) {
+            write(instrumentFilePath, value)
+        }
 
         fun delete(filename: String) = getFileFromName(filename).let {
             return@let if (it.exists()) {
@@ -147,9 +154,8 @@ class FileManager {
                     else -> null
                 }?.let { src ->
                     if (src.exists()) {
-                        if (src.parentFile.absolutePath + sep == solfaDirPath) {
+                        if (src.parentFile.absolutePath == solfaDir.absolutePath) {
                             src.name.replace(".drm", "")
-
                         } else {
                             val copy = getCopy(src.absolutePath)
                             src.renameTo(copy)
@@ -198,18 +204,29 @@ class FileManager {
             if (!solfaDir.exists()) {
                 try {
                     solfaDir.mkdirs()
-                    assets.list("demo")?.forEach { name ->
-                        assets.open("demo/$name").copyTo(FileOutputStream(getFileFromName(name)))
-                    }
+                    copyFromAssets(assets)
+                    attemptToCopyFromDoremiDir()
                 } catch (e: Exception) {
-                    println(e)
+                    println("Unable to copy demo files $e")
                 }
             }
         }
 
+        private fun attemptToCopyFromDoremiDir() {
+            try {
+                val dir = File("${Environment.getExternalStorageDirectory()}${sep}Doremi", "solfa")
+                dir.listFiles()?.forEach {
+                    it.copyTo(getFileFromName(it.nameWithoutExtension))
+                }
+            } catch (e: Throwable) {
+                println("Unable to copy form Doremi external storage dir $e")
+            }
+        }
 
-        fun getMidiExportFile(name: String): File {
-            return File("${midiExportDirPath.absolutePath}$sep$name.mid")
+        private fun copyFromAssets(assets: AssetManager) {
+            assets.list("demo")?.forEach { name ->
+                assets.open("demo/$name").copyTo(FileOutputStream(getFileFromName(name)))
+            }
         }
     }
 }

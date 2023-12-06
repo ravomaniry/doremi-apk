@@ -1,10 +1,10 @@
 package mg.maniry.doremi.editor.partition
 
-import android.graphics.Color
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.text.style.RelativeSizeSpan
+import mg.maniry.doremi.editor.managers.SolfaColors
 
 
 data class Cell(val voice: Int = 0, val index: Int = 0, val content: String = "")
@@ -16,13 +16,11 @@ class KeyValue constructor(keyValue: List<String>) {
 }
 
 
-data class Note(var channel: Int, var pitch: Int, var velocity: Int, var tick: Long, var duration: Long) {
+data class Note(
+    var channel: Int, var pitch: Int, var velocity: Int, var tick: Long, var duration: Long
+) {
     fun addDuration(additional: Long) {
         duration += additional
-    }
-
-    fun tickEqual(expectedTick: Long): Boolean {
-        return expectedTick == tick
     }
 
     override fun toString() = "$pitch $tick $duration $velocity"
@@ -52,7 +50,7 @@ class Labels {
 
 data class MeasureHeader(val position: Int, var text: String, val types: MutableList<String>) {
 
-    fun toSpan(): SpannableStringBuilder {
+    fun toSpan(colors: SolfaColors): SpannableStringBuilder {
         val span = SpannableStringBuilder(text).apply {
             setSpan(RelativeSizeSpan(0.6f), 0, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
@@ -60,14 +58,18 @@ data class MeasureHeader(val position: Int, var text: String, val types: Mutable
         text.split(' ').forEachIndexed { i, t ->
             val start = text.indexOf(t)
             val color = when (types[i]) {
-                ChangeEvent.DAL -> Color.rgb(0, 177, 46)
-                ChangeEvent.SIGN -> Color.rgb(160, 90, 0)
-                ChangeEvent.MOD -> Color.RED
-                ChangeEvent.VELOCITY -> Color.rgb(10, 10, 245)
-                else -> Color.rgb(0, 168, 176)
+                ChangeEvent.DAL -> colors.sign
+                ChangeEvent.SIGN -> colors.sign
+                ChangeEvent.MOD -> colors.modulation
+                ChangeEvent.VELOCITY -> colors.velocity
+                else -> colors.tempoChange
             }
-
-            span.setSpan(ForegroundColorSpan(color), start, start + t.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            span.setSpan(
+                ForegroundColorSpan(color),
+                start,
+                start + t.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
         }
 
         return span
@@ -75,4 +77,6 @@ data class MeasureHeader(val position: Int, var text: String, val types: Mutable
 }
 
 
-data class PartitionPasteResult(val updatedCell: MutableList<Cell>, val changes: MutableList<EditionHistory.Change>)
+data class PartitionPasteResult(
+    val updatedCell: MutableList<Cell>, val changes: MutableList<EditionHistory.Change>
+)

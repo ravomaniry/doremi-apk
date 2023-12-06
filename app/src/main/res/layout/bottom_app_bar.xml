@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:baselineAligned="false"
+    android:orientation="vertical">
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bottom_app_bar_background">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/help_btn"
+                style="@style/AppTheme.AppBarSecondaryButton"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/appbar_content_descr"
+                android:src="@drawable/ic_help" />
+
+            <ImageButton
+                android:id="@+id/new_btn"
+                style="@style/AppTheme.AppBarSecondaryButton"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/appbar_content_descr"
+                android:src="@drawable/ic_new" />
+
+            <ImageButton
+                android:id="@+id/browse_btn"
+                style="@style/AppTheme.AppBarSecondaryButton"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/appbar_content_descr"
+                android:src="@drawable/ic_open_solfa" />
+
+            <ImageButton
+                android:id="@+id/save_btn"
+                style="@style/AppTheme.AppBarSecondaryButton"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/appbar_content_descr"
+                android:src="@drawable/ic_save" />
+
+            <ImageButton
+                android:id="@+id/copy_btn"
+                style="@style/AppTheme.AppBarSecondaryButton"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/appbar_content_descr"
+                android:src="@drawable/ic_content_copy" />
+
+            <ImageButton
+                android:id="@+id/paste_btn"
+                style="@style/AppTheme.AppBarSecondaryButton"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/appbar_content_descr"
+                android:src="@drawable/ic_content_paste" />
+
+            <ImageButton
+                android:id="@+id/print_btn"
+                style="@style/AppTheme.AppBarSecondaryButton"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/appbar_content_descr"
+                android:src="@drawable/ic_print" />
+
+            <ImageButton
+                android:id="@+id/save_mid_btn"
+                style="@style/AppTheme.AppBarSecondaryButton"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/appbar_content_descr"
+                android:src="@drawable/ic_save_mid" />
+
+            <ImageButton
+                android:id="@+id/about_btn"
+                style="@style/AppTheme.AppBarSecondaryButton"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/appbar_content_descr"
+                android:src="@drawable/ic_about" />
+
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <LinearLayout
+
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bottom_app_bar_background"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingVertical="@dimen/spacing2"
+        android:weightSum="55">
+
+        <ImageButton
+            android:id="@+id/menu_btn"
+            style="@style/AppTheme.MenuIconButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="10"
+            android:contentDescription="@string/help_open_menu"
+            android:src="@drawable/ic_music_logo" />
+
+        <ImageButton
+            android:id="@+id/undo_btn"
+            style="@style/AppTheme.MenuIconButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="10"
+            android:contentDescription="@string/help_back"
+            android:src="@drawable/ic_undo" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="15"
+            android:orientation="vertical"
+            android:paddingHorizontal="5dp">
+
+            <ImageButton
+                android:id="@+id/play_btn"
+                style="@style/AppTheme.PlayButton"
+                android:contentDescription="@string/appbar_content_descr"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_play" />
+
+            <ImageButton
+                android:id="@+id/stop_btn"
+                style="@style/AppTheme.StopButton"
+                android:contentDescription="@string/appbar_content_descr"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_stop_circle" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/redo_btn"
+            style="@style/AppTheme.MenuIconButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="10"
+            android:contentDescription="@string/help_back"
+            android:src="@drawable/ic_redo" />
+
+        <ImageButton
+            android:id="@+id/preview_btn"
+            style="@style/AppTheme.MenuIconButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="10"
+            android:contentDescription="@string/help_show_keyboard"
+            android:src="@drawable/ic_piano" />
+    </LinearLayout>
+</LinearLayout>

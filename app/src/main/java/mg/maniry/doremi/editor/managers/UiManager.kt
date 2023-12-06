@@ -8,25 +8,26 @@ import mg.maniry.doremi.editor.viewModels.UiViewModel
 
 
 class UiManager constructor(
-        private val mainContext: Context,
-        mainView: View,
-        private val uiViewModel: UiViewModel,
-        private var editorViewModel: EditorViewModel,
-        private val player: Player) {
+    private val mainContext: Context,
+    mainView: View,
+    private val uiViewModel: UiViewModel,
+    private var editorViewModel: EditorViewModel,
+    private val player: Player
+) {
 
     private val drawerManager = DrawerManager(mainView)
     val changesDialogManager: ChangesDialogManager
     private val solfaDisplayManager: SolfaDisplayManager
     private val lyricsDisplayManager: LyricsDisplayManager
-    private val appBarManager = AppBarManager(mainContext, mainView, uiViewModel, editorViewModel, player)
-
 
     init {
+        AppBarManager(mainContext, mainView, uiViewModel, editorViewModel, player)
         Toaster(mainContext, editorViewModel)
         PianoViewManager(mainContext, mainView, editorViewModel)
         solfaDisplayManager = SolfaDisplayManager(mainContext, mainView, editorViewModel)
         Toaster(mainContext, editorViewModel)
-        lyricsDisplayManager = LyricsDisplayManager(mainContext, mainView, uiViewModel, editorViewModel)
+        lyricsDisplayManager =
+            LyricsDisplayManager(mainContext, mainView, uiViewModel, editorViewModel)
 
         TabsManager(mainContext, mainView, uiViewModel).also {
             EditorTabManager(mainContext, it.editorTab, editorViewModel, player)
@@ -39,7 +40,6 @@ class UiManager constructor(
 
     fun handleButtonPress(keyCode: Int) = when {
         drawerManager.handleButtonPress(keyCode) -> true
-        appBarManager.handleBtnPress(keyCode) -> true
         lyricsDisplayManager.handleButtonPress(keyCode) -> true
         else -> false
     }

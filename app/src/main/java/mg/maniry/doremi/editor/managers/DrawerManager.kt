@@ -21,6 +21,7 @@ class DrawerManager(private val mainView: View) {
 
     private fun handleDrawerClicks() {
         mainView.findViewById<View>(R.id.drawer_hider).setOnClickListener { closeDrawer() }
+        mainView.findViewById<View>(R.id.menu_btn).setOnClickListener { openDrawer() }
     }
 
 
@@ -30,7 +31,7 @@ class DrawerManager(private val mainView: View) {
     }
 
 
-    fun closeDrawer(): Boolean {
+    private fun closeDrawer(): Boolean {
         drawer.closeDrawer(GravityCompat.START, true)
         return true
     }

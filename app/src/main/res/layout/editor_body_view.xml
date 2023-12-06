@@ -1,32 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/editor_main_cont"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:theme="@style/AppTheme.noActionBar"
-    android:weightSum="12">
-
-    <LinearLayout
-        android:id="@+id/appbar_cont"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical" />
+    android:theme="@style/AppTheme.noActionBar">
 
     <LinearLayout
         android:id="@+id/editor_body_content"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_above="@+id/appbar_cont"
         android:orientation="vertical"
-        android:weightSum="11.25">
+        android:weightSum="10">
 
         <LinearLayout
             android:id="@+id/editor_viewer_cont"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="6.5">
+            android:layout_weight="6">
 
             <ScrollView
                 android:id="@+id/editor_viewer"
@@ -41,11 +34,12 @@
 
                     <TextView
                         android:id="@+id/song_title_text_view"
+                        style="@style/AppTheme.Headline4"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/spacing2"
                         android:gravity="center"
-                        android:text="@string/app_name"
-                        android:textColor="@color/colorPrimaryDark" />
+                        android:text="@string/app_name" />
 
                     <com.google.android.flexbox.FlexboxLayout
                         android:id="@+id/partition_cont"
@@ -59,7 +53,8 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="20dp"
                         android:gravity="center_horizontal"
-                        android:orientation="vertical">
+                        android:orientation="vertical"
+                        android:paddingBottom="@dimen/spacing2">
 
                         <TextView
                             android:id="@+id/lyrics_text_view"
@@ -75,27 +70,19 @@
                             android:hint="@string/app_name"
                             android:textSize="14sp" />
 
-                        <ImageButton
+                        <Button
                             android:id="@+id/lyrics_edit_btn"
-                            android:layout_width="wrap_content"
-                            android:layout_height="32dp"
-                            android:background="@drawable/button"
+                            style="@style/AppTheme.PrimaryButton"
                             android:contentDescription="@string/app_name"
-                            android:paddingLeft="10dp"
-                            android:paddingRight="10dp"
-                            android:src="@drawable/ic_edit"
-                            android:textAllCaps="false"
-                            android:textColor="#FFF" />
+                            android:drawableStart="@drawable/ic_edit"
+                            android:text="@string/text_lyrics" />
 
-                        <ImageButton
+                        <Button
                             android:id="@+id/lyrics_save_btn"
-                            android:layout_width="wrap_content"
-                            android:layout_height="32dp"
-                            android:background="@drawable/button"
+                            style="@style/AppTheme.PrimaryButton"
                             android:contentDescription="@string/app_name"
-                            android:padding="8sp"
-                            android:src="@drawable/ic_done"
-                            android:textColor="#FFF" />
+                            android:drawableStart="@drawable/ic_done"
+                            android:text="@string/text_done" />
 
                     </LinearLayout>
 
@@ -108,9 +95,9 @@
             android:id="@+id/keyboard_cont"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="5"
+            android:layout_weight="4"
             android:orientation="vertical"
-            android:weightSum="6">
+            android:weightSum="4">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -122,7 +109,7 @@
                 <ImageView
                     android:id="@+id/reduce_octave_btn"
                     android:layout_width="0dp"
-                    android:layout_height="match_parent"
+                    android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:background="@drawable/black_btn"
                     android:clickable="true"
@@ -130,7 +117,7 @@
                     android:focusable="true"
                     android:src="@drawable/to_left" />
 
-                <Space
+                <FrameLayout
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_weight="0.5" />
@@ -138,7 +125,7 @@
                 <ImageView
                     android:id="@+id/delete_notes_btn"
                     android:layout_width="0dp"
-                    android:layout_height="match_parent"
+                    android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:background="@drawable/black_btn"
                     android:clickable="true"
@@ -147,7 +134,7 @@
                     android:padding="3dp"
                     android:src="@drawable/ic_backspace" />
 
-                <Space
+                <FrameLayout
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_weight="0.5" />
@@ -219,10 +206,9 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_weight="4"
+                android:layout_weight="2.25"
                 android:background="@drawable/wood"
-                android:paddingTop="1px"
-                android:paddingBottom="2dp">
+                android:padding="2dp">
 
                 <mg.maniry.doremi.editor.views.PianoView
                     android:id="@+id/piano_view"
@@ -235,4 +221,13 @@
 
     </LinearLayout>
 
-</LinearLayout>
+    <LinearLayout
+        android:id="@+id/appbar_cont"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:gravity="bottom"
+        android:minHeight="24dp"
+        android:orientation="vertical" />
+
+</RelativeLayout>

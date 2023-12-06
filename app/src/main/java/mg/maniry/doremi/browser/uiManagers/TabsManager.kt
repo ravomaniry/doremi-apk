@@ -1,6 +1,5 @@
 package mg.maniry.doremi.browser.uiManagers
 
-import android.graphics.Color
 import android.support.v7.widget.RecyclerView
 import android.view.View
 import android.widget.LinearLayout
@@ -13,10 +12,6 @@ class TabsManager(
     val mainView: View,
     private val remoteBrowserManager: RemoteBrowserManager
 ) {
-
-    private val primDark = Color.rgb(48, 63, 159)
-    private val secDark = Color.rgb(197, 41, 37)
-    private val searchFormsCont = mainView.findViewById<LinearLayout>(R.id.search_forms_cont)
     private val tabCont = mainView.findViewById<LinearLayout>(R.id.browser_tab_body_cont)
     private val localSearchForm = mainView.findViewById<LinearLayout>(R.id.local_search_form)
     private val remoteTabCont = remoteBrowserManager.remoteTab
@@ -50,8 +45,7 @@ class TabsManager(
     private fun refreshTab() {
         tabCont.removeAllViews()
         val activeTab = context.activeTab
-
-        searchFormsCont.setBackgroundColor(if (activeTab == 0) primDark else secDark)
+//        searchFormsCont.setBackgroundColor(if (activeTab == 0) primDark else secDark)
         localSearchForm.visibility = if (activeTab == 0) View.VISIBLE else View.GONE
         remoteSearchForm.visibility = if (activeTab == 1) View.VISIBLE else View.GONE
 
