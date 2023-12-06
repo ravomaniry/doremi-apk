@@ -25,6 +25,10 @@ class SfPlayer(
         completionListener = listener
     }
 
+    fun prepare(instrument: String) {
+        ensureInitialization(instrument)
+    }
+
     fun play(notes: List<Note>, tempo: Int, instrument: String) {
         ensureInitialization(instrument)
         var timeout = 0L

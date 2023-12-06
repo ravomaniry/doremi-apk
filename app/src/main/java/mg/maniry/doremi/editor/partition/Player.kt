@@ -2,6 +2,7 @@ package mg.maniry.doremi.editor.partition
 
 import android.arch.lifecycle.MutableLiveData
 import android.content.Context
+import mg.maniry.doremi.editor.EditorActivity
 import mg.maniry.doremi.editor.sfplayer.SfPlayer
 import mg.maniry.doremi.editor.viewModels.EditorViewModel
 
@@ -18,8 +19,10 @@ data class Player constructor(
         sfPlayer.setOnCompletionListener {
             updateState(false)
         }
+        editorViewModel.instrument.observe(mainContext as EditorActivity) {
+            it?.run { sfPlayer.prepare(it) }
+        }
     }
-
 
     fun playSingleNote(pitch: Int) {
         sfPlayer.playSingleNote(pitch)
