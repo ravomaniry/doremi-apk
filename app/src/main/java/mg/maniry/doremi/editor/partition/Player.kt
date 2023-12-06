@@ -39,7 +39,7 @@ data class Player constructor(
 
     fun stop() {
         updateState(false)
-        sfPlayer.stop()
+        sfPlayer.stopPlaying()
     }
 
 
@@ -55,7 +55,7 @@ data class Player constructor(
 
 
     fun release() {
-        sfPlayer.stop()
+        sfPlayer.dispose()
         if (!isActive) {
             updateState(false)
         }

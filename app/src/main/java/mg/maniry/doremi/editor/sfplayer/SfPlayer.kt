@@ -81,7 +81,7 @@ class SfPlayer(
     private fun ensureInitialization(instrument: String) {
         if (instrument !== this.instrumentName) {
             instrumentName = instrument
-            stop()
+            dispose()
         }
         if (synth == null) {
             val instrumentConfig = parseInstrumentName()
@@ -109,7 +109,12 @@ class SfPlayer(
         return 1_000_000 * tick * 60 / (tempo * 480L)
     }
 
-    fun stop() {
+    fun stopPlaying() {
+        dispose()
+        ensureInitialization(instrumentName)
+    }
+
+    fun dispose() {
         synth?.close()
         synth = null
     }
