@@ -13,12 +13,8 @@ fun inflateMainView(context: Context): View {
     val appBarCont = editorView.findViewById<LinearLayout>(R.id.appbar_cont)
     val appBarView = View.inflate(context, R.layout.bottom_app_bar, null)
     val drawerHeaderView = View.inflate(context, R.layout.menu_header, null)
-    val tabsView = View.inflate(context, R.layout.menu_tabs, null)
     appBarCont.addView(appBarView)
     mainView.findViewById<FrameLayout>(R.id.editor_cont).addView(editorView)
-    mainView.findViewById<LinearLayout>(R.id.drawer_inner_cont).apply {
-        addView(drawerHeaderView)
-        addView(tabsView)
-    }
+    mainView.findViewById<LinearLayout>(R.id.drawer_inner_cont).addView(drawerHeaderView)
     return mainView
 }

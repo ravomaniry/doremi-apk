@@ -87,4 +87,12 @@
         <item name="android:textAllCaps">true</item>
         <item name="android:drawableTint">@color/gray</item>
     </style>
+
+    <style name="AppTheme.HorizontalDivider">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">1dp</item>
+        <item name="android:background">@color/gray</item>
+        <item name="android:layout_marginTop">@dimen/spacing1</item>
+        <item name="android:layout_marginBottom">@dimen/spacing1</item>
+    </style>
 </resources>

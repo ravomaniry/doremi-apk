@@ -3,19 +3,22 @@ package mg.maniry.doremi.editor.partition
 import android.arch.lifecycle.MutableLiveData
 
 
-data class SongInfo(val title: MutableLiveData<String> = MutableLiveData(),
-                    val author: MutableLiveData<String> = MutableLiveData(),
-                    val compositor: MutableLiveData<String> = MutableLiveData(),
-                    val releaseDate: MutableLiveData<String> = MutableLiveData(),
-                    val singer: MutableLiveData<String> = MutableLiveData()) {
+data class SongInfo(
+    val title: MutableLiveData<String> = MutableLiveData(),
+    val author: MutableLiveData<String> = MutableLiveData(),
+    val compositor: MutableLiveData<String> = MutableLiveData(),
+    val releaseDate: MutableLiveData<String> = MutableLiveData(),
+    val singer: MutableLiveData<String> = MutableLiveData()
+) {
 
     val filename: String
         get() = "${title.value}${if (singer.value != null && singer.value != "") " - ${singer.value}" else ""}"
-                .replace("/", "_")
+            .replace("/", "_")
 
 
-    override fun toString() = "title=${title.value}, aut=${author.value} comp=${compositor.value}," +
-            "date=${releaseDate.value}, singer=${singer.value} "
+    override fun toString() =
+        "title=${title.value}, aut=${author.value} comp=${compositor.value}," +
+                "date=${releaseDate.value}, singer=${singer.value} "
 
 
     fun parseFile(keyValues: List<KeyValue>) {
