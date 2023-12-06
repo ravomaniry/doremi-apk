@@ -8,11 +8,11 @@ import mg.maniry.doremi.editor.viewModels.UiViewModel
 
 
 class UiManager constructor(
-    private val mainContext: Context,
+    mainContext: Context,
     mainView: View,
     private val uiViewModel: UiViewModel,
     private var editorViewModel: EditorViewModel,
-    private val player: Player
+    player: Player
 ) {
 
     private val drawerManager = DrawerManager(mainView)
@@ -28,12 +28,8 @@ class UiManager constructor(
         Toaster(mainContext, editorViewModel)
         lyricsDisplayManager =
             LyricsDisplayManager(mainContext, mainView, uiViewModel, editorViewModel)
-
-        TabsManager(mainContext, mainView, uiViewModel).also {
-            EditorTabManager(mainContext, it.editorTab, editorViewModel, player)
-            SongTabManager(mainContext, mainView, it.songTab, editorViewModel)
-        }
-
+        val tabsM = TabsManager(mainContext, mainView)
+        EditorTabManager(mainContext, tabsM.editorTab, editorViewModel, player, mainView)
         changesDialogManager = ChangesDialogManager(mainContext, mainView, editorViewModel)
     }
 
