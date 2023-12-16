@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">DoReMi</string>
-    <string name="app_version">2.0.0</string>
+    <string name="app_version">2.2.0</string>
 
     <string name="text_editor">Firafitra</string>
     <string name="tex_title">Lohateny</string>
@@ -64,19 +64,18 @@
     <string name="text_psalm">Salamo 144 : 9</string>
     <string name="help_greeting">Finaritra e!</string>
     <string name="text_description">
-        Finaritra!
-        \n\t Ity \"application\" dia natao mba hanampiana antsika
-        mpitendry na antoko mpihira amin\'ny fianarana ny Solfa
-        ary indrinda koa mba hahafahantsika mifampizara ireo hira fiderana an\'Andriamanitra.
-        \n\t Zaraina maimaim-poana izy ity ary entanina ihany koa ianao mba hizara izany maimaim-poana.
-        \n\t Misaotra anao mampiasa ity fitaovana ity ary mirary soa anao mba hitombo talenta sy
-        hahefa be amin\'ny asa fanompoana izay iandraiketanao.
-        \n\t Ny Fiadanan\'i Jesosy Kristy Tompo anie hitoetra aminao mandrakariva.
+        Fiadanana!
+        \n\nIty application dia zaraina maimaim-poana.
+        \nMandefasa hafatra mivantana ao amin\'ny Facebook raha manana fanontaniana ianao.
+        \nMiala tsiny mialoha raha elaela vao mamaly na tsy mahavaly noho ny antony samihafa.
+        \n\nManentana anao hitsidika ny tranonkala Fitiavana voalohany https://fitiavana.org izay
+        ahitanao fampianarana baiboly mifantoka amin'ny fitiavan'Andriamanitra sy ny fahasoavany.
+        \n\nNy fahasoavana sy ny fiadanan'i Jesosy Kristy ho aminao.
     </string>
     <string name="text_contact">
-        Fifandraisana:
-        \nFacebook: Ravo Maniry
+        Facebook: Ravo Maniry\n https://www.facebook.com/ravomaniry
     </string>
+    <string name="text_website">Tranonkala: https://fitiavana.org</string>
 
     <string name="help_buttons">1. Ireo bokotra samihafa</string>
     <string name="help_open_menu">

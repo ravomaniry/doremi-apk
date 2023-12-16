@@ -18,7 +18,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="6sp"
-            android:layout_marginRight="6sp"
             android:contentDescription="@string/app_name"
             android:src="@drawable/ic_cancel" />
     </LinearLayout>
@@ -105,14 +104,22 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:autoLink="web"
                     android:text="@string/text_description" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="end"
-                    android:layout_marginTop="20sp"
+                    android:layout_marginTop="@dimen/spacing2"
+                    android:autoLink="web"
                     android:text="@string/text_contact"
+                    android:textColor="@color/colorPrimary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:autoLink="web"
+                    android:text="@string/text_website"
                     android:textColor="@color/colorPrimary" />
 
                 <TextView
@@ -130,7 +137,6 @@
                 android:visibility="gone" />
 
         </FrameLayout>
-
 
     </ScrollView>
 </LinearLayout>

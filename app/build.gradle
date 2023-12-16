@@ -10,9 +10,9 @@ android {
         applicationId "mg.maniry.doremi"
         minSdkVersion 23
         compileSdk 32
-        targetSdkVersion 32
-        versionCode 8
-        versionName "2.2.0-rc1"
+        targetSdkVersion 33
+        versionCode 9
+        versionName "2.2.0-rc2"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
