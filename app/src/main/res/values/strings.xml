@@ -141,7 +141,31 @@
         5. Tsindrio ny toerana tiana handikana ny naoty
     </string>
     <string name="help_copy_paste_6">6. Tsindina ny bokotra "Coller"</string>
-    <string name="help_solfa">5. Ny solfa</string>
+    <string name="help_dc_ds_title">
+        5. FIVERENANA
+    </string>
+    <string name="help_dc_ds_star">
+        Misy kintana eo amin\'ilay fasiana DC raha ao amin\'ny mesure misy anao
+    </string>
+    <string name="help_dc">
+        Da Capo na DC:
+        \n- Tsindrio eo ambonin\'ny feo voalohany amin\'ny barre farany amin\'ilay mesure tiana hiverenana
+        \n- Safidio ny menu: Fiverenana > DC
+        \n  (*) Ny barre farany ihany no azo asiana DC
+    </string>
+
+    <string name="help_ds">
+        Dal Segno na D$:
+        \n a. Apetraka aloha ny \"signe\" $
+        \n   - Tsindrio eo ambonin\'ny feo voalohany amin\'ilay tiana hasiana $
+        \n   - Safidio ny menu: Marika > \"$\" na \"S2\" na izay isa miseho ao
+        \n b. Apetraka ny D$:
+        \n   - Tsindriana eo ambonin\'ny feo voalohany asiana ny D$
+        \n   - Safidio ny Fiverenana > D$ na D$2 na izay isa tianao hiverenana
+        \n (*) Tsy maintsy barre mifameno amin\'ilay misy $ ny DS: raha barre voalohany ny $ dia barre farany ny D$
+    </string>
+
+    <string name="help_solfa">6. Ny solfa</string>
     <string name="help_solfa_1">
         1. Raha tianao hanomboka amin\'ny \"mesure\" iray ny feon-kira dis tsindrio
         manadrify ny \":\" na ny \"|\". Miova loko ilay \"mesure\" avy eo.
@@ -153,8 +177,6 @@
     </string>
     <string name="help_solfa_3">
         3. Tsindrio ny faritra eo ambonin\'ny feo voalohany raha hanampy:
-        \n\t- fiverenana: D.C, D.$
-        \n\t- marika: $ na Fin
         \n\t- fiovana \"Tempo\"
         \n\t- fiovana \"Clé\"
         \n\t- \"nuance\"

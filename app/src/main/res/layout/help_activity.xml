@@ -218,6 +218,38 @@
 
             <TextView
                 style="@style/AppTheme.Headline4"
+                android:text="@string/help_dc_ds_title" />
+
+            <TextView
+                style="@style/AppTheme.LegendText"
+                android:drawableStart="@drawable/ic_about"
+                android:text="@string/help_dc_ds_star" />
+
+            <TextView
+                style="@style/AppTheme.LegendText"
+                android:drawableStart="@drawable/ic_loop"
+                android:text="@string/help_dc" />
+
+            <TextView
+                style="@style/AppTheme.LegendText"
+                android:drawableStart="@drawable/ic_add_link"
+                android:text="@string/help_ds" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20sp"
+            android:orientation="vertical">
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#ccc" />
+
+            <TextView
+                style="@style/AppTheme.Headline4"
                 android:text="@string/help_solfa" />
 
             <TextView
