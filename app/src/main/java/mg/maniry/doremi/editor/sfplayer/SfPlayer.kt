@@ -8,6 +8,7 @@ import cn.sherlock.com.sun.media.sound.SoftSynthesizer
 import jp.kshoji.javax.sound.midi.Receiver
 import jp.kshoji.javax.sound.midi.ShortMessage
 import mg.maniry.doremi.editor.partition.Note
+import org.jetbrains.anko.doAsync
 
 
 class SfPlayer(
@@ -111,7 +112,9 @@ class SfPlayer(
 
     fun stopPlaying() {
         dispose()
-        ensureInitialization(instrumentName)
+        doAsync {
+            ensureInitialization(instrumentName)
+        }
     }
 
     fun dispose() {
