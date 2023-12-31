@@ -110,12 +110,12 @@ class SolfaDisplayManagerReactive(
                 }
                 buildNoteCell(voiceIndex, cellIndex)
             } else {
-                buildSeparatorCell(voiceIndex, cellIndex)
+                buildSeparatorCell(cellIndex)
             }
         }
     }
 
-    private fun buildSeparatorCell(voiceIndex: Int, cellIndex: Int): VirtualCell {
+    private fun buildSeparatorCell(cellIndex: Int): VirtualCell {
         val text = when {
             // separator: "|" every 4 and ":" every 2
             signature > 3 && signature % 2 == 0 && cellIndex % 2 == 1 -> " | "
