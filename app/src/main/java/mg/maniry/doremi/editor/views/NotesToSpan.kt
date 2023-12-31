@@ -9,31 +9,33 @@ import android.text.style.SuperscriptSpan
 
 class NotesToSpan {
     companion object {
+        private val cache = mutableMapOf<String, SpannableStringBuilder>()
         private const val TAG = Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
         val symbols = listOf('-', '1', '2', '3')
 
 
         private data class Span(val isSup: Boolean, val position: Int) {
             fun assign(builder: SpannableStringBuilder) {
-                if (isSup)
-                    sup(builder, position)
-                else
-                    sub(builder, position)
+                if (isSup) sup(builder, position)
+                else sub(builder, position)
             }
         }
 
 
         fun convert(notes: String): SpannableStringBuilder {
-            return if (notes.length <= 1) {
+            val cached = cache[notes]
+            if (cached !== null) {
+                return cached
+            }
+            val newValue = if (notes.length <= 1) {
                 SpannableStringBuilder(notes)
-
             } else {
                 var str = ""
                 var index = 0
                 var skipNext = false
                 val spans = mutableListOf<Span>()
 
-                for (i in 0..(notes.length - 1)) {
+                for (i in notes.indices) {
                     if (!skipNext) {
                         if (symbols.contains(notes[i])) {
                             if (notes[i] == '-') {
@@ -72,6 +74,8 @@ class NotesToSpan {
                     }
                 }
             }
+            cache[notes] = newValue
+            return newValue
         }
 
 

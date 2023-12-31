@@ -48,7 +48,7 @@ class ChangesDialogManager(
 
 
     val onDismiss = {
-        editorViewModel.dialogOpen.value = false
+        editorViewModel.resetDialog()
         mainView.hideKeyboard()
     }
 
@@ -82,33 +82,33 @@ class ChangesDialogManager(
 
         with(dialogView) {
             veloSpinner = findViewById<Spinner>(cd_velocity_spinner).apply {
-                adapter = ArrayAdapter(mainContext, simpleListItem, velocities)
-                    .apply { setDropDownViewResource(dropDownItem) }
-                    .also { veloAdapter = it }
+                adapter = ArrayAdapter(
+                    mainContext, simpleListItem, velocities
+                ).apply { setDropDownViewResource(dropDownItem) }.also { veloAdapter = it }
 
                 onChange { handleChange(ChangeEvent.VELOCITY, velocities[it]) }
             }
 
             signSpinner = findViewById<Spinner>(cd_sign_spinner).apply {
-                adapter = ArrayAdapter(mainContext, simpleListItem, signs)
-                    .apply { setDropDownViewResource(dropDownItem) }
-                    .also { signAdapter = it }
+                adapter = ArrayAdapter(
+                    mainContext, simpleListItem, signs
+                ).apply { setDropDownViewResource(dropDownItem) }.also { signAdapter = it }
 
                 onChange { handleChange(ChangeEvent.SIGN, signs[it]) }
             }
 
             dalSpinner = findViewById<Spinner>(cd_dal_spinner).apply {
-                adapter = ArrayAdapter(mainContext, simpleListItem, dals)
-                    .apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
-                    .also { dalAdapter = it }
+                adapter = ArrayAdapter(mainContext, simpleListItem, dals).apply {
+                    setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                }.also { dalAdapter = it }
 
                 onChange { handleChange(ChangeEvent.DAL, dals[it]) }
             }
 
             keysSpinner = findViewById<Spinner>(cd_key_spinner).apply {
-                adapter = ArrayAdapter(mainContext, simpleListItem, keys)
-                    .apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
-                    .also { keysAdapter = it }
+                adapter = ArrayAdapter(mainContext, simpleListItem, keys).apply {
+                    setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                }.also { keysAdapter = it }
 
                 onChange { handleChange(ChangeEvent.MOD, keys[it]) }
             }
@@ -140,8 +140,7 @@ class ChangesDialogManager(
         val partitionData = editorViewModel.partitionData
         val signature = partitionData.signature.value ?: 4
         position = editorViewModel.dialogPosition
-        changesInScope = partitionData.changeEvents.asSequence()
-            .filter { it.position == position }
+        changesInScope = partitionData.changeEvents.asSequence().filter { it.position == position }
             .toMutableList()
 
         coordTv.text = "${
@@ -155,14 +154,11 @@ class ChangesDialogManager(
             dals.add("DC")
         }
 
-        val similarSigns = partitionData.changeEvents
-            .asSequence()
+        val similarSigns = partitionData.changeEvents.asSequence()
             .filter { it.type == ChangeEvent.SIGN && it.value.startsWith("$") }
-            .filter { it.position % signature == (position + 1) % signature }
-            .toList()
+            .filter { it.position % signature == (position + 1) % signature }.toList()
 
-        if (!similarSigns.isEmpty())
-            dals.addAll(similarSigns.map { "D" + it.value })
+        if (similarSigns.isNotEmpty()) dals.addAll(similarSigns.map { "D" + it.value })
 
         dalAdapter.apply {
             clear()
@@ -173,8 +169,7 @@ class ChangesDialogManager(
         // SIGNS
         signs = mutableListOf("", getDollarSign())
         with(partitionData.changeEvents.find { it.type == ChangeEvent.SIGN && it.value == "Fin" }) {
-            if (this == null || this.position == this@ChangesDialogManager.position)
-                signs.add("Fin")
+            if (this == null || this.position == this@ChangesDialogManager.position) signs.add("Fin")
         }
 
         signAdapter.apply {
@@ -187,10 +182,7 @@ class ChangesDialogManager(
         val values = listOf(velocities, signs, dals, keys)
         val spinners = listOf(veloSpinner, signSpinner, dalSpinner, keysSpinner)
         listOf(
-            ChangeEvent.VELOCITY,
-            ChangeEvent.SIGN,
-            ChangeEvent.DAL,
-            ChangeEvent.MOD
+            ChangeEvent.VELOCITY, ChangeEvent.SIGN, ChangeEvent.DAL, ChangeEvent.MOD
         ).forEachIndexed { i, type ->
             val relatedChange = changesInScope.filter { it.type == type }
 
@@ -212,36 +204,32 @@ class ChangesDialogManager(
         changesInScope =
             changesInScope.asSequence().filter { it.type != updatedType }.toMutableList()
 
-        if (value != "")
-            changesInScope.add(ChangeEvent(position, updatedType, value))
+        if (value != "") changesInScope.add(ChangeEvent(position, updatedType, value))
     }
 
 
     private fun handleSubmit() {
         submitBtn.setOnClickListener {
-            editorViewModel.partitionData.updateChangeEvents(position, changesInScope)
-            editorViewModel.headerTvTrigger.value = true
+            editorViewModel.updateChangeEvents(position, changesInScope)
             onDismiss()
         }
     }
 
 
     private fun getDollarSign(): String {
-        val insertedSigns = editorViewModel.partitionData.changeEvents
-            .filter { it.type == ChangeEvent.SIGN && it.value.startsWith('$') }
+        val insertedSigns = editorViewModel.partitionData.changeEvents.filter {
+            it.type == ChangeEvent.SIGN && it.value.startsWith('$')
+        }
 
-        if (insertedSigns.isEmpty())
-            return "$"
+        if (insertedSigns.isEmpty()) return "$"
 
         with(insertedSigns.find { it.position == position }) {
-            if (this != null)
-                return value
+            if (this != null) return value
         }
 
         var i = 1
         with(insertedSigns.map { it.value }) {
-            while (contains("$$i"))
-                i++
+            while (contains("$$i")) i++
         }
 
         return "$$i"
