@@ -55,7 +55,7 @@ class SolfaDisplayManagerReactive(
     private fun buildVirtualTable(index: Int): VirtualTable {
         val voicesNum = editorVM.partitionData.voicesNum
         val backgroundColor =
-            if (index == editorVM.playerCursorPosition.value) colors.playerCursor else colors.regularBg
+            if (index == editorVM.measureToStartPlayer) colors.playerCursor else colors.regularBg
         val rows = List(voicesNum + 1) {
             if (it == 0) buildTableHeader(index) else buildTableRow(index, it - 1)
         }
@@ -97,7 +97,7 @@ class SolfaDisplayManagerReactive(
         val header = headersByIndex[cellIndex]
         var text: String? = null
         var span: SpannableStringBuilder? = null
-        val cursorCellIndex = editorVM.cursorPos.value?.index ?: 0
+        val cursorCellIndex = editorVM.cursorPos.index
         var color = Color.BLACK
         if (header != null) {
             text = header.values.joinToString(" ")
@@ -147,8 +147,8 @@ class SolfaDisplayManagerReactive(
     }
 
     private fun buildNoteCell(voiceIndex: Int, cellIndex: Int): VirtualCell {
-        val cursorPos = editorVM.cursorPos.value
-        val selectMode = editorVM.selectMode.value
+        val cursorPos = editorVM.cursorPos
+        val selectMode = editorVM.selectMode
         val clipBoard = editorVM.clipBoard
         val text = editorVM.partitionData.safelyGetNote(voiceIndex, cellIndex)
         val span = NotesToSpan.convert(text)
@@ -160,12 +160,12 @@ class SolfaDisplayManagerReactive(
                 backgroundColor = colors.selectBg
             }
         } else {
-            if (voiceIndex == cursorPos?.voice && cursorPos.index == cellIndex) {
-                backgroundColor = when (editorVM.selectMode.value) {
+            if (voiceIndex == cursorPos.voice && cursorPos.index == cellIndex) {
+                backgroundColor = when (editorVM.selectMode) {
                     SelectMode.CURSOR -> colors.cursorBg
                     else -> colors.selectBg
                 }
-                textColor = when (editorVM.selectMode.value) {
+                textColor = when (editorVM.selectMode) {
                     SelectMode.CURSOR -> Color.WHITE
                     else -> Color.DKGRAY
                 }

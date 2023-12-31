@@ -27,21 +27,23 @@ class EditorViewModel : ViewModel() {
     val octave = MutableLiveData<Int>().apply { value = 0 }
     private val _reRenderNotifier = MutableLiveData<Int>().apply { value = 0 }
     val reRenderNotifier: LiveData<Int> = _reRenderNotifier
-    var cursorPos = MutableLiveData<Cell>().apply { value = Cell() }
+    private var _cursorPos = Cell()
+    val cursorPos: Cell get() = _cursorPos
     var dialogPosition = 0
-    val dialogOpen = MutableLiveData<Boolean>()
-    val headerTvTrigger = MutableLiveData<Boolean>()
+    private val _dialogOpen = MutableLiveData<Boolean>()
+    val dialogOpen: LiveData<Boolean> get() = _dialogOpen
     val message = MutableLiveData<String>()
     private var prevCursorPos: Cell? = null
-    private var _playerCursorPosition = MutableLiveData<Int>().apply { value = 0 }
-    val playerCursorPosition: LiveData<Int> get() = _playerCursorPosition
+    private var _measureToStartPlayer = 0
+    val measureToStartPlayer: Int get() = _measureToStartPlayer
     var enablePlayerVelocity = MutableLiveData<Boolean>().apply { value = true }
     var playerLoops = 0
     private var filename = ""
     private var history = EditionHistory()
     var player: Player? = null
     val playerIsPlaying = MutableLiveData<Boolean>().apply { value = false }
-    var selectMode = MutableLiveData<SelectMode>().apply { value = SelectMode.CURSOR }
+    private var _selectMode = SelectMode.CURSOR
+    val selectMode: SelectMode get() = _selectMode
     var clipBoard: ClipBoard? = null
     val instrument = MutableLiveData<String>().apply {
         value = FileManager.redInstrumentName()
@@ -83,14 +85,14 @@ class EditorViewModel : ViewModel() {
 
 
     fun addNote(n: String) {
-        history.anticipate(cursorPos.value, partitionData)
+        history.anticipate(cursorPos, partitionData)
         val noteWithOctave = addOctaveToNote(n, octave.value)
         val cell = updater.add(noteWithOctave)
         if (cell != null) {
-            if (cell.index != cursorPos.value?.index) {
-                prevCursorPos = cursorPos.value
+            if (cell.index != cursorPos.index) {
+                prevCursorPos = cursorPos
             }
-            cursorPos.value = cell
+            _cursorPos = cell
             history.handle(cell)
             playAddedNote(noteWithOctave, cell)
         }
@@ -130,30 +132,35 @@ class EditorViewModel : ViewModel() {
 
     fun moveCursor(voice: Int, index: Int) {
         endClipboard(voice, index)
-        if (cursorPos.value?.voice != voice || cursorPos.value?.index != index) {
-            prevCursorPos = cursorPos.value
+        if (cursorPos.voice != voice || cursorPos.index != index) {
+            prevCursorPos = cursorPos
         }
-        cursorPos.value = updater.moveCursor(voice, index)
+        _cursorPos = updater.moveCursor(voice, index)
+        notifyListeners()
     }
 
 
     fun openDialog(position: Int) {
         dialogPosition = position
-        dialogOpen.value = true
+        _dialogOpen.value = true
     }
 
+    fun updateChangeEvents(position: Int, events: MutableList<ChangeEvent>) {
+        partitionData.updateChangeEvents(position, events)
+        notifyListeners()
+    }
 
     fun deleteNotes() {
-        if (selectMode.value == SelectMode.COPY && clipBoard != null) {
+        if (selectMode == SelectMode.COPY && clipBoard != null) {
             val result = updater.massDelete(clipBoard!!)
             history.handleBulkOps(result.changes)
-            selectMode.value = SelectMode.CURSOR
+            _selectMode = SelectMode.CURSOR
         } else {
-            history.anticipate(cursorPos.value, partitionData)
+            history.anticipate(cursorPos, partitionData)
             updater.delete().also {
-                if (it != null && (cursorPos.value == null || it.index != cursorPos.value?.index)) {
-                    prevCursorPos = cursorPos.value
-                    cursorPos.value = it
+                if (it != null && (it.index != cursorPos.index)) {
+                    prevCursorPos = cursorPos
+                    _cursorPos = it
                     history.handle(it)
                 }
             }
@@ -183,14 +190,16 @@ class EditorViewModel : ViewModel() {
 
 
     fun updateVoicesNum(n: Int) {
-        if (cursorPos.value != null && cursorPos.value!!.voice >= n) {
+        if (cursorPos.voice >= n) {
             moveCursor(0, 0)
         }
         partitionData.updateVoicesNum(n)
+        notifyListeners()
     }
 
     fun onPlayerCursorPosChanged(index: Int) {
-        _playerCursorPosition.value = index
+        _measureToStartPlayer = index
+        notifyListeners()
     }
 
 
@@ -253,7 +262,7 @@ class EditorViewModel : ViewModel() {
 
 
     fun resetCursors() {
-        _playerCursorPosition.value = 0
+        _measureToStartPlayer = 0
         lyricsEditMode.value = false
         moveCursor(0, 0)
         notifyListeners()
@@ -261,12 +270,12 @@ class EditorViewModel : ViewModel() {
 
 
     fun resetDialog() {
-        dialogOpen.value = false
+        _dialogOpen.value = false
         dialogPosition = 0
     }
 
 
-    fun createTmpMidFile(file: File, playedVoices: List<Boolean>?) {
+    private fun createTmpMidFile(file: File, playedVoices: List<Boolean>?) {
         val notes = buildNotes(playedVoices)
         createMidiFile(
             CreateMidiParams(
@@ -279,15 +288,12 @@ class EditorViewModel : ViewModel() {
     }
 
     fun buildNotes(playedVoices: List<Boolean>?): List<Note> {
-        if (playerCursorPosition.value!! % partitionData.signature.value!! > 0) {
-            _playerCursorPosition.value = 0
-        }
         parser.apply {
             key = partitionData.key.value ?: 0
             swing = partitionData.swing.value ?: false
             changeEvents = partitionData.changeEvents
             tempo = partitionData.tempo
-            start = playerCursorPosition.value!!
+            start = measureToStartPlayer * partitionData.signature.value!!
             enableVelocity = enablePlayerVelocity.value ?: false
             loopsNumber = playerLoops
             signature = partitionData.signature.value ?: 4
@@ -343,39 +349,39 @@ class EditorViewModel : ViewModel() {
 
 
     fun toggleSelectMode() {
-        if (selectMode.value == SelectMode.CURSOR) {
+        if (selectMode == SelectMode.CURSOR) {
             initClipBoard()
         } else {
             message.value = Values.clipboardSaved
-            selectMode.value = SelectMode.CURSOR
+            _selectMode = SelectMode.CURSOR
         }
+        notifyListeners()
     }
 
 
     private fun initClipBoard() {
-        cursorPos.value?.run {
-            clipBoard = ClipBoard(this, this)
-        }
-        selectMode.value = SelectMode.COPY
+        clipBoard = ClipBoard(cursorPos, cursorPos)
+        _selectMode = SelectMode.COPY
     }
 
 
     private fun endClipboard(voice: Int, index: Int) {
-        if (selectMode.value == SelectMode.COPY) {
+        if (selectMode == SelectMode.COPY) {
             if (clipBoard != null) {
                 clipBoard = clipBoard!!.copy(end = Cell(voice, index)).apply {
                     reorder()
                 }
             }
         }
+        notifyListeners()
     }
 
 
     fun paste() {
-        if (clipBoard == null || cursorPos.value == null) {
+        if (clipBoard == null) {
             message.value = Values.emptyClipboard
         } else {
-            val pasteResult = updater.paste(clipBoard!!, cursorPos.value!!)
+            val pasteResult = updater.paste(clipBoard!!, cursorPos)
             history.handleBulkOps(pasteResult.changes)
         }
         notifyListeners()
