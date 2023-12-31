@@ -70,7 +70,7 @@ class VirtualTable(
 }
 
 class VirtualTableRow(
-    private  val cells: List<VirtualCell>,
+    private val cells: List<VirtualCell>,
     view: TableRow? = null,
 ) : VirtualView<TableRow>(view) {
     companion object {

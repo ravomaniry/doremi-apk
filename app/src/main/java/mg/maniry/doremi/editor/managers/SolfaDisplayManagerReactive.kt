@@ -9,6 +9,7 @@ import mg.maniry.doremi.editor.viewModels.EditorViewModel
 import mg.maniry.doremi.editor.viewModels.SelectMode
 import mg.maniry.doremi.editor.views.NotesToSpan
 import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.max
 
 
@@ -73,27 +74,46 @@ class SolfaDisplayManagerReactive(
             cumulative.types.add(event.type)
             byPos[event.position] = cumulative
         }
-        var pos = measureIndex * signature
+        var cellIndex = measureIndex * signature
         val cells = List(signature * 2 - 1) {
-            val isNoteCell = it % 2 == 0
-            if (it > 0 && isNoteCell) {
-                pos++
-            }
-            var text: String? = null
-            var span: SpannableStringBuilder? = null
-            if (isNoteCell) {
-                val header = byPos[pos]
-                if (header != null) {
-                    text = header.values.joinToString(" ")
-                    span = header.toSpan(colors)
+            if (it % 2 == 0) {
+                if (it > 0) {
+                    cellIndex++
                 }
+                return@List buildNoteHeader(byPos, cellIndex)
             }
-            val onClickListener = if (isNoteCell) OnclickListenerWrapper("header$pos") {
-                editorVM.openDialog(pos)
-            } else null
-            VirtualCell(text, span, Color.BLACK, Color.TRANSPARENT, 0, onClickListener)
+            return@List buildHeaderSeparator()
         }
         return VirtualTableRow(cells)
+    }
+
+    private fun buildHeaderSeparator(): VirtualCell {
+        return VirtualCell()
+    }
+
+    private fun buildNoteHeader(
+        headersByIndex: Map<Int, MeasureHeader>, cellIndex: Int
+    ): VirtualCell {
+        val header = headersByIndex[cellIndex]
+        var text: String? = null
+        var span: SpannableStringBuilder? = null
+        val cursorCellIndex = editorVM.cursorPos.value?.index ?: 0
+        var color = Color.BLACK
+        if (header != null) {
+            text = header.values.joinToString(" ")
+            span = header.toSpan(colors)
+        }
+        val isInActiveMeasure =
+            floor(cellIndex.toDouble() / signature) == floor(cursorCellIndex.toDouble() / signature)
+        // Highlight empty headers in the measure where the cursor is
+        if (text == null && isInActiveMeasure) {
+            color = colors.cursorBg
+            text = "*"
+        }
+        val onClickListener = OnclickListenerWrapper("header$cellIndex") {
+            editorVM.openDialog(cellIndex)
+        }
+        return VirtualCell(text, span, color, Color.TRANSPARENT, 0, onClickListener)
     }
 
     private fun buildTableRow(measureIndex: Int, voiceIndex: Int): VirtualTableRow {
