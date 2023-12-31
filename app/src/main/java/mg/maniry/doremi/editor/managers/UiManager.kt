@@ -7,7 +7,7 @@ import mg.maniry.doremi.editor.partition.Player
 import mg.maniry.doremi.editor.viewModels.UiViewModel
 
 
-class UiManager constructor(
+class UiManager(
     mainContext: Context,
     mainView: View,
     private val uiViewModel: UiViewModel,
@@ -42,13 +42,13 @@ class UiManager constructor(
 
 
     fun kill() {
-        solfaDisplayManager.movePlayerCursor(null)
+//        solfaDisplayManager.movePlayerCursor(null)
         lyricsDisplayManager.save()
 
         editorViewModel.run {
             save()
             resetCursors()
-            playerCursorPosition = 0
+            onPlayerCursorPosChanged(0)
             resetDialog()
         }
 

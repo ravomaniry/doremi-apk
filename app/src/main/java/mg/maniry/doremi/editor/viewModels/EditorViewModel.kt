@@ -1,6 +1,7 @@
 package mg.maniry.doremi.editor.viewModels
 
 
+import android.arch.lifecycle.LiveData
 import android.arch.lifecycle.MutableLiveData
 import android.arch.lifecycle.ViewModel
 import android.content.Intent
@@ -24,14 +25,16 @@ class EditorViewModel : ViewModel() {
     private val updater = NotesUpdater(partitionData)
     val lyricsEditMode = MutableLiveData<Boolean>().apply { value = false }
     val octave = MutableLiveData<Int>().apply { value = 0 }
-    var updatedCells = MutableLiveData<List<Cell?>>()
+    private val _reRenderNotifier = MutableLiveData<Int>().apply { value = 0 }
+    val reRenderNotifier: LiveData<Int> = _reRenderNotifier
     var cursorPos = MutableLiveData<Cell>().apply { value = Cell() }
     var dialogPosition = 0
     val dialogOpen = MutableLiveData<Boolean>()
     val headerTvTrigger = MutableLiveData<Boolean>()
     val message = MutableLiveData<String>()
-    var prevCursorPos: Cell? = null
-    var playerCursorPosition = 0
+    private var prevCursorPos: Cell? = null
+    private var _playerCursorPosition = MutableLiveData<Int>().apply { value = 0 }
+    val playerCursorPosition: LiveData<Int> get() = _playerCursorPosition
     var enablePlayerVelocity = MutableLiveData<Boolean>().apply { value = true }
     var playerLoops = 0
     private var filename = ""
@@ -47,6 +50,10 @@ class EditorViewModel : ViewModel() {
 
     init {
         updater.moveCursor(0, 0)
+    }
+
+    private fun notifyListeners() {
+        _reRenderNotifier.value = _reRenderNotifier.value!! + 1
     }
 
     fun start(preferences: SharedPreferences, intent: Intent?) {
@@ -78,17 +85,21 @@ class EditorViewModel : ViewModel() {
     fun addNote(n: String) {
         history.anticipate(cursorPos.value, partitionData)
         val noteWithOctave = addOctaveToNote(n, octave.value)
-        updater.add(noteWithOctave).also {
-            updatedCells.value = listOf(it)
-            if (it != null) {
-                if (it.index != cursorPos.value?.index) {
-                    prevCursorPos = cursorPos.value
-                }
-                cursorPos.value = it
-                history.handle(it)
-                playAddedNote(noteWithOctave, it)
+        val cell = updater.add(noteWithOctave)
+        if (cell != null) {
+            if (cell.index != cursorPos.value?.index) {
+                prevCursorPos = cursorPos.value
             }
+            cursorPos.value = cell
+            history.handle(cell)
+            playAddedNote(noteWithOctave, cell)
         }
+        notifyListeners()
+    }
+
+    fun addMeasure() {
+        partitionData.addMeasure()
+        notifyListeners()
     }
 
     private fun playAddedNote(noteWithOctave: String, cell: Cell) {
@@ -103,10 +114,8 @@ class EditorViewModel : ViewModel() {
     fun restoreHistory(isForward: Boolean) {
         history.restore(partitionData, isForward)?.also { cells ->
             moveCursor(cells.first().voice, cells.first().index)
-            cells.forEach { cell ->
-                updatedCells.value = listOf(cell)
-            }
         }
+        notifyListeners()
     }
 
 
@@ -137,13 +146,11 @@ class EditorViewModel : ViewModel() {
     fun deleteNotes() {
         if (selectMode.value == SelectMode.COPY && clipBoard != null) {
             val result = updater.massDelete(clipBoard!!)
-            updatedCells.value = result.updatedCell
             history.handleBulkOps(result.changes)
             selectMode.value = SelectMode.CURSOR
         } else {
             history.anticipate(cursorPos.value, partitionData)
             updater.delete().also {
-                updatedCells.value = listOf(it)
                 if (it != null && (cursorPos.value == null || it.index != cursorPos.value?.index)) {
                     prevCursorPos = cursorPos.value
                     cursorPos.value = it
@@ -151,6 +158,7 @@ class EditorViewModel : ViewModel() {
                 }
             }
         }
+        notifyListeners()
     }
 
 
@@ -179,6 +187,10 @@ class EditorViewModel : ViewModel() {
             moveCursor(0, 0)
         }
         partitionData.updateVoicesNum(n)
+    }
+
+    fun onPlayerCursorPosChanged(index: Int) {
+        _playerCursorPosition.value = index
     }
 
 
@@ -241,10 +253,10 @@ class EditorViewModel : ViewModel() {
 
 
     fun resetCursors() {
-        playerCursorPosition = 0
+        _playerCursorPosition.value = 0
         lyricsEditMode.value = false
         moveCursor(0, 0)
-        updatedCells.value = null
+        notifyListeners()
     }
 
 
@@ -267,15 +279,15 @@ class EditorViewModel : ViewModel() {
     }
 
     fun buildNotes(playedVoices: List<Boolean>?): List<Note> {
-        if (playerCursorPosition % partitionData.signature.value!! > 0) {
-            playerCursorPosition = 0
+        if (playerCursorPosition.value!! % partitionData.signature.value!! > 0) {
+            _playerCursorPosition.value = 0
         }
         parser.apply {
             key = partitionData.key.value ?: 0
             swing = partitionData.swing.value ?: false
             changeEvents = partitionData.changeEvents
             tempo = partitionData.tempo
-            start = playerCursorPosition
+            start = playerCursorPosition.value!!
             enableVelocity = enablePlayerVelocity.value ?: false
             loopsNumber = playerLoops
             signature = partitionData.signature.value ?: 4
@@ -364,8 +376,8 @@ class EditorViewModel : ViewModel() {
             message.value = Values.emptyClipboard
         } else {
             val pasteResult = updater.paste(clipBoard!!, cursorPos.value!!)
-            updatedCells.value = pasteResult.updatedCell
             history.handleBulkOps(pasteResult.changes)
         }
+        notifyListeners()
     }
 }

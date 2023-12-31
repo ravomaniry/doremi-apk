@@ -20,8 +20,8 @@ class PartitionData {
     val lyrics = MutableLiveData<String>().apply { value = "" }
     val songInfo = SongInfo()
     var changeEvents = mutableListOf<ChangeEvent>()
-    val instruments = MutableLiveData<MutableList<Int>>()
-            .apply { value = MutableList(voicesNum) { 0 } }
+    val instruments =
+        MutableLiveData<MutableList<Int>>().apply { value = MutableList(voicesNum) { 0 } }
     lateinit var voices: MutableList<String>
     var version = Values.solfaVersion
 
@@ -63,6 +63,14 @@ class PartitionData {
     fun updateNote(cell: Cell) {
         createMissingCells(cell.voice, cell.index)
         notes[cell.voice][cell.index] = cell.content
+    }
+
+    fun addMeasure() {
+        createMissingCells(0, notes[0].size + signature.value!! - 1)
+    }
+
+    fun safelyGetNote(voiceIdIndex: Int, index: Int): String {
+        return if (notes.size > voiceIdIndex && notes[voiceIdIndex].size > index) notes[voiceIdIndex][index] else ""
     }
 
 
@@ -130,14 +138,11 @@ class PartitionData {
 
 
     fun updateChangeEvents(position: Int, events: MutableList<ChangeEvent>) {
-        changeEvents = changeEvents
-                .asSequence()
-                .filter { it.position != position }
-                .toMutableList()
-                .apply {
-                    addAll(events)
-                    sortBy(ChangeEvent::position)
-                }
+        changeEvents =
+            changeEvents.asSequence().filter { it.position != position }.toMutableList().apply {
+                addAll(events)
+                sortBy(ChangeEvent::position)
+            }
     }
 
 
@@ -159,9 +164,7 @@ class PartitionData {
             while (it.size < 6) it.add("")
         }
 
-        val info = mainParts[0]
-                .split(";")
-                .map { KeyValue(it.trim().split(':')) }
+        val info = mainParts[0].split(";").map { KeyValue(it.trim().split(':')) }
         songInfo.parseFile(info)
 
         info.forEach {
@@ -176,9 +179,11 @@ class PartitionData {
                         voices = ids.toMutableList()
                         voicesNum = ids.size
                     }
+
                     Labels.CHANGES -> mValue.split(',').forEach { str ->
                         ChangeEvent.fromString(str)?.run { changeEvents.add(this) }
                     }
+
                     Labels.INSTR -> mValue.split(",").forEachIndexed { i, instr ->
                         try {
                             setVoiceInstrument(i, instr.trim().toInt())
@@ -227,9 +232,12 @@ class PartitionData {
         output += "${Labels.VOICES}:${voices.joinToString(",")}; "
 
         with(songInfo) {
-            listOf(title.value, author.value, compositor.value, releaseDate.value, singer.value).forEachIndexed { i, value ->
-                output += "${infoLabels[i]}:${value?.replace(';', ' ')?.replace(':', ' ')?.replace(separator, "_")
-                        ?: " "}; "
+            listOf(
+                title.value, author.value, compositor.value, releaseDate.value, singer.value
+            ).forEachIndexed { i, value ->
+                output += "${infoLabels[i]}:${
+                    value?.replace(';', ' ')?.replace(':', ' ')?.replace(separator, "_") ?: " "
+                }; "
             }
         }
 

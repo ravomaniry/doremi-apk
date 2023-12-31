@@ -48,14 +48,17 @@ class Labels {
 }
 
 
-data class MeasureHeader(val position: Int, var text: String, val types: MutableList<String>) {
+data class MeasureHeader(
+    val position: Int, var values: MutableList<String>, val types: MutableList<String>
+) {
 
     fun toSpan(colors: SolfaColors): SpannableStringBuilder {
+        val text = values.joinToString(" ")
         val span = SpannableStringBuilder(text).apply {
             setSpan(RelativeSizeSpan(0.6f), 0, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
 
-        text.split(' ').forEachIndexed { i, t ->
+        values.forEachIndexed { i, t ->
             val start = text.indexOf(t)
             val color = when (types[i]) {
                 ChangeEvent.DAL -> colors.sign
