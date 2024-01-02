@@ -50,7 +50,7 @@
 
         <provider
             android:name="android.support.v4.content.FileProvider"
-            android:authorities="mg.maniry.doremi"
+            android:authorities="mg.maniry.doremii"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
