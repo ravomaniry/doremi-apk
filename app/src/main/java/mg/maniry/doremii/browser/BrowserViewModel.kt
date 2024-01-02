@@ -1,0 +1,22 @@
+package mg.maniry.doremii.browser
+
+import android.arch.lifecycle.MutableLiveData
+import android.arch.lifecycle.ViewModel
+import mg.maniry.doremii.commonUtils.FileManager
+import org.jetbrains.anko.doAsync
+import org.jetbrains.anko.uiThread
+
+
+class BrowserViewModel : ViewModel() {
+    val filesList = MutableLiveData<List<String>>()
+    val remoteFilesList = MutableLiveData<List<RemoteSolfa>>()
+    val isLoading = MutableLiveData<Boolean>()
+    val solfaDownloading = MutableLiveData<Boolean>()
+
+    fun refreshFilesList() {
+        doAsync {
+            val list = FileManager.listFiles()
+            uiThread { filesList.value = list ?: listOf() }
+        }
+    }
+}

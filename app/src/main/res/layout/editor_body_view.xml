@@ -219,7 +219,7 @@
                 android:background="@drawable/wood"
                 android:padding="2dp">
 
-                <mg.maniry.doremi.editor.views.PianoView
+                <mg.maniry.doremii.editor.views.PianoView
                     android:id="@+id/piano_view"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
