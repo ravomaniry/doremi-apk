@@ -24,4 +24,4 @@ _This application is supported by **Node JS** backend server_
 - Kotlin
 - [LeffelMania/android-midi-lib](https://github.com/LeffelMania/android-midi-lib/tree/master/src/main/java/com/leff/midi)
 
-## [Download the app](http://doremi-apk.herokuapp.com/download/doremi.apk) ##
+## [Download the app](https://github.com/ravomaniry/doremi-build/raw/main/doremi-1.apk) ##
