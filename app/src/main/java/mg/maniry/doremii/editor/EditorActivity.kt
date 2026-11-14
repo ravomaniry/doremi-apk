@@ -41,7 +41,7 @@ class EditorActivity : AppCompatActivity() {
                 it.player = player
                 it.cancelPlayerRelease()
                 uiManager = UiManager(this@EditorActivity, mainView, uiVM, it, player)
-                it.xlsExport = ExcelExport(assets)
+                it.xlsExport = ExcelExport()
             }
     }
 
