@@ -15,14 +15,22 @@
             android:name=".editor.PlayerActivity"
             android:exported="false" />
         <activity
-            android:name=".editor.EditorActivity"
+            android:name=".browser.BrowserActivity"
             android:exported="true"
-            android:theme="@style/AppTheme.noActionBar">
+            android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+        <activity
+            android:name=".settings.SettingsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".editor.EditorActivity"
+            android:exported="true"
+            android:theme="@style/AppTheme.noActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 
@@ -52,9 +60,6 @@
             android:exported="false" />
         <activity
             android:name=".editor.AboutActivity"
-            android:exported="false" />
-        <activity
-            android:name=".browser.BrowserActivity"
             android:exported="false" />
         <activity
             android:name=".browser.UploadSolfaActivity"

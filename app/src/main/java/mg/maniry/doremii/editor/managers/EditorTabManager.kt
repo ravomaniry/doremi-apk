@@ -6,6 +6,7 @@ import android.view.View
 import android.widget.*
 import mg.maniry.doremii.R
 import mg.maniry.doremii.R.id.*
+import mg.maniry.doremii.commonUtils.PlaybackSettings
 import mg.maniry.doremii.editor.EditorActivity
 import mg.maniry.doremii.editor.partition.Labels
 import mg.maniry.doremii.editor.partition.PartitionData
@@ -24,7 +25,6 @@ class EditorTabManager(
     private var keySpinInit = false
     private var voicesNumSpinInit = false
     private val voiceIdsSPinInit = mutableListOf<Boolean>()
-    private var instrumentsSpinInit = false
     private val simpleListItem = android.R.layout.simple_list_item_1
     private val dropDownItem = android.R.layout.simple_spinner_dropdown_item
     private val tempoEditText = editorTab.findViewById<EditText>(tempo_edit_text)
@@ -33,16 +33,14 @@ class EditorTabManager(
     private val instrConfigs = mutableListOf<InstrConfig>()
     private val instrConfigCont = editorTab.findViewById<LinearLayout>(instr_config_cont)
     private val voicesNumSpinner = editorTab.findViewById<Spinner>(voices_num_spin)
-    private val instrumentsSpinner = editorTab.findViewById<Spinner>(instrument_spin)
 
 
     init {
         initSpinners()
         initTempoEditText()
         initSwingCheck()
-        initVelocityChb()
-        observeMutedVoices()
         initLoopSpinner()
+        observeMutedVoices()
         observeReRender()
         initSongInfoUpdater()
         initSongTitleTextView()
@@ -92,7 +90,6 @@ class EditorTabManager(
 
 
     private fun initSpinners() {
-        val instrumentsList = mainContext.resources.getStringArray(R.array.instruments_list)
         prepareSpinner(keySpinner, R.array.keys_list) {
             if (keySpinInit) {
                 editorViewModel.partitionData.updateKey(it)
@@ -127,16 +124,6 @@ class EditorTabManager(
             key.observe(mainContext) {
                 it?.run { keySpinner.setSelection(it) }
             }
-        }
-        prepareSpinner(instrumentsSpinner, R.array.instruments_list) {
-            if (instrumentsSpinInit) {
-                editorViewModel.onInstrumentChanged(instrumentsList[it])
-            } else {
-                instrumentsSpinInit = true
-            }
-        }
-        editorViewModel.instrument.observe(mainContext as EditorActivity) {
-            it?.run { instrumentsSpinner.setSelection(instrumentsList.indexOf(it)) }
         }
     }
 
@@ -199,6 +186,22 @@ class EditorTabManager(
     }
 
 
+    private fun initLoopSpinner() {
+        editorTab.findViewById<Spinner>(loop_spinner).apply {
+            adapter = ArrayAdapter(
+                mainContext,
+                simpleListItem,
+                (1..10).map { it.toString() }
+            ).apply { setDropDownViewResource(dropDownItem) }
+            setSelection(editorViewModel.playerLoops)
+            onChange {
+                editorViewModel.playerLoops = it
+                PlaybackSettings.setLoops(mainContext, it)
+            }
+        }
+    }
+
+
     private fun observeMutedVoices() {
         player.playedVoices.observe(mainContext as EditorActivity) { voices ->
             voices?.forEachIndexed { i, value ->
@@ -208,30 +211,6 @@ class EditorTabManager(
         }
     }
 
-
-    private fun initVelocityChb() {
-        val chb = editorTab.findViewById<CheckBox>(velocity_chbx).apply {
-            setOnClickListener {
-                with(editorViewModel.enablePlayerVelocity) {
-                    value = !(value ?: false)
-                }
-            }
-        }
-
-        editorViewModel.enablePlayerVelocity.observe(mainContext as EditorActivity) {
-            chb.isChecked = it ?: false
-        }
-    }
-
-    private fun initLoopSpinner() {
-        editorTab.findViewById<Spinner>(loop_spinner).apply {
-            adapter = ArrayAdapter(
-                mainContext,
-                simpleListItem,
-                (1..10).map { it.toString() }).apply { setDropDownViewResource(dropDownItem) }
-            onChange { editorViewModel.playerLoops = it }
-        }
-    }
 
     private fun initSongInfoUpdater() {
         val targetValues = with(editorViewModel.partitionData.songInfo) {

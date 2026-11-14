@@ -5,6 +5,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
@@ -13,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import mg.maniry.doremii.editor.partition.*
 import mg.maniry.doremii.commonUtils.FileManager
+import mg.maniry.doremii.commonUtils.PlaybackSettings
 import mg.maniry.doremii.commonUtils.Values
 import mg.maniry.doremii.editor.xlsxExport.ExcelExport
 import java.io.File
@@ -43,6 +45,7 @@ class EditorViewModel : ViewModel() {
     private var filename = ""
     private var history = EditionHistory()
     var player: Player? = null
+    private var launched = false
     val playerIsPlaying = MutableLiveData<Boolean>().apply { value = false }
     private var _selectMode = SelectMode.CURSOR
     val selectMode: SelectMode get() = _selectMode
@@ -62,6 +65,14 @@ class EditorViewModel : ViewModel() {
 
     fun start(preferences: SharedPreferences, intent: Intent?) {
         prefs = preferences
+        if (intent?.getBooleanExtra("createNew", false) == true) {
+            if (!launched) {
+                launched = true
+                createNew()
+            }
+            return
+        }
+        launched = true
         with(intent) {
             if (this != null) {
                 val fileToOpen = getStringExtra("fileToOpen")
@@ -253,6 +264,12 @@ class EditorViewModel : ViewModel() {
             apply()
         }
     }
+
+    fun applyPlaybackSettings(context: Context) {
+        playerLoops = PlaybackSettings.loops(context)
+        enablePlayerVelocity.value = PlaybackSettings.velocity(context)
+    }
+
 
     fun onInstrumentChanged(newValue: String) {
         instrument.value = newValue

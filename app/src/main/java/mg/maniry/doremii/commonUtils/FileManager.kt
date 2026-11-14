@@ -38,9 +38,10 @@ class FileManager {
             solfaDir = File(context.filesDir, "solfa")
         }
 
-        fun listFiles() =
-            solfaDir.listFiles { f -> f.extension == "drm" }?.map { it.name.replace(".drm", "") }
-                ?.sorted()
+        fun listFiles(): List<SongFile> =
+            solfaDir.listFiles { f -> f.extension == "drm" }
+                ?.map { SongFile(it.name.removeSuffix(".drm"), it.lastModified()) }
+                ?: emptyList()
 
 
         fun rename(oldName: String?, newName: String) {

@@ -1,104 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
-
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main_parent"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/surface"
     android:fitsSystemWindows="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:theme="@style/AppTheme.noActionBar">
+        android:orientation="vertical">
 
-        <LinearLayout
-            android:id="@+id/search_forms_cont"
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/home_toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/surface"
+            app:title="@string/app_name"
+            app:titleTextAppearance="@style/TextAppearance.Material3.HeadlineMedium"
+            app:titleTextColor="@color/colorPrimary" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/local_search_form"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/colorPrimary"
-            android:orientation="vertical"
-            android:paddingLeft="10dp"
-            android:paddingTop="5dp"
-            android:paddingRight="10dp">
+            android:layout_marginStart="@dimen/spacing4"
+            android:layout_marginTop="@dimen/spacing2"
+            android:layout_marginEnd="@dimen/spacing4"
+            android:layout_marginBottom="@dimen/spacing2"
+            android:hint="@string/search"
+            app:boxBackgroundColor="@color/white"
+            app:endIconMode="clear_text"
+            app:startIconDrawable="@drawable/ic_search">
 
-            <FrameLayout
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/local_search_view"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:inputType="text"
+                android:maxLines="1"
+                tools:ignore="Autofill" />
+        </com.google.android.material.textfield.TextInputLayout>
 
-                <LinearLayout
-                    android:id="@+id/local_search_form"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="10dp"
-                    android:background="@color/white"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <ImageView
-                        android:id="@+id/browser_reset_search_btn"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight=".1"
-                        android:contentDescription="@string/app_name"
-                        android:src="@drawable/ic_close" />
-
-                    <EditText
-                        android:id="@+id/local_search_view"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="0.9"
-                        android:hint="@string/app_name"
-                        android:inputType="text"
-                        android:textColorHint="@color/gray"
-                        android:textSize="12sp"
-                        tools:ignore="Autofill" />
-
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/remote_search_form"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="10dp"
-                    android:background="@color/white"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <EditText
-                        android:id="@+id/remote_search_view"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="0.9"
-                        android:hint="@string/app_name"
-                        android:inputType="text"
-                        android:textColorHint="@color/gray"
-                        android:textSize="12sp"
-                        tools:ignore="Autofill" />
-
-                    <ImageView
-                        android:id="@+id/remote_search_btn"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight=".1"
-                        android:contentDescription="@string/app_name"
-                        android:src="@drawable/ic_search" />
-                </LinearLayout>
-            </FrameLayout>
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/browser_tab_body_cont"
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical">
+            android:layout_height="0dp"
+            android:layout_weight="1">
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/browser_files_list"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:background="@color/white" />
-        </LinearLayout>
+                android:clipToPadding="false"
+                android:paddingBottom="88dp"
+                android:scrollbars="vertical" />
+
+            <TextView
+                android:id="@+id/home_empty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:padding="@dimen/spacing4"
+                android:text="@string/home_empty"
+                android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                android:textColor="@color/dark_gray"
+                android:visibility="gone" />
+        </FrameLayout>
     </LinearLayout>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/home_new_song"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="@dimen/spacing4"
+        android:contentDescription="@string/home_new_song"
+        android:src="@drawable/ic_add"
+        app:backgroundTint="@color/colorPrimary"
+        app:tint="@color/white" />
 </FrameLayout>

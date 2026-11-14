@@ -121,6 +121,8 @@ class AppBarManager(
     }
 
     private fun startBrowserActivity() {
-        mainContext.startActivity(Intent(mainContext, BrowserActivity::class.java))
+        mainContext.startActivity(Intent(mainContext, BrowserActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        })
     }
 }

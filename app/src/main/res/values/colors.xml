@@ -10,4 +10,6 @@
     <color name="gray">#CCC</color>
     <color name="dark_gray">#777</color>
     <color name="dark">#555</color>
+    <color name="surface">#F6F3FA</color>
+    <color name="songIconBackground">#F3E5FF</color>
 </resources>

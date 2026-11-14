@@ -25,6 +25,18 @@
     <string name="piano_btns_descr">Piano button</string>
 
     <string name="search">Hikaroka …</string>
+    <string name="home_new_song">Hira vaovao</string>
+    <string name="home_empty">Tsy mbola misy hira. Tsindrio + hanomboka.</string>
+    <string name="home_empty_search">Tsy misy hira mitovy amin\'izay nosoratana.</string>
+    <string name="home_untitled">Tsy misy lohateny</string>
+    <string name="home_songs">Hira</string>
+    <string name="settings">Fikirakirana</string>
+    <string name="settings_playback">Feon-kira</string>
+    <string name="settings_more">Fanampiny</string>
+    <string name="text_help">Fanampiana</string>
+    <string name="nav_back">Hiverina</string>
+    <string name="more_actions">Safidy</string>
+    <string name="delete_confirm">Fafana ve ny \"%1$s\"?</string>
 
     <string name="cd_coord_placeholder">1 : 1</string>
     <string name="text_sign">Marika</string>
@@ -80,7 +92,7 @@
 
     <string name="help_buttons">1. Ireo bokotra samihafa</string>
     <string name="help_open_menu">
-        Manokatra ny \"menu\" ahafahana manova ny firafitry ny hira sy ny zava-maneno
+        Manokatra ny \"menu\" ahafahana manova ny firafitry ny hira
     </string>
     <string name="help_play">Mandefa ny feon-kira</string>
     <string name="hep_stop">Manajanona ny feon-kira</string>

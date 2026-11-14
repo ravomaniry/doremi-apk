@@ -3,32 +3,58 @@ package mg.maniry.doremii.browser.uiManagers
 import android.content.Intent
 import android.view.View
 import android.widget.EditText
-import android.widget.ImageView
+import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import mg.maniry.doremii.R
+import mg.maniry.doremii.browser.ActionTypes
 import mg.maniry.doremii.browser.BrowserActivity
+import mg.maniry.doremii.browser.UploadSolfaActivity
+import mg.maniry.doremii.browser.adapters.FileBrowserAdapter
 import mg.maniry.doremii.commonUtils.FileManager
 import mg.maniry.doremii.editor.EditorActivity
-import mg.maniry.doremii.browser.ActionTypes
-import mg.maniry.doremii.browser.UploadSolfaActivity
 import mg.maniry.doremii.editor.managers.onChange
-import mg.maniry.doremii.browser.adapters.FileBrowserAdapter
+import mg.maniry.doremii.settings.SettingsActivity
 
 
 class FilesBrowserManager(
     val context: BrowserActivity, val mainView: View
 ) {
 
-    private val listAdapter = FileBrowserAdapter(listOf(), ::clickHandler)
+    private val emptyView = mainView.findViewById<TextView>(R.id.home_empty)
+    private val listAdapter = FileBrowserAdapter(
+        songs = listOf(),
+        untitledLabel = context.getString(R.string.home_untitled),
+        songsLabel = context.getString(R.string.home_songs),
+        onClick = ::clickHandler,
+        onVisibleCount = ::showEmptyState,
+    )
     private val viewModel = context.viewModel!!
 
 
     init {
+        initChrome()
         initFilesList()
         observeFilesList()
         handleSearch()
+    }
+
+
+    private fun initChrome() {
+        mainView.findViewById<MaterialToolbar>(R.id.home_toolbar).apply {
+            inflateMenu(R.menu.home_menu)
+            setOnMenuItemClickListener { item ->
+                if (item.itemId == R.id.action_settings) {
+                    context.startActivity(Intent(context, SettingsActivity::class.java))
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+        mainView.findViewById<View>(R.id.home_new_song).setOnClickListener { createSong() }
     }
 
 
@@ -47,6 +73,14 @@ class FilesBrowserManager(
     }
 
 
+    private fun showEmptyState(count: Int) {
+        emptyView.visibility = if (count == 0) View.VISIBLE else View.GONE
+        emptyView.setText(
+            if (listAdapter.filterValue.isBlank()) R.string.home_empty else R.string.home_empty_search
+        )
+    }
+
+
     private fun clickHandler(type: Int, filename: String) {
         when (type) {
             ActionTypes.OPEN -> openFile(filename)
@@ -57,13 +91,17 @@ class FilesBrowserManager(
     }
 
 
-    private fun openFile(filename: String) {
-        val intent = Intent(context, EditorActivity::class.java).apply {
-            putExtra("fileToOpen", filename)
-            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        }
+    private fun createSong() {
+        context.startActivity(Intent(context, EditorActivity::class.java).apply {
+            putExtra("createNew", true)
+        })
+    }
 
-        context.startActivity(intent)
+
+    private fun openFile(filename: String) {
+        context.startActivity(Intent(context, EditorActivity::class.java).apply {
+            putExtra("fileToOpen", filename)
+        })
     }
 
 
@@ -79,7 +117,7 @@ class FilesBrowserManager(
 
     private fun deleteFile(filename: String) {
         MaterialAlertDialogBuilder(context)
-            .setMessage("Supprimer '$filename'?")
+            .setMessage(context.getString(R.string.delete_confirm, filename))
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 FileManager.delete(filename)
                 listAdapter.deleteFile(filename)
@@ -97,19 +135,10 @@ class FilesBrowserManager(
 
 
     private fun handleSearch() {
-        with(mainView) {
-            val editText = findViewById<EditText>(R.id.local_search_view).apply {
-                onChange {
-                    listAdapter.apply {
-                        filterValue = it
-                        search()
-                    }
-                }
-            }
-
-            findViewById<ImageView>(R.id.browser_reset_search_btn).setOnClickListener {
-                listAdapter.search("")
-                editText.setText("")
+        mainView.findViewById<EditText>(R.id.local_search_view).onChange {
+            listAdapter.apply {
+                filterValue = it
+                search()
             }
         }
     }

@@ -28,7 +28,6 @@ class EditorActivity : AppCompatActivity() {
         mainView = inflateMainView(this)
         setContentView(mainView)
         FileManager.initDir(baseContext)
-        FileManager.copyDemoFiles(assets)
         initUi()
     }
 
@@ -36,7 +35,10 @@ class EditorActivity : AppCompatActivity() {
     private fun initUi() {
         val uiVM = ViewModelProvider(this)[UiViewModel::class.java]
         editorViewModel = ViewModelProvider(this)[EditorViewModel::class.java]
-            .apply { start(getPreferences(Context.MODE_PRIVATE), intent) }.also {
+            .apply {
+                start(getPreferences(Context.MODE_PRIVATE), intent)
+                applyPlaybackSettings(this@EditorActivity)
+            }.also {
                 val player = it.player ?: Player(this, it)
                 it.player = player
                 it.cancelPlayerRelease()

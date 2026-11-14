@@ -1,27 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white"
+    android:background="@color/surface"
     android:fitsSystemWindows="true"
     android:orientation="vertical">
 
-    <LinearLayout
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/screen_toolbar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="end"
-        android:orientation="horizontal">
-
-        <ImageButton
-            android:id="@+id/dialog_close_btn"
-            style="@style/AppTheme.PrimaryIconButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="6sp"
-            android:contentDescription="@string/app_name"
-            android:src="@drawable/ic_cancel" />
-    </LinearLayout>
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/white"
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:title="@string/text_about"
+        app:titleTextColor="@color/colorPrimary" />
 
     <ScrollView
         android:layout_width="match_parent"
@@ -36,35 +30,39 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="10sp">
+                android:padding="@dimen/spacing4">
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:text="@string/text_slogan"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
                     android:textColor="@color/colorPrimary" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center_horizontal"
-                    android:layout_marginBottom="20sp"
+                    android:layout_marginBottom="@dimen/spacing4"
                     android:text="@string/text_psalm"
-                    android:textSize="12sp" />
+                    android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                    android:textColor="@color/dark_gray" />
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:autoLink="web"
-                    android:text="@string/text_description" />
+                    android:text="@string/text_description"
+                    android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing2"
+                    android:layout_marginTop="@dimen/spacing3"
                     android:autoLink="web"
                     android:text="@string/text_contact"
+                    android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
                     android:textColor="@color/colorPrimary" />
 
                 <TextView
@@ -72,12 +70,16 @@
                     android:layout_height="wrap_content"
                     android:autoLink="web"
                     android:text="@string/text_website"
+                    android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
                     android:textColor="@color/colorPrimary" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/app_version" />
+                    android:layout_marginTop="@dimen/spacing3"
+                    android:text="@string/app_version"
+                    android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                    android:textColor="@color/dark_gray" />
 
             </LinearLayout>
 
