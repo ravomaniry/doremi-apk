@@ -22,6 +22,17 @@
     <string name="text_loog">Andininy</string>
 
     <string name="appbar_content_descr">App par button</string>
+    <string name="group_file">Solfa</string>
+    <string name="group_edit">Fanovana</string>
+    <string name="group_export">Avoaka</string>
+    <string name="group_more">Hafa</string>
+    <string name="action_new">Hamorona</string>
+    <string name="action_open">Sokafy</string>
+    <string name="action_save">Tehirizo</string>
+    <string name="action_copy">Copier</string>
+    <string name="action_paste">Coller</string>
+    <string name="action_print">Printy</string>
+    <string name="action_midi">Midi</string>
     <string name="piano_btns_descr">Piano button</string>
 
     <string name="search">Hikaroka …</string>
@@ -88,7 +99,6 @@
         Facebook: Ravo Maniry\n https://www.facebook.com/ravomaniry
     </string>
     <string name="text_website">Tranonkala: https://fitiavana.org</string>
-    <string name="text_website_value">https://fitiavana.org</string>
 
     <string name="help_buttons">1. Ireo bokotra samihafa</string>
     <string name="help_open_menu">

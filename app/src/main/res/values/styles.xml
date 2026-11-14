@@ -45,6 +45,56 @@
         <item name="android:tint">@color/colorPrimaryDark</item>
     </style>
 
+    <style name="AppTheme.ToolChip" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_marginStart">@dimen/spacing1</item>
+        <item name="android:layout_marginEnd">@dimen/spacing1</item>
+        <item name="android:background">@drawable/tool_chip_background</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:gravity">center</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:paddingTop">@dimen/spacing2</item>
+        <item name="android:paddingBottom">@dimen/spacing2</item>
+    </style>
+
+    <style name="AppTheme.ToolAction" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minWidth">72dp</item>
+        <item name="android:background">@drawable/tool_action_background</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:gravity">center</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:paddingStart">@dimen/spacing2</item>
+        <item name="android:paddingTop">@dimen/spacing2</item>
+        <item name="android:paddingEnd">@dimen/spacing2</item>
+        <item name="android:paddingBottom">@dimen/spacing2</item>
+    </style>
+
+    <style name="AppTheme.ToolIcon" parent="">
+        <item name="android:layout_width">22dp</item>
+        <item name="android:layout_height">22dp</item>
+        <item name="android:duplicateParentState">true</item>
+        <item name="android:importantForAccessibility">no</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="android:tint">@color/tool_icon_tint</item>
+        <item name="tint">@color/tool_icon_tint</item>
+    </style>
+
+    <style name="AppTheme.ToolLabel" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">2dp</item>
+        <item name="android:duplicateParentState">true</item>
+        <item name="android:importantForAccessibility">no</item>
+        <item name="android:textColor">@color/tool_label_tint</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+
     <style name="AppTheme.MenuIconButton" parent="AppTheme.PrimaryIconButton">
         <item name="android:tint">@color/colorPrimary</item>
     </style>

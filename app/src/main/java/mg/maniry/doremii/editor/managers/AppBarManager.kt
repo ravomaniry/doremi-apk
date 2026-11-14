@@ -2,6 +2,8 @@ package mg.maniry.doremii.editor.managers
 
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.widget.*
 import mg.maniry.doremii.R
@@ -11,6 +13,7 @@ import mg.maniry.doremii.editor.AboutActivity
 import mg.maniry.doremii.editor.HelpActivity
 import mg.maniry.doremii.editor.viewModels.EditorViewModel
 import mg.maniry.doremii.editor.partition.Player
+import mg.maniry.doremii.editor.viewModels.SelectMode
 import mg.maniry.doremii.editor.viewModels.UiViewModel
 
 
@@ -24,6 +27,17 @@ class AppBarManager(
 
     private lateinit var playBtn: ImageButton
     private lateinit var stopBtn: ImageButton
+    private lateinit var copyBtn: View
+    private lateinit var editGroup: View
+    private val trayHandler = Handler(Looper.getMainLooper())
+    private var openSection: Pair<View, View>? = null
+    private val collapseOpenSection = Runnable {
+        openSection?.let { (chip, tray) ->
+            tray.visibility = View.GONE
+            chip.isSelected = false
+        }
+        openSection = null
+    }
     private val editorViews = EditorViews(
         mainCont = mainView.findViewById(R.id.editor_body_content),
         keyboardCont = mainView.findViewById(R.id.keyboard_cont),
@@ -35,8 +49,17 @@ class AppBarManager(
 
     init {
         initButtons()
+        initGroups()
         initEditorMode()
         observePlayerState()
+        observeSelectMode()
+        mainView.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) = Unit
+
+            override fun onViewDetachedFromWindow(v: View) {
+                cancelSectionCollapse()
+            }
+        })
     }
 
 
@@ -46,21 +69,88 @@ class AppBarManager(
             playBtn.setOnClickListener { player.play() }
             stopBtn = findViewById(R.id.stop_btn)
             stopBtn.setOnClickListener { player.stop() }
-            findViewById<ImageView>(R.id.print_btn).setOnClickListener { editorViewModel.print() }
+            findViewById<View>(R.id.print_btn).onSectionAction { editorViewModel.print() }
             findViewById<ImageView>(R.id.undo_btn).setOnClickListener {
                 editorViewModel.restoreHistory(false)
             }
             findViewById<ImageView>(R.id.redo_btn).setOnClickListener {
                 editorViewModel.restoreHistory(true)
             }
-            findViewById<ImageView>(R.id.save_mid_btn).setOnClickListener { editorViewModel.exportMidiFile() }
-            findViewById<ImageView>(R.id.help_btn).setOnClickListener { startHelpActivity() }
-            findViewById<ImageView>(R.id.about_btn).setOnClickListener { startAboutActivity() }
-            findViewById<ImageView>(R.id.browse_btn).setOnClickListener { startBrowserActivity() }
-            findViewById<ImageView>(R.id.save_btn).setOnClickListener { editorViewModel.save() }
-            findViewById<ImageView>(R.id.copy_btn).setOnClickListener { editorViewModel.toggleSelectMode() }
-            findViewById<ImageView>(R.id.paste_btn).setOnClickListener { editorViewModel.paste() }
-            findViewById<ImageView>(R.id.new_btn).setOnClickListener { editorViewModel.createNew() }
+            findViewById<View>(R.id.save_mid_btn).onSectionAction { editorViewModel.exportMidiFile() }
+            findViewById<View>(R.id.help_btn).onSectionAction { startHelpActivity() }
+            findViewById<View>(R.id.about_btn).onSectionAction { startAboutActivity() }
+            findViewById<View>(R.id.browse_btn).onSectionAction { startBrowserActivity() }
+            findViewById<View>(R.id.save_btn).onSectionAction { editorViewModel.save() }
+            copyBtn = findViewById(R.id.copy_btn)
+            copyBtn.onSectionAction { editorViewModel.toggleSelectMode() }
+            findViewById<View>(R.id.paste_btn).onSectionAction { editorViewModel.paste() }
+            findViewById<View>(R.id.new_btn).onSectionAction { editorViewModel.createNew() }
+        }
+    }
+
+
+    private fun initGroups() {
+        val groups = listOf(
+            R.id.group_file_btn to R.id.tray_file,
+            R.id.group_edit_btn to R.id.tray_edit,
+            R.id.group_export_btn to R.id.tray_export,
+            R.id.group_more_btn to R.id.tray_more,
+        ).map { (chipId, trayId) ->
+            mainView.findViewById<View>(chipId) to mainView.findViewById<View>(trayId)
+        }
+        editGroup = groups[1].first
+        groups.forEach { (chip, tray) ->
+            chip.setOnClickListener { toggleTray(chip, tray, groups) }
+        }
+    }
+
+
+    private fun toggleTray(chip: View, tray: View, groups: List<Pair<View, View>>) {
+        val opening = tray.visibility != View.VISIBLE
+        groups.forEach { (groupChip, groupTray) ->
+            groupTray.visibility = View.GONE
+            groupChip.isSelected = false
+        }
+        cancelSectionCollapse()
+        openSection = null
+        if (opening) {
+            tray.visibility = View.VISIBLE
+            chip.isSelected = true
+            openSection = chip to tray
+            scheduleSectionCollapse()
+        }
+    }
+
+
+    private fun View.onSectionAction(action: () -> Unit) {
+        setOnClickListener {
+            noteSectionAction()
+            action()
+        }
+    }
+
+
+    private fun noteSectionAction() {
+        if (openSection != null) scheduleSectionCollapse()
+    }
+
+
+    private fun scheduleSectionCollapse() {
+        trayHandler.removeCallbacks(collapseOpenSection)
+        trayHandler.postDelayed(collapseOpenSection, SECTION_IDLE_MS)
+    }
+
+
+    private fun cancelSectionCollapse() {
+        trayHandler.removeCallbacks(collapseOpenSection)
+    }
+
+
+    private fun observeSelectMode() {
+        editorViewModel.selectModeState.observe(mainContext as EditorActivity) { mode ->
+            val copying = mode == SelectMode.COPY
+            copyBtn.isSelected = copying
+            editGroup.isActivated = copying
         }
     }
 
@@ -124,5 +214,9 @@ class AppBarManager(
         mainContext.startActivity(Intent(mainContext, BrowserActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         })
+    }
+
+    private companion object {
+        const val SECTION_IDLE_MS = 30_000L
     }
 }

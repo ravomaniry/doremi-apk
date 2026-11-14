@@ -49,6 +49,8 @@ class EditorViewModel : ViewModel() {
     val playerIsPlaying = MutableLiveData<Boolean>().apply { value = false }
     private var _selectMode = SelectMode.CURSOR
     val selectMode: SelectMode get() = _selectMode
+    private val _selectModeState = MutableLiveData(SelectMode.CURSOR)
+    val selectModeState: LiveData<SelectMode> = _selectModeState
     var clipBoard: ClipBoard? = null
     val instrument = MutableLiveData<String>().apply {
         value = FileManager.redInstrumentName()
@@ -174,7 +176,7 @@ class EditorViewModel : ViewModel() {
         if (selectMode == SelectMode.COPY && clipBoard != null) {
             val result = updater.massDelete(clipBoard!!)
             history.handleBulkOps(result.changes)
-            _selectMode = SelectMode.CURSOR
+            setSelectMode(SelectMode.CURSOR)
         } else {
             history.anticipate(cursorPos, partitionData)
             updater.delete().also {
@@ -388,7 +390,7 @@ class EditorViewModel : ViewModel() {
             initClipBoard()
         } else {
             message.value = Values.clipboardSaved
-            _selectMode = SelectMode.CURSOR
+            setSelectMode(SelectMode.CURSOR)
         }
         notifyListeners()
     }
@@ -396,7 +398,13 @@ class EditorViewModel : ViewModel() {
 
     private fun initClipBoard() {
         clipBoard = ClipBoard(cursorPos, cursorPos)
-        _selectMode = SelectMode.COPY
+        setSelectMode(SelectMode.COPY)
+    }
+
+
+    private fun setSelectMode(mode: SelectMode) {
+        _selectMode = mode
+        _selectModeState.value = mode
     }
 
 
