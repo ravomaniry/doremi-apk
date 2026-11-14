@@ -3,8 +3,9 @@ package mg.maniry.doremii.browser
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Bundle
-import android.support.v7.app.AppCompatActivity
 import android.view.View
+import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
 import mg.maniry.doremii.R
 import mg.maniry.doremii.browser.networking.Networking
 import mg.maniry.doremii.browser.uiManagers.LoginUiManager
@@ -19,6 +20,7 @@ class UploadSolfaActivity : AppCompatActivity() {
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         mainView = View.inflate(this, R.layout.upload_solfa_activity, null)

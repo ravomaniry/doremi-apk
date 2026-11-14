@@ -1,6 +1,6 @@
 package mg.maniry.doremii.editor.partition
 
-import android.arch.lifecycle.MutableLiveData
+import androidx.lifecycle.MutableLiveData
 
 
 data class SongInfo(

@@ -1,18 +1,20 @@
 package mg.maniry.doremii.editor.viewModels
 
 
-import android.arch.lifecycle.LiveData
-import android.arch.lifecycle.MutableLiveData
-import android.arch.lifecycle.ViewModel
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import mg.maniry.doremii.editor.partition.*
 import mg.maniry.doremii.commonUtils.FileManager
 import mg.maniry.doremii.commonUtils.Values
 import mg.maniry.doremii.editor.xlsxExport.ExcelExport
-import org.jetbrains.anko.doAsync
-import org.jetbrains.anko.uiThread
 import java.io.File
 
 
@@ -65,8 +67,15 @@ class EditorViewModel : ViewModel() {
                 val fileToOpen = getStringExtra("fileToOpen")
                 if (fileToOpen != null) {
                     loadFile(fileToOpen)
-                } else if (action == Intent.ACTION_VIEW && data is Uri && data != null && data?.path != null) {
-                    val path = FileManager.moveIntoDoremiDir(path = data?.path) ?: ""
+                } else if (action == Intent.ACTION_VIEW && data is Uri) {
+                    val opened = data?.let { uri ->
+                        if (uri.scheme == "content") {
+                            FileManager.importContentUri(uri)
+                        } else {
+                            FileManager.moveIntoDoremiDir(path = uri.path)
+                        }
+                    } ?: ""
+                    val path = opened
 
                     if (path == "") {
                         loadRecentFile()
@@ -307,28 +316,37 @@ class EditorViewModel : ViewModel() {
 
 
     fun exportMidiFile() {
-        doAsync {
-            createTmpMidFile(
-                File(FileManager.createExportFilePath(partitionData.songInfo.filename, ".mid")),
-                partitionData.voices.map { true }.toMutableList()
-            )
-
-            uiThread {
-                message.value = "${Values.done}:\nmidi/${partitionData.songInfo.filename}.mid"
+        viewModelScope.launch {
+            val name = partitionData.songInfo.filename
+            val result = withContext(Dispatchers.IO) {
+                val cache = FileManager.newCacheFile(name, ".mid")
+                createTmpMidFile(cache, partitionData.voices.map { true }.toMutableList())
+                if (!cache.exists() || cache.length() == 0L) {
+                    Values.saveError
+                } else {
+                    FileManager.writeDownload("$name.mid", "audio/midi", cache.readBytes()).also {
+                        cache.delete()
+                    }
+                }
+            }
+            message.value = if (result == Values.saved) {
+                "${Values.done}:\nDownloads/$name.mid"
+            } else {
+                result
             }
         }
     }
 
 
     fun print() {
-        printer.print {
-            message.value = when (it) {
-                Values.saved -> "${Values.done}:\nexport/${partitionData.songInfo.filename}.html"
-                else -> it
+        viewModelScope.launch {
+            val name = partitionData.songInfo.filename
+            val result = withContext(Dispatchers.IO) { printer.export() }
+            message.value = when (result) {
+                Values.saved -> "${Values.done}:\nDownloads/$name.html"
+                else -> result
             }
-            doAsync {
-                xlsExport.export(partitionData)
-            }
+            withContext(Dispatchers.IO) { xlsExport.export(partitionData) }
         }
     }
 

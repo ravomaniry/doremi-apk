@@ -1,6 +1,6 @@
 package mg.maniry.doremii.editor.partition
 
-import android.arch.lifecycle.MutableLiveData
+import androidx.lifecycle.MutableLiveData
 import android.content.Context
 import mg.maniry.doremii.editor.EditorActivity
 import mg.maniry.doremii.editor.sfplayer.SfPlayer

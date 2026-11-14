@@ -2,7 +2,7 @@ package mg.maniry.doremii.editor.managers
 
 import android.content.Context
 import android.graphics.Color
-import android.support.v4.content.ContextCompat
+import androidx.core.content.ContextCompat
 import mg.maniry.doremii.R
 
 data class SolfaColors(private val mainContext: Context) {

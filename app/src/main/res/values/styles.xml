@@ -1,9 +1,16 @@
 <resources>
 
-    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+    <style name="AppTheme" parent="Theme.Material3.Light.NoActionBar">
         <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorPrimaryContainer">@color/colorPrimaryLight</item>
+        <item name="colorSecondary">@color/colorAccent</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="colorSecondaryContainer">@color/colorAccentLight</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 
     <style name="AppTheme.noActionBar">
@@ -11,7 +18,7 @@
         <item name="windowNoTitle">true</item>
     </style>
 
-    <style name="AppTheme.PrimaryButton" parent="Widget.AppCompat.Button">
+    <style name="AppTheme.PrimaryButton" parent="Widget.Material3.Button">
         <item name="android:textColor">@color/white</item>
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
@@ -62,7 +69,7 @@
         <item name="android:background">@color/colorPrimary</item>
     </style>
 
-    <style name="AppTheme.LegendText" parent="TextAppearance.AppCompat.Body1">
+    <style name="AppTheme.LegendText" parent="TextAppearance.Material3.BodyLarge">
         <item name="android:drawableTint">@color/colorPrimary</item>
         <item name="android:drawablePadding">@dimen/spacing2</item>
         <item name="android:layout_width">match_parent</item>
@@ -70,16 +77,16 @@
         <item name="android:layout_marginBottom">@dimen/spacing1</item>
     </style>
 
-    <style name="AppTheme.Headline4" parent="TextAppearance.MaterialComponents.Headline6">
+    <style name="AppTheme.Headline4" parent="TextAppearance.Material3.TitleLarge">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="textAllCaps">true</item>
         <item name="android:textColor">@color/colorAccent</item>
     </style>
 
-    <style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
+    <style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.Material3.Dark" />
 
-    <style name="AppTheme.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
+    <style name="AppTheme.PopupOverlay" parent="ThemeOverlay.Material3.Light" />
 
     <style name="AppTheme.Tab" parent="AppTheme.PrimaryButton">
         <item name="android:background">@color/white</item>

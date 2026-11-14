@@ -1,11 +1,12 @@
 package mg.maniry.doremii.browser.uiManagers
 
 import android.content.Intent
-import android.support.v7.widget.LinearLayoutManager
-import android.support.v7.widget.RecyclerView
 import android.view.View
 import android.widget.EditText
 import android.widget.ImageView
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import mg.maniry.doremii.R
 import mg.maniry.doremii.browser.BrowserActivity
 import mg.maniry.doremii.commonUtils.FileManager
@@ -14,7 +15,6 @@ import mg.maniry.doremii.browser.ActionTypes
 import mg.maniry.doremii.browser.UploadSolfaActivity
 import mg.maniry.doremii.editor.managers.onChange
 import mg.maniry.doremii.browser.adapters.FileBrowserAdapter
-import org.jetbrains.anko.alert
 
 
 class FilesBrowserManager(
@@ -68,20 +68,24 @@ class FilesBrowserManager(
 
 
     private fun shareFile(filename: String) {
-        FileManager.share(filename, context)?.run {
-            context.alert(this)
+        FileManager.share(filename, context)?.let { message ->
+            MaterialAlertDialogBuilder(context)
+                .setMessage(message)
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
         }
     }
 
 
     private fun deleteFile(filename: String) {
-        context.alert("Supprimer '$filename'?") {
-            yesButton {
+        MaterialAlertDialogBuilder(context)
+            .setMessage("Supprimer '$filename'?")
+            .setPositiveButton(android.R.string.ok) { _, _ ->
                 FileManager.delete(filename)
                 listAdapter.deleteFile(filename)
             }
-            noButton { }
-        }.show()
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
 

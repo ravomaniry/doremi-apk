@@ -3,8 +3,6 @@ package mg.maniry.doremii.editor.partition
 
 import mg.maniry.doremii.commonUtils.FileManager
 import mg.maniry.doremii.editor.views.NotesToSpan
-import org.jetbrains.anko.doAsync
-import org.jetbrains.anko.uiThread
 
 
 class HtmlExport(
@@ -41,12 +39,9 @@ class HtmlExport(
     private val collapse = "border-collapse:collapse;"
 
 
-    fun print(callback: (msg: String) -> Unit) {
-        doAsync {
-            val html = prefix() + header() + solfa() + lyrics() + footer() + suffix
-            val msg = FileManager.writeHtml(partitionData.songInfo.filename, html)
-            uiThread { callback(msg) }
-        }
+    fun export(): String {
+        val html = prefix() + header() + solfa() + lyrics() + footer() + suffix
+        return FileManager.writeHtml(partitionData.songInfo.filename, html)
     }
 
 

@@ -1,11 +1,10 @@
 package mg.maniry.doremii.browser.adapters
 
-import android.support.v7.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
-import kotlinx.android.synthetic.main.remote_files_list_item.view.*
+import androidx.recyclerview.widget.RecyclerView
 import mg.maniry.doremii.R
 import mg.maniry.doremii.browser.RemoteSolfa
 
@@ -48,7 +47,7 @@ class RemoteBrowserAdapter(
 
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val name: TextView = itemView.file_name_tv
-        val dld: TextView = itemView.download_num
+        val name: TextView = itemView.findViewById(R.id.file_name_tv)
+        val dld: TextView = itemView.findViewById(R.id.download_num)
     }
 }

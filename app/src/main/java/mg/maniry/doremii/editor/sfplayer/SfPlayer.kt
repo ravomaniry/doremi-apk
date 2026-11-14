@@ -7,8 +7,11 @@ import cn.sherlock.com.sun.media.sound.SF2Soundbank
 import cn.sherlock.com.sun.media.sound.SoftSynthesizer
 import jp.kshoji.javax.sound.midi.Receiver
 import jp.kshoji.javax.sound.midi.ShortMessage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import mg.maniry.doremii.editor.partition.Note
-import org.jetbrains.anko.doAsync
 
 
 class SfPlayer(
@@ -19,6 +22,8 @@ class SfPlayer(
     private val receiver: Receiver? get() = synth?.receiver
     private var instrumentName = "Piano"
     private var sessionId = 0
+    private var generation = 0
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private data class InstrumentConfig(val assetPath: String, val program: Int)
 
@@ -112,12 +117,19 @@ class SfPlayer(
 
     fun stopPlaying() {
         dispose()
-        doAsync {
+        val generationAtStop = generation
+        scope.launch {
+            if (generationAtStop != generation) return@launch
             ensureInitialization(instrumentName)
+            if (generationAtStop != generation) {
+                synth?.close()
+                synth = null
+            }
         }
     }
 
     fun dispose() {
+        generation++
         synth?.close()
         synth = null
     }

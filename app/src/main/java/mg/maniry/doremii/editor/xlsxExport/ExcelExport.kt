@@ -4,7 +4,6 @@ import android.content.res.AssetManager
 import mg.maniry.doremii.commonUtils.FileManager
 import mg.maniry.doremii.editor.partition.PartitionData
 import java.io.ByteArrayOutputStream
-import java.io.FileOutputStream
 import java.util.*
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -53,11 +52,12 @@ class ExcelExport(private val asset: AssetManager) {
                 closeEntry()
             }
             zipOut.finish()
-            val fileOut = FileOutputStream(FileManager.createExportFilePath(fileName, ".xlsx"))
-            resultOut.apply {
-                writeTo(fileOut)
-                close()
-            }
+            FileManager.writeDownload(
+                "$fileName.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                resultOut.toByteArray()
+            )
+            resultOut.close()
         } catch (e: Exception) {
             print(e)
         }

@@ -1,17 +1,20 @@
 package mg.maniry.doremii.browser.adapters
 
-import android.annotation.SuppressLint
-import android.support.v7.view.menu.MenuBuilder
-import android.support.v7.view.menu.MenuPopupHelper
-import android.support.v7.widget.RecyclerView
-import android.view.*
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.PopupMenu
 import android.widget.TextView
-import kotlinx.android.synthetic.main.files_list_item.view.*
+import androidx.recyclerview.widget.RecyclerView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import mg.maniry.doremii.R
 import mg.maniry.doremii.browser.ActionTypes
-import org.jetbrains.anko.doAsync
-import org.jetbrains.anko.uiThread
+import java.util.Locale
 
 
 class FileBrowserAdapter(
@@ -21,6 +24,7 @@ class FileBrowserAdapter(
     var filterValue = ""
     private var tmpValues = fileNames.toList()
     private var activeFile = ""
+    private val searchScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = ViewHolder(
@@ -49,8 +53,8 @@ class FileBrowserAdapter(
 
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val name: TextView = itemView.list_item_name
-        val actions: ImageView = itemView.list_item_share_btn
+        val name: TextView = itemView.findViewById(R.id.list_item_name)
+        val actions: ImageView = itemView.findViewById(R.id.list_item_share_btn)
     }
 
 
@@ -72,11 +76,14 @@ class FileBrowserAdapter(
             tmpValues = fileNames
             notifyDataSetChanged()
         } else {
-            doAsync {
+            searchScope.launch {
                 val tmpFilterValue = filterValue
-                tmpValues = fileNames.filter(this@FileBrowserAdapter::searchCallback)
-                uiThread {
-                    if (tmpFilterValue == filterValue) notifyDataSetChanged()
+                val filtered = withContext(Dispatchers.Default) {
+                    fileNames.filter(this@FileBrowserAdapter::searchCallback)
+                }
+                if (tmpFilterValue == filterValue) {
+                    tmpValues = filtered
+                    notifyDataSetChanged()
                 }
             }
         }
@@ -84,8 +91,8 @@ class FileBrowserAdapter(
 
 
     private fun searchCallback(value: String): Boolean {
-        val parts = filterValue.toLowerCase().split(" ")
-        val filename = value.trim().toLowerCase()
+        val parts = filterValue.lowercase(Locale.getDefault()).split(" ")
+        val filename = value.trim().lowercase(Locale.getDefault())
 
         parts.forEach {
             if (it != "" && !filename.contains(it)) return false
@@ -95,19 +102,19 @@ class FileBrowserAdapter(
     }
 
 
-    @SuppressLint("RestrictedApi")
     private fun showMenu(v: View) {
-        val builder = MenuBuilder(v.context).apply {
-            MenuInflater(v.context).inflate(R.menu.actions_menu, this)
-            onSelect {
+        PopupMenu(v.context, v).apply {
+            menuInflater.inflate(R.menu.actions_menu, menu)
+            setForceShowIcon(true)
+            setOnMenuItemClickListener {
                 when (it.itemId) {
-                    R.id.delete_action -> onClick(ActionTypes.DELETE, activeFile)
+                    R.id.delete_action -> {
+                        onClick(ActionTypes.DELETE, activeFile)
+                        true
+                    }
+                    else -> false
                 }
             }
-        }
-
-        MenuPopupHelper(v.context, builder, v).run {
-            setForceShowIcon(true)
             show()
         }
     }

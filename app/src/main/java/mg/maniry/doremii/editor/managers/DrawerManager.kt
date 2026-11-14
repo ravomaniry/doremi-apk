@@ -1,8 +1,8 @@
 package mg.maniry.doremii.editor.managers
 
 
-import android.support.v4.view.GravityCompat
-import android.support.v4.widget.DrawerLayout
+import androidx.core.view.GravityCompat
+import androidx.drawerlayout.widget.DrawerLayout
 import android.view.KeyEvent
 import android.view.View
 import mg.maniry.doremii.R

@@ -25,11 +25,9 @@ class MeasureView(context: Context) : TableLayout(context) {
     }
 
 
-    override fun dispatchDraw(canvas: Canvas?) {
+    override fun dispatchDraw(canvas: Canvas) {
         super.dispatchDraw(canvas)
-        canvas?.run {
-            drawLine(0f, startY, 0f, endY, paint)
-            drawLine(endX, startY, endX, endY, paint)
-        }
+        canvas.drawLine(0f, startY, 0f, endY, paint)
+        canvas.drawLine(endX, startY, endX, endY, paint)
     }
 }

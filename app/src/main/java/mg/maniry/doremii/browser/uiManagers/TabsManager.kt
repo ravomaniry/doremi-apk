@@ -1,6 +1,6 @@
 package mg.maniry.doremii.browser.uiManagers
 
-import android.support.v7.widget.RecyclerView
+import androidx.recyclerview.widget.RecyclerView
 import android.view.View
 import android.widget.LinearLayout
 import mg.maniry.doremii.R

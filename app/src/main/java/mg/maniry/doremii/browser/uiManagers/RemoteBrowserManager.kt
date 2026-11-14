@@ -1,8 +1,8 @@
 package mg.maniry.doremii.browser.uiManagers
 
-import android.arch.lifecycle.Observer
-import android.support.v7.widget.LinearLayoutManager
-import android.support.v7.widget.RecyclerView
+import androidx.lifecycle.Observer
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import android.view.View
 import android.widget.*
 import mg.maniry.doremii.R
