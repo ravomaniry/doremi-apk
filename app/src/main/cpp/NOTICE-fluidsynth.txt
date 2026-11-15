@@ -1,0 +1,12 @@
+FluidSynth 2.6.2
+Source: https://github.com/FluidSynth/fluidsynth/archive/refs/tags/v2.6.2.tar.gz
+License: GNU Lesser General Public License, version 2.1
+https://github.com/FluidSynth/fluidsynth/blob/v2.6.2/LICENSE
+
+libdoremi_synth.so links this exact FluidSynth revision statically. CMakeLists.txt
+downloads that tarball at configure time and builds it with audio drivers and
+optional dependencies disabled. This application repository is the corresponding
+source required to relink against a modified FluidSynth.
+
+Audio output is Google Oboe (com.google.oboe:oboe:1.11.0). FluidSynth's own Oboe
+driver is not compiled in; the app pulls stereo frames with fluid_synth_write_float.

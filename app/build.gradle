@@ -13,6 +13,17 @@ android {
         versionCode = 11
         versionName = '2.2.0-rc4'
         testInstrumentationRunner = 'androidx.test.runner.AndroidJUnitRunner'
+
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+        }
+
+        externalNativeBuild {
+            cmake {
+                cppFlags '-std=c++17'
+                arguments '-DANDROID_STL=c++_shared'
+            }
+        }
     }
 
     buildTypes {
@@ -25,6 +36,17 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        prefab = true
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file('src/main/cpp/CMakeLists.txt')
+            version = '3.22.1'
+        }
     }
 
     packaging {
@@ -63,6 +85,7 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.4'
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.9.4'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
+    implementation 'com.google.oboe:oboe:1.11.0'
     implementation 'com.google.android.flexbox:flexbox:3.0.0'
     implementation 'com.android.volley:volley:1.2.1'
     implementation 'com.google.code.gson:gson:2.13.1'

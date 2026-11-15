@@ -48,3 +48,8 @@
 -dontwarn com.graphbuilder.**
 -dontwarn net.sf.saxon.**
 -dontwarn com.fasterxml.aalto.**
+
+# JNI looks up SfPlayer's native methods by class and method name.
+-keep class mg.maniry.doremii.editor.sfplayer.SfPlayer {
+    native <methods>;
+}
