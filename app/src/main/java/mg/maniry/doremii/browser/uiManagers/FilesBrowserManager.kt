@@ -16,6 +16,7 @@ import mg.maniry.doremii.browser.adapters.FileBrowserAdapter
 import mg.maniry.doremii.commonUtils.FileManager
 import mg.maniry.doremii.editor.EditorActivity
 import mg.maniry.doremii.editor.managers.onChange
+import mg.maniry.doremii.omr.ScanSolfaActivity
 import mg.maniry.doremii.settings.SettingsActivity
 
 
@@ -55,6 +56,9 @@ class FilesBrowserManager(
             }
         }
         mainView.findViewById<View>(R.id.home_new_song).setOnClickListener { createSong() }
+        mainView.findViewById<View>(R.id.home_scan_song).setOnClickListener {
+            context.startActivity(Intent(context, ScanSolfaActivity::class.java))
+        }
     }
 
 
