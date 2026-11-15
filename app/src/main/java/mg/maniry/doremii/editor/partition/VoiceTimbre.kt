@@ -1,10 +1,13 @@
 package mg.maniry.doremii.editor.partition
 
+import com.google.gson.JsonObject
+
 data class VoiceTimbre(
     val soundFontId: String,
     val bank: Int,
     val program: Int,
     val legacyIndex: Int? = null,
+    val extras: JsonObject = JsonObject(),
 ) {
     fun serialize(): String {
         legacyIndex?.let { return it.toString() }

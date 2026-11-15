@@ -155,7 +155,7 @@ class RemoteBrowserManager(
 
 
     private fun onDownloadSuccess(name: String, content: String) {
-        FileManager.run { write(getCopy(name).name, content) }
+        FileManager.saveDownloadedSolfa(name, content)
         viewModel.solfaDownloading.value = false
     }
 

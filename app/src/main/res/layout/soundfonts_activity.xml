@@ -40,59 +40,28 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical" />
 
-            <View
-                android:id="@+id/lists_divider"
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginTop="@dimen/spacing3"
-                android:layout_marginBottom="@dimen/spacing3"
-                android:background="@color/gray"
-                android:visibility="gone" />
-
             <LinearLayout
-                android:id="@+id/curated_container"
+                android:id="@+id/import_progress"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing2"
                 android:orientation="vertical" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/import_soundfont"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing4"
+                android:text="@string/soundfonts_import"
+                android:textAllCaps="false" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing4"
-                android:layout_marginBottom="@dimen/spacing2"
-                android:text="@string/soundfonts_custom"
-                android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
-                android:textColor="@color/colorPrimary" />
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="@string/soundfonts_custom_hint"
-                app:boxBackgroundColor="@color/white">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/custom_url_input"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="textUri" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/custom_url_download"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/spacing2"
-                android:text="@string/soundfonts_download"
-                android:textAllCaps="false" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/import_soundfont"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing2"
-                android:text="@string/soundfonts_import"
-                android:textAllCaps="false" />
+                android:text="@string/soundfonts_import_hint"
+                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                android:textColor="@color/dark_gray" />
 
             <TextView
                 android:layout_width="match_parent"

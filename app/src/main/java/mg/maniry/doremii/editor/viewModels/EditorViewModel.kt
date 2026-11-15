@@ -195,7 +195,7 @@ class EditorViewModel : ViewModel() {
             filename = partitionData.songInfo.filename
         }
         if (partitionData.getMaxLength() > 4) {
-            FileManager.write(filename, partitionData.toString())
+            FileManager.write(filename, partitionData.toJson())
                 .also { if (it != "") message.value = it }
         }
     }
@@ -243,9 +243,22 @@ class EditorViewModel : ViewModel() {
 
             with(FileManager.read(path)) {
                 if (error == null) {
-                    resetCursors()
-                    partitionData.parseRawString(content)
-                    this@EditorViewModel.filename = path
+                    try {
+                        if (FileManager.isJsonSolfa(path)) {
+                            partitionData.fromJson(content)
+                        } else {
+                            partitionData.parseRawString(content)
+                        }
+                        resetCursors()
+                        this@EditorViewModel.filename = path
+                    } catch (e: Exception) {
+                        message.value = "${Values.fileOpenError}: $path"
+                        if (onError == null) {
+                            loadRecentFile()
+                        } else {
+                            onError(Values.fileOpenError)
+                        }
+                    }
                 } else {
                     message.value = "${Values.fileOpenError}: $path"
                     if (onError == null) {

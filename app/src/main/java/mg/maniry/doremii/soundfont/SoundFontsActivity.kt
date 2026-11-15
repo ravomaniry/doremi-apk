@@ -15,7 +15,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.textfield.TextInputEditText
 import mg.maniry.doremii.DoremiApp
 import mg.maniry.doremii.R
 import mg.maniry.doremii.commonUtils.navigateBack
@@ -32,7 +31,6 @@ class SoundFontsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.soundfonts_activity)
         findViewById<MaterialToolbar>(R.id.screen_toolbar).navigateBack(this)
-        findViewById<View>(R.id.custom_url_download).setOnClickListener { downloadCustom() }
         findViewById<View>(R.id.import_soundfont).setOnClickListener {
             openDocument.launch(arrayOf("audio/*", "application/octet-stream", "*/*"))
         }
@@ -43,25 +41,18 @@ class SoundFontsActivity : AppCompatActivity() {
             openLink("https://www.schristiancollins.com/generaluser")
         }
         repository.catalog.observe(this) { render() }
-        repository.downloads.observe(this) { render() }
-        repository.failures.observe(this) { render() }
+        repository.imports.observe(this) { render() }
         repository.messages.observe(this) { message ->
             val text = message?.text ?: return@observe
             if (text.isNotBlank()) Toast.makeText(this, text, Toast.LENGTH_LONG).show()
         }
     }
 
-    private fun downloadCustom() {
-        val url = findViewById<TextInputEditText>(R.id.custom_url_input).text?.toString().orEmpty().trim()
-        repository.download(url, displayNameFromUrl(url))
-    }
-
     private fun render() {
         val installed = repository.catalog.value.orEmpty()
-        val downloads = repository.downloads.value.orEmpty()
-        val failures = repository.failures.value.orEmpty()
+        val imports = repository.imports.value.orEmpty()
         val installedContainer = findViewById<LinearLayout>(R.id.installed_container)
-        val curatedContainer = findViewById<LinearLayout>(R.id.curated_container)
+        val progressContainer = findViewById<LinearLayout>(R.id.import_progress)
         val installedRows = installed.map { font ->
             val primary = if (font.active) {
                 RowAction(getString(R.string.soundfonts_default), null, filled = false)
@@ -75,49 +66,18 @@ class SoundFontsActivity : AppCompatActivity() {
             }
             row(font.displayName, formatSize(font.sizeBytes), null, primary, secondary)
         }
-        val curatedRows = mutableListOf<View>()
-        SoundFontRepository.curated.forEach { item ->
-            val alreadyInstalled = installed.any { it.sourceUrl == item.url }
-            val progress = downloads.firstOrNull { it.key == item.url }
-            val failure = failures.firstOrNull { it.key == item.url }
-            if (alreadyInstalled && progress == null && failure == null) return@forEach
-            val primary = if (progress != null) {
-                RowAction(getString(R.string.text_cancel), { repository.cancel(item.url) }, filled = false)
-            } else {
-                RowAction(getString(R.string.soundfonts_download), { repository.download(item.url, item.name) }, filled = true)
-            }
-            val detail = if (progress == null && failure != null) failure.message else item.detail
-            curatedRows += row(item.name, detail, progress, primary, null)
-        }
-        downloads.filter { progress -> SoundFontRepository.curated.none { it.url == progress.key } }
-            .forEach { progress ->
-                curatedRows += row(
-                    progress.label,
-                    "",
-                    progress,
-                    RowAction(getString(R.string.text_cancel), { repository.cancel(progress.key) }, filled = false),
-                    null,
-                )
-            }
-        failures.filter { failure ->
-            SoundFontRepository.curated.none { it.url == failure.key } &&
-                downloads.none { it.key == failure.key }
-        }.forEach { failure ->
-            val retry = if (failure.key.startsWith("http://") || failure.key.startsWith("https://")) {
-                RowAction(
-                    getString(R.string.soundfonts_download),
-                    { repository.download(failure.key, failure.label) },
-                    filled = true,
-                )
-            } else {
-                null
-            }
-            curatedRows += row(failure.label, failure.message, null, retry, null)
+        val progressRows = imports.map { progress ->
+            row(
+                progress.label,
+                "",
+                progress,
+                RowAction(getString(R.string.text_cancel), { repository.cancel(progress.key) }, filled = false),
+                null,
+            )
         }
         showRows(installedContainer, installedRows)
-        showRows(curatedContainer, curatedRows)
-        findViewById<View>(R.id.lists_divider).visibility =
-            if (installedRows.isNotEmpty() && curatedRows.isNotEmpty()) View.VISIBLE else View.GONE
+        showRows(progressContainer, progressRows)
+        progressContainer.visibility = if (progressRows.isEmpty()) View.GONE else View.VISIBLE
     }
 
     private fun showRows(container: LinearLayout, rows: List<View>) {
@@ -139,7 +99,7 @@ class SoundFontsActivity : AppCompatActivity() {
     private fun row(
         name: String,
         detail: String,
-        progress: DownloadProgress?,
+        progress: ImportProgress?,
         primary: RowAction?,
         secondary: RowAction?,
     ): View {
@@ -221,11 +181,6 @@ class SoundFontsActivity : AppCompatActivity() {
 
     private fun openLink(url: String) {
         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-    }
-
-    private fun displayNameFromUrl(url: String): String {
-        val name = Uri.parse(url).lastPathSegment?.substringBeforeLast('.').orEmpty()
-        return name.replace('_', ' ').replace('-', ' ').ifBlank { "SoundFont" }
     }
 
     private fun formatSize(bytes: Long): String {

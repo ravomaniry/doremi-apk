@@ -1,6 +1,7 @@
 package mg.maniry.doremii.editor.partition
 
 import androidx.lifecycle.MutableLiveData
+import com.google.gson.JsonObject
 import mg.maniry.doremii.commonUtils.Values
 import java.lang.Exception
 import java.util.*
@@ -26,8 +27,13 @@ class PartitionData {
         }
     lateinit var voices: MutableList<String>
     var version = Values.solfaVersion
+    var schema = SCHEMA
+    var documentExtras = JsonObject()
+    var scoreExtras = JsonObject()
+    val voiceExtras = mutableListOf<JsonObject>()
 
     companion object {
+        const val SCHEMA = 1
         val voiceIds = arrayListOf("S", "A", "T", "B")
     }
 
@@ -46,12 +52,18 @@ class PartitionData {
         completeVoiceIds()
 
         lyrics.value = ""
+        version = Values.solfaVersion
+        schema = SCHEMA
+        documentExtras = JsonObject()
+        scoreExtras = JsonObject()
+        voiceExtras.clear()
         songInfo.apply {
             title.value = "doremi_${Date().time}"
             author.value = ""
             compositor.value = ""
             releaseDate.value = ""
             singer.value = ""
+            extras = JsonObject()
         }
     }
 
@@ -258,6 +270,24 @@ class PartitionData {
         output += separator + lyrics.value?.replace(';', ',')?.replace('\n', ';')
 
         return output
+    }
+
+
+    fun toJson(): String {
+        trim()
+        alignVoiceExtras()
+        return SolfaJson.write(this)
+    }
+
+
+    fun fromJson(raw: String) {
+        SolfaJson.readInto(this, raw)
+    }
+
+
+    private fun alignVoiceExtras() {
+        while (voiceExtras.size < voices.size) voiceExtras.add(JsonObject())
+        while (voiceExtras.size > voices.size) voiceExtras.removeAt(voiceExtras.lastIndex)
     }
 
 

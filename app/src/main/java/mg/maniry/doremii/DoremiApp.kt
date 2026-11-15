@@ -13,6 +13,7 @@ class DoremiApp : Application() {
         super.onCreate()
         instance = this
         FileManager.initDir(this)
+        FileManager.migrateLegacySolfa()
         soundFonts = SoundFontRepository(this)
         soundFonts.start()
     }

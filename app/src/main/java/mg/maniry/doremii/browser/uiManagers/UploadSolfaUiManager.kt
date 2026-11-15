@@ -11,6 +11,7 @@ import mg.maniry.doremii.browser.UploadSolfaActivity
 import mg.maniry.doremii.commonUtils.FileManager
 import mg.maniry.doremii.editor.partition.KeyValue
 import mg.maniry.doremii.editor.partition.Labels
+import mg.maniry.doremii.editor.partition.SolfaJson
 import org.json.JSONObject
 
 
@@ -52,6 +53,9 @@ class UploadSolfaUiManager(val context: UploadSolfaActivity, mainView: View) {
 
 
     private fun getFileName(content: String): String {
+        if (content.trimStart().startsWith("{")) {
+            return SolfaJson.displayName(content).orEmpty()
+        }
         val mainParts = content.split("__!!__").toMutableList()
         val info = mainParts[0]
                 .split(";")
