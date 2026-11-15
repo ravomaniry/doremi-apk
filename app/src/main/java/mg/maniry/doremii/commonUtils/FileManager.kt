@@ -26,15 +26,12 @@ class FileManager {
         private const val authority = "mg.maniry.doremii.fileprovider"
         private val sep = File.separator
         private lateinit var appContext: Context
-        private lateinit var rootDir: File
         private lateinit var solfaDir: File
-        private val instrumentFilePath get() = File(rootDir, "instrument.txt").absolutePath
 
         private fun buildSolfaPath(name: String) = "${solfaDir.absolutePath}$sep$name"
 
         fun initDir(context: Context) {
             appContext = context.applicationContext
-            rootDir = context.filesDir
             solfaDir = File(context.filesDir, "solfa")
         }
 
@@ -128,15 +125,6 @@ class FileManager {
             } else {
                 FileContent(error = Values.notExisting)
             }
-        }
-
-        fun redInstrumentName(): String {
-            val content = read(instrumentFilePath)
-            return if (content.content == "") "Piano" else content.content
-        }
-
-        fun saveInstrumentName(value: String) {
-            write(instrumentFilePath, value)
         }
 
         fun delete(filename: String) = getFileFromName(filename).let {

@@ -58,14 +58,38 @@ set_fluid_option(enable-winmidi OFF)
 FetchContent_GetProperties(fluidsynth)
 if(NOT fluidsynth_POPULATED)
     FetchContent_Populate(fluidsynth)
-    if(EXISTS "${fluidsynth_SOURCE_DIR}/CMakeLists.txt")
-        set(FLUIDSYNTH_SRC "${fluidsynth_SOURCE_DIR}")
-    elseif(EXISTS "${fluidsynth_SOURCE_DIR}/fluidsynth-2.6.2/CMakeLists.txt")
-        set(FLUIDSYNTH_SRC "${fluidsynth_SOURCE_DIR}/fluidsynth-2.6.2")
-    else()
-        message(FATAL_ERROR "FluidSynth sources not found in ${fluidsynth_SOURCE_DIR}")
-    endif()
+endif()
+if(EXISTS "${fluidsynth_SOURCE_DIR}/CMakeLists.txt")
+    set(FLUIDSYNTH_SRC "${fluidsynth_SOURCE_DIR}")
+elseif(EXISTS "${fluidsynth_SOURCE_DIR}/fluidsynth-2.6.2/CMakeLists.txt")
+    set(FLUIDSYNTH_SRC "${fluidsynth_SOURCE_DIR}/fluidsynth-2.6.2")
+else()
+    message(FATAL_ERROR "FluidSynth sources not found in ${fluidsynth_SOURCE_DIR}")
+endif()
+
+# FluidSynth 2.6 decodes SF3 only when libsndfile has Vorbis. This build keeps
+# libsndfile off and patches the loader to decode SF3 samples with stb_vorbis.
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+execute_process(
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/patch_sf3.py" "${FLUIDSYNTH_SRC}"
+    RESULT_VARIABLE DOREMI_SF3_PATCH
+)
+if(NOT DOREMI_SF3_PATCH EQUAL 0)
+    message(FATAL_ERROR "Failed to enable SF3 decoding in FluidSynth")
+endif()
+
+if(NOT TARGET libfluidsynth)
     add_subdirectory("${FLUIDSYNTH_SRC}" "${fluidsynth_BINARY_DIR}" EXCLUDE_FROM_ALL)
+endif()
+
+# The decoder has to live inside FluidSynth. Its own test binaries link that
+# static library and would not see a symbol defined only in doremi_synth.
+set_source_files_properties(doremi_sf3.c PROPERTIES
+    COMPILE_OPTIONS "-Wno-unused-function;-Wno-unused-variable;-Wno-unused-parameter;-Wno-sign-compare"
+)
+get_target_property(DOREMI_FLUID_SOURCES libfluidsynth-OBJ SOURCES)
+if(NOT DOREMI_FLUID_SOURCES MATCHES "doremi_sf3.c")
+    target_sources(libfluidsynth-OBJ PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/doremi_sf3.c")
 endif()
 
 find_package(oboe REQUIRED CONFIG)

@@ -2,18 +2,18 @@ package mg.maniry.doremii.settings
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.ArrayAdapter
+import android.view.View
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.materialswitch.MaterialSwitch
-import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import mg.maniry.doremii.R
 import mg.maniry.doremii.commonUtils.FileManager
 import mg.maniry.doremii.commonUtils.PlaybackSettings
 import mg.maniry.doremii.commonUtils.navigateBack
 import mg.maniry.doremii.editor.AboutActivity
 import mg.maniry.doremii.editor.HelpActivity
+import mg.maniry.doremii.soundfont.SoundFontsActivity
 
 
 class SettingsActivity : AppCompatActivity() {
@@ -24,25 +24,15 @@ class SettingsActivity : AppCompatActivity() {
         setContentView(R.layout.settings_activity)
 
         findViewById<MaterialToolbar>(R.id.screen_toolbar).navigateBack(this)
-        bindInstrument()
+        findViewById<View>(R.id.settings_soundfonts).setOnClickListener {
+            startActivity(Intent(this, SoundFontsActivity::class.java))
+        }
         bindVelocity()
-        findViewById<android.view.View>(R.id.settings_help).setOnClickListener {
+        findViewById<View>(R.id.settings_help).setOnClickListener {
             startActivity(Intent(this, HelpActivity::class.java))
         }
-        findViewById<android.view.View>(R.id.settings_about).setOnClickListener {
+        findViewById<View>(R.id.settings_about).setOnClickListener {
             startActivity(Intent(this, AboutActivity::class.java))
-        }
-    }
-
-
-    private fun bindInstrument() {
-        val names = resources.getStringArray(R.array.instruments_list)
-        val input = findViewById<MaterialAutoCompleteTextView>(R.id.instrument_input)
-        input.setAdapter(ArrayAdapter(this, android.R.layout.simple_list_item_1, names))
-        val saved = FileManager.redInstrumentName()
-        input.setText(if (saved in names) saved else names.first(), false)
-        input.setOnItemClickListener { _, _, _, _ ->
-            FileManager.saveInstrumentName(input.text.toString())
         }
     }
 

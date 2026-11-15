@@ -1,9 +1,10 @@
 package mg.maniry.doremii.editor.partition
 
-import androidx.lifecycle.MutableLiveData
 import android.content.Context
-import mg.maniry.doremii.editor.EditorActivity
+import androidx.lifecycle.MutableLiveData
+import mg.maniry.doremii.DoremiApp
 import mg.maniry.doremii.editor.sfplayer.SfPlayer
+import mg.maniry.doremii.editor.sfplayer.VoicePatch
 import mg.maniry.doremii.editor.viewModels.EditorViewModel
 
 data class Player constructor(
@@ -11,30 +12,34 @@ data class Player constructor(
     private val editorViewModel: EditorViewModel,
 ) {
     var isActive = true
-    private val sfPlayer = SfPlayer(mainContext)
-    val playedVoices = MutableLiveData<MutableList<Boolean>>()
+    private val sfPlayer = SfPlayer()
+    val mutedVoices = MutableLiveData(mutableListOf<Boolean>())
+    val soloedVoices = MutableLiveData(mutableListOf<Boolean>())
 
     init {
-        playedVoices.value = editorViewModel.partitionData.voices.map { true }.toMutableList()
         sfPlayer.setOnCompletionListener {
             updateState(false)
         }
-        editorViewModel.instrument.observe(mainContext as EditorActivity) {
-            it?.run { sfPlayer.prepare(it) }
+        sfPlayer.onPresetsDiscovered = { path, presets ->
+            DoremiApp.from(mainContext).soundFonts.rememberPresets(path, presets)
         }
     }
 
     fun playSingleNote(pitch: Int) {
-        sfPlayer.playSingleNote(pitch)
+        val voice = editorViewModel.cursorPos.voice
+        val flags = audibleFlags()
+        if (voice !in flags.indices || !flags[voice]) return
+        val patch = songPatches().getOrNull(voice) ?: return
+        sfPlayer.playSingleNote(pitch, patch, voice)
     }
 
 
     fun play() {
         updateState(true)
-        val notes = editorViewModel.buildNotes(playedVoices.value)
-        sfPlayer.play(
-            notes, editorViewModel.partitionData.tempo, editorViewModel.instrument.value!!
-        )
+        val notes = editorViewModel.buildNotes(audibleFlags())
+        if (!sfPlayer.play(notes, editorViewModel.partitionData.tempo, songPatches())) {
+            updateState(false)
+        }
     }
 
     fun stop() {
@@ -43,14 +48,12 @@ data class Player constructor(
     }
 
 
-    fun toggleVoice(index: Int) {
-        playedVoices.value?.run {
-            while (size <= index) {
-                add(false)
-            }
-            set(index, !get(index))
-        }
-        playedVoices.value = playedVoices.value
+    fun toggleMute(index: Int) {
+        mutedVoices.value = flipped(mutedVoices.value, index)
+    }
+
+    fun toggleSolo(index: Int) {
+        soloedVoices.value = flipped(soloedVoices.value, index)
     }
 
 
@@ -62,7 +65,43 @@ data class Player constructor(
     }
 
 
+    private fun audibleFlags(): List<Boolean> {
+        return audibleVoices(
+            editorViewModel.partitionData.voicesNum,
+            mutedVoices.value.orEmpty(),
+            soloedVoices.value.orEmpty(),
+        )
+    }
+
+    private fun songPatches(): List<VoicePatch> {
+        val repository = DoremiApp.from(mainContext).soundFonts
+        val timbres = editorViewModel.partitionData.timbres.value
+        val font = repository.resolveSongFont(timbres?.firstOrNull()?.soundFontId)
+        val count = editorViewModel.partitionData.voicesNum
+        return List(count) { index ->
+            repository.assignmentOnFont(font, timbres?.getOrNull(index) ?: VoiceTimbre.piano())
+        }
+    }
+
+    private fun flipped(current: MutableList<Boolean>?, index: Int): MutableList<Boolean> {
+        val next = current?.toMutableList() ?: mutableListOf()
+        while (next.size <= index) next.add(false)
+        next[index] = !next[index]
+        return next
+    }
+
+
     private fun updateState(nextState: Boolean) {
         editorViewModel.playerIsPlaying.value = nextState
+    }
+}
+
+internal fun audibleVoices(count: Int, muted: List<Boolean>, soloed: List<Boolean>): List<Boolean> {
+    if (count <= 0) return emptyList()
+    val anySolo = (0 until count).any { soloed.getOrElse(it) { false } }
+    return List(count) { index ->
+        val isMuted = muted.getOrElse(index) { false }
+        val isSolo = soloed.getOrElse(index) { false }
+        !isMuted && (!anySolo || isSolo)
     }
 }

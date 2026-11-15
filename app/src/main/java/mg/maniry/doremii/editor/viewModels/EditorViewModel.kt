@@ -16,6 +16,7 @@ import mg.maniry.doremii.editor.partition.*
 import mg.maniry.doremii.commonUtils.FileManager
 import mg.maniry.doremii.commonUtils.PlaybackSettings
 import mg.maniry.doremii.commonUtils.Values
+import mg.maniry.doremii.DoremiApp
 import mg.maniry.doremii.editor.xlsxExport.ExcelExport
 import java.io.File
 
@@ -52,9 +53,6 @@ class EditorViewModel : ViewModel() {
     private val _selectModeState = MutableLiveData(SelectMode.CURSOR)
     val selectModeState: LiveData<SelectMode> = _selectModeState
     var clipBoard: ClipBoard? = null
-    val instrument = MutableLiveData<String>().apply {
-        value = FileManager.redInstrumentName()
-    }
 
 
     init {
@@ -211,11 +209,23 @@ class EditorViewModel : ViewModel() {
     }
 
 
+    private fun defaultTimbre(): VoiceTimbre {
+        return DoremiApp.instance?.soundFonts?.defaultTimbre() ?: VoiceTimbre.piano()
+    }
+
+    private fun voiceFallback(): VoiceTimbre {
+        val repository = DoremiApp.instance?.soundFonts ?: return defaultTimbre()
+        val current = partitionData.timbres.value?.firstOrNull()
+        val font = repository.resolveSongFont(current?.soundFontId) ?: return current ?: defaultTimbre()
+        val preset = font.presets.firstOrNull()
+        return VoiceTimbre(font.id, preset?.bank ?: 0, preset?.program ?: 0)
+    }
+
     fun updateVoicesNum(n: Int) {
         if (cursorPos.voice >= n) {
             moveCursor(0, 0)
         }
-        partitionData.updateVoicesNum(n)
+        partitionData.updateVoicesNum(n, voiceFallback())
         notifyListeners()
     }
 
@@ -273,17 +283,11 @@ class EditorViewModel : ViewModel() {
     }
 
 
-    fun onInstrumentChanged(newValue: String) {
-        instrument.value = newValue
-        FileManager.saveInstrumentName(newValue)
-    }
-
-
     fun createNew() {
         save()
         resetCursors()
         history.reset()
-        partitionData.reset()
+        partitionData.reset(defaultTimbre())
         partitionData.signature.value = 4
         filename = partitionData.songInfo.filename
     }
@@ -310,7 +314,7 @@ class EditorViewModel : ViewModel() {
                 notes = notes,
                 tempo = partitionData.tempo,
                 outFile = file,
-                instruments = partitionData.instruments.value,
+                timbres = partitionData.timbres.value,
             )
         )
     }

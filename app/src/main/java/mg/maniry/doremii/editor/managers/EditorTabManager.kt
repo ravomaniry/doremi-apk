@@ -1,17 +1,27 @@
 package mg.maniry.doremii.editor.managers
 
 import android.content.Context
+import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.view.View
 import android.widget.*
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.textfield.MaterialAutoCompleteTextView
+import mg.maniry.doremii.DoremiApp
 import mg.maniry.doremii.R
 import mg.maniry.doremii.R.id.*
 import mg.maniry.doremii.commonUtils.PlaybackSettings
 import mg.maniry.doremii.editor.EditorActivity
+import mg.maniry.doremii.editor.partition.InstrumentsList
 import mg.maniry.doremii.editor.partition.Labels
 import mg.maniry.doremii.editor.partition.PartitionData
+import mg.maniry.doremii.editor.partition.VoiceTimbre
 import mg.maniry.doremii.editor.viewModels.EditorViewModel
 import mg.maniry.doremii.editor.partition.Player
+import mg.maniry.doremii.soundfont.InstalledSoundFont
+import mg.maniry.doremii.soundfont.SoundFontsActivity
+import mg.maniry.doremii.soundfont.showTimbrePicker
 
 
 class EditorTabManager(
@@ -33,6 +43,10 @@ class EditorTabManager(
     private val instrConfigs = mutableListOf<InstrConfig>()
     private val instrConfigCont = editorTab.findViewById<LinearLayout>(instr_config_cont)
     private val voicesNumSpinner = editorTab.findViewById<Spinner>(voices_num_spin)
+    private val soundFontInput = editorTab.findViewById<MaterialAutoCompleteTextView>(song_soundfont_input)
+    private var installedFonts = emptyList<InstalledSoundFont>()
+    private var updatingSoundFont = false
+    private var soundFontKey = ""
 
 
     init {
@@ -40,10 +54,28 @@ class EditorTabManager(
         initTempoEditText()
         initSwingCheck()
         initLoopSpinner()
-        observeMutedVoices()
         observeReRender()
+        observeVoiceToggles()
         initSongInfoUpdater()
         initSongTitleTextView()
+        editorTab.findViewById<View>(manage_soundfonts).setOnClickListener {
+            mainContext.startActivity(Intent(mainContext, SoundFontsActivity::class.java))
+        }
+        soundFontInput.setOnItemClickListener { _, _, position, _ ->
+            if (updatingSoundFont) return@setOnItemClickListener
+            val font = installedFonts.getOrNull(position) ?: return@setOnItemClickListener
+            val currentId = editorViewModel.partitionData.timbres.value?.firstOrNull()?.soundFontId
+            if (font.id == currentId) return@setOnItemClickListener
+            applySongSoundFont(font)
+        }
+        val activity = mainContext as EditorActivity
+        DoremiApp.from(mainContext).soundFonts.catalog.observe(activity) { fonts ->
+            installedFonts = fonts.orEmpty()
+            bindSoundFont()
+        }
+        editorViewModel.partitionData.timbres.observe(activity) {
+            bindSoundFont()
+        }
     }
 
 
@@ -131,9 +163,9 @@ class EditorTabManager(
     private fun completeInstrConfig(index: Int) {
         val partitionData = editorViewModel.partitionData
         val voices = partitionData.voices
-        val playedVoices = player.playedVoices.value
 
         while (instrConfigs.size <= index) {
+            val rowIndex = instrConfigs.size
             voiceIdsSPinInit.add(false)
 
             InstrConfig(mainContext).apply {
@@ -145,22 +177,119 @@ class EditorTabManager(
                         mainContext, simpleListItem, PartitionData.voiceIds
                     ).apply { setDropDownViewResource(dropDownItem) }
                     onChange {
-                        if (voiceIdsSPinInit[index]) {
-                            partitionData.updateVoiceId(index, it)
+                        if (voiceIdsSPinInit[rowIndex]) {
+                            partitionData.updateVoiceId(rowIndex, it)
                         } else {
-                            voiceIdsSPinInit[index] = true
+                            voiceIdsSPinInit[rowIndex] = true
                         }
                     }
-                    setSelection(PartitionData.voiceIds.indexOf(voices[index]))
+                    val voiceName = voices.getOrElse(rowIndex) { PartitionData.voiceIds[rowIndex % PartitionData.voiceIds.size] }
+                    setSelection(PartitionData.voiceIds.indexOf(voiceName).coerceAtLeast(0))
                 }
 
-                muteCheckbox.apply {
-                    isChecked =
-                        playedVoices != null && playedVoices.size > index && playedVoices[index]
-                    setOnClickListener { player.toggleVoice(index) }
-                }
+                muteButton.setOnClickListener { player.toggleMute(rowIndex) }
+                soloButton.setOnClickListener { player.toggleSolo(rowIndex) }
+                timbreButton.setOnClickListener { openTimbrePicker(rowIndex) }
+                applyVoiceToggle(rowIndex, this)
+                timbreButton.text = timbreLabel(
+                    partitionData.timbres.value?.getOrNull(rowIndex) ?: VoiceTimbre.piano(),
+                    sharedFont(),
+                )
             }
         }
+    }
+
+    private fun bindSoundFont() {
+        val key = installedFonts.joinToString("|") { it.id + it.displayName }
+        if (soundFontKey != key) {
+            soundFontKey = key
+            soundFontInput.setAdapter(
+                ArrayAdapter(
+                    mainContext,
+                    android.R.layout.simple_list_item_1,
+                    installedFonts.map { it.displayName },
+                )
+            )
+        }
+        val font = sharedFont()
+        updatingSoundFont = true
+        soundFontInput.setText(font?.displayName.orEmpty(), false)
+        updatingSoundFont = false
+        instrConfigs.forEachIndexed { index, row ->
+            val timbre = editorViewModel.partitionData.timbres.value?.getOrNull(index) ?: VoiceTimbre.piano()
+            row.timbreButton.text = timbreLabel(timbre, font)
+        }
+    }
+
+    private fun sharedFont(): InstalledSoundFont? {
+        val preferred = editorViewModel.partitionData.timbres.value?.firstOrNull()?.soundFontId
+        return installedFonts.firstOrNull { it.id == preferred }
+            ?: installedFonts.firstOrNull { it.active }
+            ?: installedFonts.firstOrNull { it.id == VoiceTimbre.PIANO_ID }
+            ?: installedFonts.firstOrNull()
+    }
+
+    private fun applySongSoundFont(font: InstalledSoundFont) {
+        val partitionData = editorViewModel.partitionData
+        val current = partitionData.timbres.value.orEmpty()
+        val first = font.presets.firstOrNull()
+        val next = List(partitionData.voicesNum) { index ->
+            val fallback = VoiceTimbre(font.id, first?.bank ?: 0, first?.program ?: 0)
+            if (index == 0 || first == null) {
+                fallback
+            } else {
+                val timbre = current.getOrNull(index) ?: VoiceTimbre.piano()
+                val (bank, program) = timbre.midiBankAndProgram()
+                val match = font.presets.firstOrNull { it.bank == bank && it.program == program }
+                if (match != null) VoiceTimbre(font.id, match.bank, match.program) else fallback
+            }
+        }
+        partitionData.replaceTimbres(next)
+    }
+
+    private fun openTimbrePicker(index: Int) {
+        val font = sharedFont() ?: return
+        showTimbrePicker(mainContext, font.presets) { preset ->
+            editorViewModel.partitionData.setVoiceTimbre(
+                index,
+                VoiceTimbre(font.id, preset.bank, preset.program),
+            )
+        }
+    }
+
+    private fun applyVoiceToggle(index: Int, row: InstrConfig) {
+        val muted = player.mutedVoices.value?.getOrNull(index) == true
+        row.muteButton.setIconResource(if (muted) R.drawable.ic_speaker_off else R.drawable.ic_speaker)
+        row.soloButton.showSolo(player.soloedVoices.value?.getOrNull(index) == true)
+    }
+
+    private fun refreshVoiceToggles() {
+        instrConfigs.forEachIndexed { index, row -> applyVoiceToggle(index, row) }
+    }
+
+    private fun MaterialButton.showSolo(active: Boolean) {
+        val primary = context.getColor(R.color.colorPrimary)
+        val white = context.getColor(R.color.white)
+        if (active) {
+            backgroundTintList = ColorStateList.valueOf(primary)
+            setTextColor(white)
+            strokeWidth = 0
+        } else {
+            backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
+            setTextColor(primary)
+            strokeWidth = resources.displayMetrics.density.toInt().coerceAtLeast(1)
+            strokeColor = ColorStateList.valueOf(primary)
+        }
+    }
+
+    private fun timbreLabel(timbre: VoiceTimbre, font: InstalledSoundFont?): String {
+        val (bank, program) = timbre.midiBankAndProgram()
+        val preset = font?.presets?.firstOrNull { it.bank == bank && it.program == program }?.name
+        if (preset != null) return preset
+        if (timbre.legacyIndex != null) {
+            return InstrumentsList.list.getOrNull(timbre.legacyIndex)?.name ?: "Piano"
+        }
+        return "Program $program"
     }
 
 
@@ -202,13 +331,10 @@ class EditorTabManager(
     }
 
 
-    private fun observeMutedVoices() {
-        player.playedVoices.observe(mainContext as EditorActivity) { voices ->
-            voices?.forEachIndexed { i, value ->
-                completeInstrConfig(i)
-                instrConfigs[i].muteCheckbox.isChecked = value
-            }
-        }
+    private fun observeVoiceToggles() {
+        val activity = mainContext as EditorActivity
+        player.mutedVoices.observe(activity) { refreshVoiceToggles() }
+        player.soloedVoices.observe(activity) { refreshVoiceToggles() }
     }
 
 

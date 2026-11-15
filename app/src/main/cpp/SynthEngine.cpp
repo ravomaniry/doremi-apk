@@ -5,13 +5,64 @@
 #include <android/log.h>
 
 #include <algorithm>
+#include <sstream>
 
 namespace {
 
 constexpr char kLogTag[] = "doremi_synth";
 constexpr float kGain = 0.6f;
 
+std::string presetRow(int bank, int program, const char *name) {
+    std::string label = name == nullptr ? "" : name;
+    for (char &character : label) {
+        if (character == '\t' || character == '\n' || character == '\r') {
+            character = ' ';
+        }
+    }
+    std::ostringstream row;
+    row << bank << '\t' << program << '\t' << label;
+    return row.str();
+}
+
+std::vector<std::string> collectPresets(fluid_synth_t *synth, int sfontId) {
+    std::vector<std::string> rows;
+    fluid_sfont_t *sfont = fluid_synth_get_sfont_by_id(synth, sfontId);
+    if (sfont == nullptr) {
+        return rows;
+    }
+    fluid_sfont_iteration_start(sfont);
+    while (fluid_preset_t *preset = fluid_sfont_iteration_next(sfont)) {
+        rows.push_back(presetRow(fluid_preset_get_banknum(preset), fluid_preset_get_num(preset),
+                                 fluid_preset_get_name(preset)));
+    }
+    return rows;
+}
+
 }  // namespace
+
+std::vector<std::string> probeSoundFont(const std::string &path) {
+    fluid_settings_t *settings = new_fluid_settings();
+    if (settings == nullptr) {
+        return {};
+    }
+    fluid_settings_setnum(settings, "synth.sample-rate", 44100);
+    fluid_synth_t *synth = new_fluid_synth(settings);
+    if (synth == nullptr) {
+        delete_fluid_settings(settings);
+        return {};
+    }
+    const int id = fluid_synth_sfload(synth, path.c_str(), 0);
+    std::vector<std::string> rows;
+    if (id != FLUID_FAILED) {
+        rows = collectPresets(synth, id);
+    }
+    delete_fluid_synth(synth);
+    delete_fluid_settings(settings);
+    if (id == FLUID_FAILED || rows.empty()) {
+        return {};
+    }
+    return rows;
+}
 
 SynthEngine::~SynthEngine() {
     shutdown();
@@ -47,46 +98,93 @@ void SynthEngine::shutdown() {
         delete_fluid_settings(settings);
         settings = nullptr;
     }
-    soundFontId = -1;
+    fonts.clear();
 }
 
-bool SynthEngine::loadSoundFont(const std::string &path) {
+int SynthEngine::loadSoundFont(const std::string &path) {
     ensureStream();
     std::lock_guard<std::mutex> lock(synthMutex);
     if (synth == nullptr) {
-        return false;
+        return -1;
+    }
+    const int existing = fontIdLocked(path);
+    if (existing >= 0) {
+        return existing;
     }
 
-    fluid_synth_all_sounds_off(synth, -1);
-    if (soundFontId >= 0) {
-        fluid_synth_sfunload(synth, soundFontId, 0);
-        soundFontId = -1;
-        soundFontPath.clear();
-    }
-
-    const int id = fluid_synth_sfload(synth, path.c_str(), 1);
+    const int id = fluid_synth_sfload(synth, path.c_str(), 0);
     if (id == FLUID_FAILED) {
         __android_log_print(ANDROID_LOG_ERROR, kLogTag, "sfload failed: %s", path.c_str());
+        return -1;
+    }
+    fonts.push_back(LoadedFont{path, id});
+    fluid_synth_set_gain(synth, kGain);
+    return id;
+}
+
+std::vector<std::string> SynthEngine::presets(int sfontId) {
+    std::lock_guard<std::mutex> lock(synthMutex);
+    if (synth == nullptr) {
+        return {};
+    }
+    return collectPresets(synth, sfontId);
+}
+
+bool SynthEngine::selectInstrument(int channel, int sfontId, int bank, int program) {
+    std::lock_guard<std::mutex> lock(synthMutex);
+    if (synth == nullptr || channel < 0 || channel >= kChannels) {
         return false;
     }
-
-    soundFontId = id;
-    soundFontPath = path;
-    fluid_synth_set_gain(synth, kGain);
-    fluid_synth_program_change(synth, 0, currentProgram);
+    std::string path;
+    for (const LoadedFont &font : fonts) {
+        if (font.id == sfontId) {
+            path = font.path;
+            break;
+        }
+    }
+    if (path.empty()) {
+        return false;
+    }
+    if (fluid_synth_program_select(synth, channel, sfontId, bank, program) != FLUID_OK) {
+        __android_log_print(ANDROID_LOG_ERROR, kLogTag,
+                            "program select failed channel=%d bank=%d program=%d", channel, bank,
+                            program);
+        return false;
+    }
+    channels[static_cast<size_t>(channel)] = ChannelPatch{path, bank, program, true};
     return true;
 }
 
-void SynthEngine::programChange(int program) {
+void SynthEngine::releaseUnused(const std::vector<int> &keepIds) {
     std::lock_guard<std::mutex> lock(synthMutex);
-    currentProgram = program;
-    if (synth != nullptr) {
-        fluid_synth_program_change(synth, 0, program);
+    auto kept = [&keepIds](int id) {
+        return std::find(keepIds.begin(), keepIds.end(), id) != keepIds.end();
+    };
+    for (ChannelPatch &patch : channels) {
+        if (!patch.active) {
+            continue;
+        }
+        const int id = fontIdLocked(patch.path);
+        if (id < 0 || !kept(id)) {
+            patch.active = false;
+        }
     }
+    std::vector<LoadedFont> retained;
+    retained.reserve(fonts.size());
+    for (const LoadedFont &font : fonts) {
+        if (kept(font.id)) {
+            retained.push_back(font);
+            continue;
+        }
+        if (synth != nullptr) {
+            fluid_synth_sfunload(synth, font.id, 0);
+        }
+    }
+    fonts.swap(retained);
 }
 
-void SynthEngine::replaceScore(const int *pitches, const int *velocities, const int64_t *onMs,
-                                const int64_t *offMs, int count) {
+void SynthEngine::replaceScore(const int *pitches, const int *velocities, const int *channelsIn,
+                                const int64_t *onMs, const int64_t *offMs, int count) {
     ensureStream();
     std::lock_guard<std::mutex> lock(synthMutex);
     events.clear();
@@ -101,14 +199,20 @@ void SynthEngine::replaceScore(const int *pitches, const int *velocities, const 
     const int64_t origin = renderedFrames + millisecondsToFrames(kPrerollMs);
     events.reserve(static_cast<size_t>(count) * 2);
     for (int i = 0; i < count; ++i) {
+        int channel = channelsIn == nullptr ? 0 : channelsIn[i];
+        if (channel < 0 || channel >= kChannels) {
+            channel = 0;
+        }
         events.push_back(ScheduledEvent{
                 origin + millisecondsToFrames(onMs[i]),
+                channel,
                 pitches[i],
                 velocities[i],
                 true,
         });
         events.push_back(ScheduledEvent{
                 origin + millisecondsToFrames(offMs[i]),
+                channel,
                 pitches[i],
                 0,
                 false,
@@ -117,17 +221,20 @@ void SynthEngine::replaceScore(const int *pitches, const int *velocities, const 
     std::sort(events.begin(), events.end(), eventBefore);
 }
 
-void SynthEngine::addNote(int pitch, int velocity, int64_t durationMs) {
+void SynthEngine::addNote(int channel, int pitch, int velocity, int64_t durationMs) {
     ensureStream();
     std::lock_guard<std::mutex> lock(synthMutex);
     if (synth == nullptr) {
         return;
     }
+    if (channel < 0 || channel >= kChannels) {
+        channel = 0;
+    }
     compactLocked();
     const int64_t onFrame = renderedFrames + millisecondsToFrames(kPrerollMs);
     const int64_t offFrame = onFrame + millisecondsToFrames(durationMs);
-    insertEventLocked(ScheduledEvent{onFrame, pitch, velocity, true});
-    insertEventLocked(ScheduledEvent{offFrame, pitch, 0, false});
+    insertEventLocked(ScheduledEvent{onFrame, channel, pitch, velocity, true});
+    insertEventLocked(ScheduledEvent{offFrame, channel, pitch, 0, false});
 }
 
 void SynthEngine::stop() {
@@ -159,9 +266,9 @@ oboe::DataCallbackResult SynthEngine::onAudioReady(oboe::AudioStream *, void *au
         while (cursor < events.size() && events[cursor].frame <= renderedFrames + frame) {
             const ScheduledEvent &event = events[cursor++];
             if (event.noteOn) {
-                fluid_synth_noteon(synth, 0, event.pitch, event.velocity);
+                fluid_synth_noteon(synth, event.channel, event.pitch, event.velocity);
             } else {
-                fluid_synth_noteoff(synth, 0, event.pitch);
+                fluid_synth_noteoff(synth, event.channel, event.pitch);
             }
         }
 
@@ -334,12 +441,19 @@ void SynthEngine::ensureSynthLocked(int32_t sampleRate) {
         delete_fluid_settings(settings);
         settings = nullptr;
     }
-    soundFontId = -1;
+    std::vector<std::string> paths;
+    paths.reserve(fonts.size());
+    for (const LoadedFont &font : fonts) {
+        paths.push_back(font.path);
+    }
+    const std::array<ChannelPatch, kChannels> savedChannels = channels;
+    fonts.clear();
 
     settings = new_fluid_settings();
     if (settings == nullptr) {
         return;
     }
+    fluid_settings_setint(settings, "synth.midi-channels", kChannels);
     fluid_settings_setnum(settings, "synth.sample-rate", sampleRate);
     fluid_settings_setnum(settings, "synth.gain", kGain);
     synth = new_fluid_synth(settings);
@@ -348,17 +462,36 @@ void SynthEngine::ensureSynthLocked(int32_t sampleRate) {
     }
     currentSampleRate = sampleRate;
     fluid_synth_set_gain(synth, kGain);
-    if (soundFontPath.empty()) {
-        return;
+    for (const std::string &path : paths) {
+        const int id = fluid_synth_sfload(synth, path.c_str(), 0);
+        if (id == FLUID_FAILED) {
+            __android_log_print(ANDROID_LOG_ERROR, kLogTag, "sfload after stream restart failed");
+            continue;
+        }
+        fonts.push_back(LoadedFont{path, id});
     }
-    const int id = fluid_synth_sfload(synth, soundFontPath.c_str(), 1);
-    if (id == FLUID_FAILED) {
-        __android_log_print(ANDROID_LOG_ERROR, kLogTag, "sfload after stream restart failed");
-        soundFontPath.clear();
-        return;
+    channels = savedChannels;
+    for (int channel = 0; channel < kChannels; ++channel) {
+        const ChannelPatch &patch = channels[static_cast<size_t>(channel)];
+        if (!patch.active) {
+            continue;
+        }
+        const int id = fontIdLocked(patch.path);
+        if (id < 0) {
+            channels[static_cast<size_t>(channel)].active = false;
+            continue;
+        }
+        fluid_synth_program_select(synth, channel, id, patch.bank, patch.program);
     }
-    soundFontId = id;
-    fluid_synth_program_change(synth, 0, currentProgram);
+}
+
+int SynthEngine::fontIdLocked(const std::string &path) const {
+    for (const LoadedFont &font : fonts) {
+        if (font.path == path) {
+            return font.id;
+        }
+    }
+    return -1;
 }
 
 void SynthEngine::insertEventLocked(const ScheduledEvent &event) {
@@ -394,6 +527,9 @@ bool SynthEngine::eventBefore(const ScheduledEvent &left, const ScheduledEvent &
     }
     if (left.pitch != right.pitch) {
         return left.pitch < right.pitch;
+    }
+    if (left.channel != right.channel) {
+        return left.channel < right.channel;
     }
     return left.velocity < right.velocity;
 }
