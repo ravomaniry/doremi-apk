@@ -6,6 +6,7 @@ import android.provider.OpenableColumns
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -31,6 +32,7 @@ import java.net.URLDecoder
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.coroutineContext
 
 data class InstalledSoundFont(
@@ -55,6 +57,17 @@ data class DownloadProgress(
     val checking: Boolean,
 )
 
+data class DownloadFailure(
+    val key: String,
+    val label: String,
+    val message: String,
+)
+
+data class SoundFontMessage(
+    val id: Long,
+    val text: String,
+)
+
 data class CuratedSoundFont(
     val name: String,
     val detail: String,
@@ -66,7 +79,11 @@ class SoundFontRepository(context: Context) {
     private val directory = File(appContext.filesDir, "soundfonts")
     private val partialDirectory = File(directory, ".partial")
     private val dao = DoremiDatabase.get(appContext).soundFonts()
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, _ ->
+            postMessage(appContext.getString(R.string.soundfonts_download_failed))
+        },
+    )
     private val gate = Mutex()
     private val ready = CompletableDeferred<Unit>()
     private val jobs = ConcurrentHashMap<String, Job>()
@@ -83,8 +100,13 @@ class SoundFontRepository(context: Context) {
     val catalog: LiveData<List<InstalledSoundFont>> = catalogData
     private val downloadsData = MutableLiveData<List<DownloadProgress>>(emptyList())
     val downloads: LiveData<List<DownloadProgress>> = downloadsData
-    private val messagesData = MutableLiveData<String>()
-    val messages: LiveData<String> = messagesData
+    private val failuresData = MutableLiveData<List<DownloadFailure>>(emptyList())
+    val failures: LiveData<List<DownloadFailure>> = failuresData
+    private val failureLock = Any()
+    private var failureSnapshot = emptyList<DownloadFailure>()
+    private val messagesData = MutableLiveData<SoundFontMessage>()
+    val messages: LiveData<SoundFontMessage> = messagesData
+    private val messageIds = AtomicLong()
 
     @Volatile
     private var cache: List<InstalledSoundFont> = emptyList()
@@ -161,6 +183,7 @@ class SoundFontRepository(context: Context) {
             return
         }
         if (cache.any { it.sourceUrl == key } || jobs[key]?.isActive == true) return
+        clearFailure(key)
         val call = client.newCall(Request.Builder().url(key).build())
         calls[key] = call
         val job = scope.launch {
@@ -220,12 +243,14 @@ class SoundFontRepository(context: Context) {
             } catch (error: Exception) {
                 partial.delete()
                 if (coroutineContext[Job]?.isActive == false) return@launch
-                message(
+                fail(
+                    key,
+                    displayName,
                     when (error.message) {
                         "probe failed" -> R.string.soundfonts_invalid_file
                         "not a soundfont" -> R.string.soundfonts_invalid_url
                         else -> R.string.soundfonts_download_failed
-                    }
+                    },
                 )
             } finally {
                 calls.remove(key)
@@ -245,6 +270,7 @@ class SoundFontRepository(context: Context) {
         start()
         val key = "import:${uri}"
         if (jobs[key]?.isActive == true) return
+        clearFailure(key)
         val job = scope.launch {
             val partial = File(partialDirectory, "${UUID.randomUUID()}.part")
             val label = displayName(uri) ?: "SoundFont"
@@ -281,8 +307,10 @@ class SoundFontRepository(context: Context) {
                 throw cancelled
             } catch (error: Exception) {
                 partial.delete()
-                message(
-                    if (error.message == "extension") R.string.soundfonts_invalid_url else R.string.soundfonts_import_failed
+                fail(
+                    key,
+                    label,
+                    if (error.message == "extension") R.string.soundfonts_invalid_url else R.string.soundfonts_import_failed,
                 )
             } finally {
                 clearProgress(key)
@@ -375,7 +403,32 @@ class SoundFontRepository(context: Context) {
     }
 
     private fun message(resId: Int) {
-        messagesData.postValue(appContext.getString(resId))
+        postMessage(appContext.getString(resId))
+    }
+
+    private fun postMessage(text: String) {
+        if (text.isBlank()) return
+        messagesData.postValue(SoundFontMessage(messageIds.incrementAndGet(), text))
+    }
+
+    private fun fail(key: String, label: String, resId: Int) {
+        val text = appContext.getString(resId)
+        val next = synchronized(failureLock) {
+            failureSnapshot = failureSnapshot.filterNot { it.key == key } +
+                DownloadFailure(key, label.ifBlank { "SoundFont" }, text)
+            failureSnapshot
+        }
+        failuresData.postValue(next)
+        postMessage(text)
+    }
+
+    private fun clearFailure(key: String) {
+        val next = synchronized(failureLock) {
+            if (failureSnapshot.none { it.key == key }) return
+            failureSnapshot = failureSnapshot.filterNot { it.key == key }
+            failureSnapshot
+        }
+        failuresData.postValue(next)
     }
 
     private fun ensureReady() {

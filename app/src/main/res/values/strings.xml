@@ -20,7 +20,7 @@
     <string name="soundfonts_delete">Fafana</string>
     <string name="soundfonts_use_default">Hampiasa</string>
     <string name="soundfonts_default">Ampiasaina</string>
-    <string name="soundfonts_custom">Alaina @ alalan\'ny lien:</string>
+    <string name="soundfonts_custom">Alaina @ internet:</string>
     <string name="soundfonts_custom_hint">Lien .sf2 na .sf3</string>
     <string name="soundfonts_import">Ampidirina avy ao @ findainao</string>
     <string name="soundfonts_browse">Hijery SoundFonts hafa</string>

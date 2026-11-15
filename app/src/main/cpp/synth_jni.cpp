@@ -11,21 +11,100 @@ SynthEngine *engineFrom(jlong handle) {
     return reinterpret_cast<SynthEngine *>(handle);
 }
 
+// NewStringUTF aborts the process unless every byte is modified UTF-8.
+// Keep sequences it can accept (ASCII plus valid 2- and 3-byte UTF-8) and
+// drop the rest, so a Latin-1 preset name still yields its readable letters.
+size_t modifiedUtf8Sequence(const std::string &text, size_t index) {
+    if (index >= text.size()) {
+        return 0;
+    }
+    const auto lead = static_cast<unsigned char>(text[index]);
+    if (lead == 0x00) {
+        return 0;
+    }
+    if (lead < 0x80) {
+        return 1;
+    }
+    auto continuation = [&](size_t offset) -> bool {
+        if (offset >= text.size()) {
+            return false;
+        }
+        return (static_cast<unsigned char>(text[offset]) & 0xC0) == 0x80;
+    };
+    if ((lead & 0xE0) == 0xC0) {
+        if (lead < 0xC2 || !continuation(index + 1)) {
+            return 0;
+        }
+        return 2;
+    }
+    if ((lead & 0xF0) == 0xE0) {
+        if (!continuation(index + 1) || !continuation(index + 2)) {
+            return 0;
+        }
+        const auto second = static_cast<unsigned char>(text[index + 1]);
+        if (lead == 0xE0 && second < 0xA0) {
+            return 0;
+        }
+        if (lead == 0xED && second >= 0xA0) {
+            return 0;
+        }
+        return 3;
+    }
+    return 0;
+}
+
+std::string modifiedUtf8(const std::string &text) {
+    std::string out;
+    out.reserve(text.size());
+    for (size_t index = 0; index < text.size();) {
+        const size_t length = modifiedUtf8Sequence(text, index);
+        if (length == 0) {
+            ++index;
+            continue;
+        }
+        out.append(text, index, length);
+        index += length;
+    }
+    return out;
+}
+
 jobjectArray toJavaStrings(JNIEnv *env, const std::vector<std::string> &rows) {
     jclass stringClass = env->FindClass("java/lang/String");
     if (stringClass == nullptr) {
         return nullptr;
     }
-    jobjectArray result = env->NewObjectArray(static_cast<jsize>(rows.size()), stringClass, nullptr);
+    std::vector<std::string> safe;
+    safe.reserve(rows.size());
+    for (const std::string &row : rows) {
+        safe.push_back(modifiedUtf8(row));
+    }
+    if (env->PushLocalFrame(static_cast<jint>(safe.size()) + 16) < 0) {
+        return nullptr;
+    }
+    std::vector<jstring> values;
+    values.reserve(safe.size());
+    for (const std::string &row : safe) {
+        jstring value = env->NewStringUTF(row.c_str());
+        if (value == nullptr || env->ExceptionCheck()) {
+            env->ExceptionClear();
+            if (value != nullptr) {
+                env->DeleteLocalRef(value);
+            }
+            continue;
+        }
+        values.push_back(value);
+    }
+    jobjectArray result = env->NewObjectArray(static_cast<jsize>(values.size()), stringClass, nullptr);
     if (result == nullptr) {
         return nullptr;
     }
-    for (size_t i = 0; i < rows.size(); ++i) {
-        jstring value = env->NewStringUTF(rows[i].c_str());
-        env->SetObjectArrayElement(result, static_cast<jsize>(i), value);
-        env->DeleteLocalRef(value);
+    for (size_t i = 0; i < values.size(); ++i) {
+        env->SetObjectArrayElement(result, static_cast<jsize>(i), values[i]);
+        if (env->ExceptionCheck()) {
+            return nullptr;
+        }
     }
-    return result;
+    return static_cast<jobjectArray>(env->PopLocalFrame(result));
 }
 
 }  // namespace
