@@ -1,11 +1,14 @@
 package mg.maniry.doremii.editor.partition
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import androidx.lifecycle.MutableLiveData
 import mg.maniry.doremii.DoremiApp
 import mg.maniry.doremii.editor.sfplayer.SfPlayer
 import mg.maniry.doremii.editor.sfplayer.VoicePatch
 import mg.maniry.doremii.editor.viewModels.EditorViewModel
+import java.util.concurrent.Executors
 
 data class Player constructor(
     private val mainContext: Context,
@@ -15,6 +18,20 @@ data class Player constructor(
     private val sfPlayer = SfPlayer()
     val mutedVoices = MutableLiveData(mutableListOf<Boolean>())
     val soloedVoices = MutableLiveData(mutableListOf<Boolean>())
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val worker = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "sf-player").apply { isDaemon = true }
+    }
+
+    @Volatile
+    private var generation = 0
+    private var loadEpoch = 0
+    private var pendingLoads = 0
+    private val showLoading = Runnable {
+        if (pendingLoads > 0) {
+            editorViewModel.playbackLoading.value = true
+        }
+    }
 
     init {
         sfPlayer.setOnCompletionListener {
@@ -30,21 +47,48 @@ data class Player constructor(
         val flags = audibleFlags()
         if (voice !in flags.indices || !flags[voice]) return
         val patch = songPatches().getOrNull(voice) ?: return
-        sfPlayer.playSingleNote(pitch, patch, voice)
+        val ticket = generation
+        val epoch = armLoading()
+        worker.execute {
+            if (ticket == generation) {
+                sfPlayer.playSingleNote(pitch, patch, voice)
+                if (ticket != generation) {
+                    sfPlayer.stopPlaying()
+                }
+            }
+            mainHandler.post { finishLoading(epoch) }
+        }
     }
 
 
     fun play() {
-        updateState(true)
         val notes = editorViewModel.buildNotes(audibleFlags())
-        if (!sfPlayer.play(notes, editorViewModel.partitionData.tempo, songPatches())) {
-            updateState(false)
+        val tempo = editorViewModel.partitionData.tempo
+        val patches = songPatches()
+        val ticket = ++generation
+        val epoch = armLoading()
+        worker.execute {
+            var started = false
+            if (ticket == generation) {
+                started = sfPlayer.play(notes, tempo, patches)
+                if (ticket != generation) {
+                    sfPlayer.stopPlaying()
+                    started = false
+                }
+            }
+            val playing = started
+            mainHandler.post {
+                finishLoading(epoch)
+                if (ticket == generation) updateState(playing)
+            }
         }
     }
 
     fun stop() {
+        generation++
+        cancelLoading()
         updateState(false)
-        sfPlayer.stopPlaying()
+        worker.execute { sfPlayer.stopPlaying() }
     }
 
 
@@ -58,10 +102,12 @@ data class Player constructor(
 
 
     fun release() {
-        sfPlayer.dispose()
+        generation++
+        cancelLoading()
         if (!isActive) {
             updateState(false)
         }
+        worker.execute { sfPlayer.dispose() }
     }
 
 
@@ -93,6 +139,36 @@ data class Player constructor(
 
     private fun updateState(nextState: Boolean) {
         editorViewModel.playerIsPlaying.value = nextState
+    }
+
+    private fun armLoading(): Int {
+        val wasIdle = pendingLoads == 0
+        pendingLoads++
+        if (wasIdle) {
+            mainHandler.removeCallbacks(showLoading)
+            mainHandler.postDelayed(showLoading, LOADING_DELAY_MS)
+        }
+        return loadEpoch
+    }
+
+    private fun finishLoading(epoch: Int) {
+        if (epoch != loadEpoch) return
+        pendingLoads = (pendingLoads - 1).coerceAtLeast(0)
+        if (pendingLoads == 0) {
+            mainHandler.removeCallbacks(showLoading)
+            editorViewModel.playbackLoading.value = false
+        }
+    }
+
+    private fun cancelLoading() {
+        loadEpoch++
+        pendingLoads = 0
+        mainHandler.removeCallbacks(showLoading)
+        editorViewModel.playbackLoading.value = false
+    }
+
+    private companion object {
+        const val LOADING_DELAY_MS = 300L
     }
 }
 

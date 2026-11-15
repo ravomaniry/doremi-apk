@@ -6,6 +6,8 @@ import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.widget.*
+import androidx.core.view.GravityCompat
+import androidx.drawerlayout.widget.DrawerLayout
 import mg.maniry.doremii.R
 import mg.maniry.doremii.browser.BrowserActivity
 import mg.maniry.doremii.editor.EditorActivity
@@ -52,6 +54,7 @@ class AppBarManager(
         initGroups()
         initEditorMode()
         observePlayerState()
+        observePlaybackLoading()
         observeSelectMode()
         mainView.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
             override fun onViewAttachedToWindow(v: View) = Unit
@@ -173,6 +176,23 @@ class AppBarManager(
                 playBtn.visibility = View.VISIBLE
                 stopBtn.visibility = View.GONE
             }
+        }
+    }
+
+
+    private fun observePlaybackLoading() {
+        val overlay = mainView.findViewById<View>(R.id.playback_loading)
+        val drawer = mainView.findViewById<DrawerLayout>(R.id.drawer_layout)
+        overlay.findViewById<View>(R.id.cancel_playback_loading).setOnClickListener {
+            player.stop()
+        }
+        editorViewModel.playbackLoading.observe(mainContext as EditorActivity) { loading ->
+            val busy = loading == true
+            overlay.visibility = if (busy) View.VISIBLE else View.GONE
+            drawer.setDrawerLockMode(
+                if (busy) DrawerLayout.LOCK_MODE_LOCKED_CLOSED else DrawerLayout.LOCK_MODE_UNLOCKED
+            )
+            if (busy) drawer.closeDrawer(GravityCompat.START)
         }
     }
 

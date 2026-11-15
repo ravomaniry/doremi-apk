@@ -31,6 +31,7 @@
     <string name="soundfonts_invalid_file">Tsy SoundFont azo vakiana ilay rakitra.</string>
     <string name="soundfonts_import_failed">Tsy voampiditra ilay rakitra.</string>
     <string name="soundfont_label">SoundFont</string>
+    <string name="playback_loading">Manomana ny feo …</string>
     <string name="timbre_label">Timbre</string>
     <string name="timbre_search">Hikaroka …</string>
     <string name="timbre_empty">Tsy misy timbre</string>

@@ -48,6 +48,7 @@ class EditorViewModel : ViewModel() {
     var player: Player? = null
     private var launched = false
     val playerIsPlaying = MutableLiveData<Boolean>().apply { value = false }
+    val playbackLoading = MutableLiveData<Boolean>().apply { value = false }
     private var _selectMode = SelectMode.CURSOR
     val selectMode: SelectMode get() = _selectMode
     private val _selectModeState = MutableLiveData(SelectMode.CURSOR)
