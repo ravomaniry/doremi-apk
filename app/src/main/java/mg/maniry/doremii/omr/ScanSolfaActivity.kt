@@ -6,18 +6,12 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
-import android.graphics.Typeface
 import android.media.ExifInterface
 import android.net.Uri
 import android.os.Bundle
-import android.text.SpannableString
-import android.text.Spanned
-import android.text.style.ForegroundColorSpan
 import android.view.View
 import android.widget.ArrayAdapter
-import android.widget.EditText
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.TextView
@@ -35,7 +29,6 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
-import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
@@ -56,19 +49,15 @@ class ScanSolfaActivity : AppCompatActivity() {
     private lateinit var reviewImage: ImageView
     private lateinit var signatureSpinner: Spinner
     private lateinit var keySpinner: Spinner
-    private lateinit var voiceList: LinearLayout
     private lateinit var reviewMessage: TextView
     private lateinit var captureMessage: TextView
     private lateinit var progress: ProgressBar
     private lateinit var readButton: MaterialButton
     private lateinit var confirmButton: MaterialButton
     private val signatureValues = intArrayOf(2, 3, 4, 5, 6)
-    private val editors = mutableListOf<Pair<String, EditText>>()
     private var imageCapture: ImageCapture? = null
     private var renderedGeneration = -1
     private var suppressSpinner = false
-    private var renderingReview = false
-    private var textDirty = false
     private var cameraAvailable = false
 
     private val cameraPermission = registerForActivityResult(
@@ -124,7 +113,6 @@ class ScanSolfaActivity : AppCompatActivity() {
         reviewImage = findViewById(R.id.scan_review_image)
         signatureSpinner = findViewById(R.id.scan_signature)
         keySpinner = findViewById(R.id.scan_key)
-        voiceList = findViewById(R.id.scan_voices)
         reviewMessage = findViewById(R.id.scan_review_message)
         captureMessage = findViewById(R.id.scan_capture_message)
         progress = findViewById(R.id.scan_progress)
@@ -142,7 +130,6 @@ class ScanSolfaActivity : AppCompatActivity() {
         }
         readButton.setOnClickListener { readCrop() }
         findViewById<View>(R.id.scan_retake).setOnClickListener {
-            textDirty = false
             renderedGeneration = -1
             viewModel.retake()
             stillView.setImageBitmap(null)
@@ -159,7 +146,7 @@ class ScanSolfaActivity : AppCompatActivity() {
                 position: Int,
                 id: Long,
             ) {
-                if (suppressSpinner || flipper.displayedChild != 1 || textDirty) return
+                if (suppressSpinner || flipper.displayedChild != 1) return
                 viewModel.reparse(signatureValues[position])
             }
 
@@ -179,7 +166,12 @@ class ScanSolfaActivity : AppCompatActivity() {
             findViewById<View>(R.id.scan_shutter).visibility =
                 if (phase == ScanViewModel.Phase.CAMERA && cameraAvailable) View.VISIBLE else View.GONE
             if (adjusting) stillView.setImageBitmap(viewModel.still)
-            if (reviewing) reviewImage.setImageBitmap(viewModel.crop)
+            reviewImage.setImageBitmap(if (reviewing) viewModel.preview.value ?: viewModel.crop else null)
+        }
+        viewModel.preview.observe(this) { bitmap ->
+            if (bitmap != null && viewModel.phase.value == ScanViewModel.Phase.REVIEW) {
+                reviewImage.setImageBitmap(bitmap)
+            }
         }
         viewModel.busy.observe(this) { busy ->
             progress.visibility = if (busy == true) View.VISIBLE else View.GONE
@@ -268,59 +260,22 @@ class ScanSolfaActivity : AppCompatActivity() {
 
     private fun renderReview(state: ReviewState) {
         renderedGeneration = state.generation
-        renderingReview = true
         suppressSpinner = true
         val signatureIndex = signatureValues.indexOf(state.signature).coerceAtLeast(0)
         signatureSpinner.setSelection(signatureIndex)
         keySpinner.setSelection(state.keyIndex.coerceIn(0, keySpinner.adapter.count - 1))
         suppressSpinner = false
-        textDirty = false
-        voiceList.removeAllViews()
-        editors.clear()
-        val color = ContextCompat.getColor(this, R.color.colorAccent)
-        for (voice in state.voices) {
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                val pad = (8 * resources.displayMetrics.density).toInt()
-                setPadding(0, pad, 0, pad)
-            }
-            val label = TextView(this).apply {
-                text = voice.id
-                minWidth = (36 * resources.displayMetrics.density).toInt()
-                textSize = 18f
-            }
-            val editor = EditText(this).apply {
-                setText(styled(voice.text, voice.inferred, color))
-                isSingleLine = true
-                typeface = Typeface.MONOSPACE
-                textSize = 18f
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                doAfterTextChanged { if (!renderingReview) textDirty = true }
-            }
-            row.addView(label)
-            row.addView(editor)
-            voiceList.addView(row)
-            editors.add(voice.id to editor)
-        }
         reviewMessage.text = when {
             state.empty -> getString(R.string.scan_empty)
             state.voices.any { it.inferred.isNotEmpty() } -> getString(R.string.scan_inferred)
             else -> ""
         }
-        renderingReview = false
-        textDirty = false
     }
 
     private fun confirm() {
         val signature = signatureValues.getOrElse(signatureSpinner.selectedItemPosition) { 4 }
         val key = keySpinner.selectedItemPosition.coerceAtLeast(0)
-        val voices = if (textDirty) {
-            editors.map { (id, editor) ->
-                ParsedVoice(id, PrintedSolfaFormatter.parse(editor.text.toString(), signature), emptyList())
-            }
-        } else {
-            viewModel.scoreVoices(signature, null)
-        }
+        val voices = viewModel.scoreVoices(signature, null)
         if (voices.isEmpty() || voices.all { voice -> voice.cells.all { it.isBlank() } }) {
             reviewMessage.setText(R.string.scan_empty)
             return
@@ -335,23 +290,6 @@ class ScanSolfaActivity : AppCompatActivity() {
             putExtra("fileToOpen", title)
         })
         finish()
-    }
-
-    private fun styled(text: String, inferred: List<IntRange>, color: Int): CharSequence {
-        if (inferred.isEmpty()) return text
-        val span = SpannableString(text)
-        for (range in inferred) {
-            val end = (range.last + 1).coerceAtMost(text.length)
-            if (range.first in 0 until end) {
-                span.setSpan(
-                    ForegroundColorSpan(color),
-                    range.first,
-                    end,
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
-                )
-            }
-        }
-        return span
     }
 
     private fun showCaptureMessage(text: String?) {

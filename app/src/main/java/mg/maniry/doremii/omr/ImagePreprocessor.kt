@@ -1,8 +1,10 @@
 package mg.maniry.doremii.omr
 
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Matrix
+import android.graphics.Paint
 import android.graphics.RectF
 import kotlin.math.max
 import kotlin.math.min
@@ -13,15 +15,44 @@ object ImagePreprocessor {
     fun prepare(source: Bitmap): PreparedImage {
         val gray = contrastGray(source)
         val binary = adaptiveThreshold(gray)
-        val ink = BitmapInk(binary)
+        val ink = BitmapInk(gray, binary)
         binary.recycle()
         return PreparedImage(gray, ink)
     }
 
-    fun rotate(source: Bitmap, degrees: Int): Bitmap {
-        if (degrees % 360 == 0) return source
-        val matrix = Matrix().apply { postRotate(degrees.toFloat()) }
+    fun rotate(source: Bitmap, degrees: Int): Bitmap = rotate(source, degrees.toFloat())
+
+    fun rotate(source: Bitmap, degrees: Float): Bitmap {
+        val turns = ((degrees % 360f) + 360f) % 360f
+        if (turns < 0.05f || turns > 359.95f) return source
+        val matrix = Matrix().apply { postRotate(degrees) }
         return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
+    }
+
+    fun warp(source: Bitmap, quad: PageQuad, width: Int, height: Int): Bitmap {
+        val safeWidth = width.coerceAtLeast(1)
+        val safeHeight = height.coerceAtLeast(1)
+        val matrix = Matrix()
+        val from = floatArrayOf(
+            quad.topLeft.x, quad.topLeft.y,
+            quad.topRight.x, quad.topRight.y,
+            quad.bottomRight.x, quad.bottomRight.y,
+            quad.bottomLeft.x, quad.bottomLeft.y,
+        )
+        val to = floatArrayOf(
+            0f, 0f,
+            safeWidth.toFloat(), 0f,
+            safeWidth.toFloat(), safeHeight.toFloat(),
+            0f, safeHeight.toFloat(),
+        )
+        val mapped = matrix.setPolyToPoly(from, 0, to, 0, 4)
+        val out = Bitmap.createBitmap(safeWidth, safeHeight, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(out)
+        canvas.drawColor(Color.WHITE)
+        if (mapped) {
+            canvas.drawBitmap(source, matrix, Paint(Paint.FILTER_BITMAP_FLAG))
+        }
+        return out
     }
 
     fun software(source: Bitmap): Bitmap {
@@ -125,19 +156,29 @@ object ImagePreprocessor {
     }
 }
 
-private class BitmapInk(bitmap: Bitmap) : InkImage {
-    override val width = bitmap.width
-    override val height = bitmap.height
+private class BitmapInk(gray: Bitmap, binary: Bitmap) : InkImage {
+    override val width = binary.width
+    override val height = binary.height
     private val dark: BooleanArray
+    private val levels: IntArray
 
     init {
-        val pixels = IntArray(width * height)
-        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
-        dark = BooleanArray(pixels.size) { Color.red(pixels[it]) < 128 }
+        val count = width * height
+        val mask = IntArray(count)
+        val grayPixels = IntArray(count)
+        binary.getPixels(mask, 0, width, 0, 0, width, height)
+        gray.getPixels(grayPixels, 0, width, 0, 0, width, height)
+        dark = BooleanArray(count) { Color.red(mask[it]) < 128 }
+        levels = IntArray(count) { Color.red(grayPixels[it]) }
     }
 
     override fun isDark(x: Int, y: Int): Boolean {
         if (x !in 0 until width || y !in 0 until height) return false
         return dark[y * width + x]
+    }
+
+    override fun shade(x: Int, y: Int): Int {
+        if (x !in 0 until width || y !in 0 until height) return 255
+        return levels[y * width + x]
     }
 }

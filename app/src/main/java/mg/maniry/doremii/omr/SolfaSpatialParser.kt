@@ -17,6 +17,7 @@ data class SolfaParse(
     val voices: List<ParsedVoice>,
     val keyIndex: Int?,
     val empty: Boolean,
+    val debug: ScanDebug = ScanDebug(),
 )
 
 object SolfaSpatialParser {
@@ -39,8 +40,11 @@ object SolfaSpatialParser {
         if (rows.isEmpty()) return SolfaParse(emptyList(), key, empty = true)
 
         val voices = mutableListOf<VoiceBuilder>()
+        val debugNotes = mutableListOf<DebugNoteBox>()
+        val debugWalls = mutableListOf<DebugMeasureLine>()
+        val debugBeats = mutableListOf<DebugMeasureLine>()
         for (system in groupSystems(rows)) {
-            appendSystem(voices, system.take(12), bars, sig, ink)
+            appendSystem(voices, system.take(12), bars, sig, ink, debugNotes, debugWalls, debugBeats)
         }
         if (voices.isEmpty() || voices.all { it.cells.all { cell -> cell.text.isEmpty() } }) {
             return SolfaParse(emptyList(), key, empty = true)
@@ -62,6 +66,7 @@ object SolfaSpatialParser {
             },
             keyIndex = key,
             empty = false,
+            debug = ScanDebug(debugNotes, debugWalls, debugBeats),
         )
     }
 
@@ -164,6 +169,9 @@ object SolfaSpatialParser {
         bars: List<OcrSymbol>,
         signature: Int,
         ink: InkImage?,
+        debugNotes: MutableList<DebugNoteBox>,
+        debugWalls: MutableList<DebugMeasureLine>,
+        debugBeats: MutableList<DebugMeasureLine>,
     ) {
         if (rows.isEmpty()) return
         val top = rows.minOf { row -> row.minOf { it.top } }
@@ -182,6 +190,7 @@ object SolfaSpatialParser {
         val noteXs = events.flatMap { event -> event.notes.map { it.x } }
         val walls = measureWalls(barXs, noteXs, signature)
         if (walls.size < 2) return
+        for (x in walls) debugWalls.add(DebugMeasureLine(x, top, bottom))
         val before = voices.first().cells.size
         val measureCount = walls.size - 1
         for (measure in 0 until measureCount) {
@@ -190,11 +199,22 @@ object SolfaSpatialParser {
             val last = measure == measureCount - 1
             val slices = events.map { slice(it, left, right, last) }
             val matrix = assignMeasure(slices, left, right, signature, ink)
+            slices.forEachIndexed { index, row ->
+                val voiceId = voices[index].id
+                for (note in row.notes) debugNotes.add(noteBox(note, index, voiceId, row))
+            }
             matrix.forEachIndexed { index, beats ->
                 voices[index].cells.addAll(beats)
             }
             for (index in matrix.size until voices.size) {
                 repeat(signature) { voices[index].cells.add(BeatCell("", false)) }
+            }
+            val divisionTolerance = max(6f, (right - left) / signature * 0.35f)
+            val divisionXs = slices.flatMap { row ->
+                row.cuts.filter { it.kind == CutKind.BEAT || it.kind == CutKind.PIPE }.map { it.x }
+            } + barXs.filter { it > left + divisionTolerance && it < right - divisionTolerance }
+            for (x in cluster1D(divisionXs, divisionTolerance)) {
+                debugBeats.add(DebugMeasureLine(x, top, bottom))
             }
         }
         val expected = before + measureCount * signature
@@ -208,7 +228,7 @@ object SolfaSpatialParser {
         var label: String? = null
         if (sorted.size >= 2) {
             val first = sorted.first().plain()
-            if (first.length == 1 && first[0].uppercaseChar() in voiceLetters) {
+            if (first.length == 1 && first[0] in voiceLetters) {
                 val gap = sorted[1].left - sorted[0].right
                 val median = sorted.map { it.width }.sorted()[sorted.size / 2].coerceAtLeast(8f)
                 val beforeBar = barXs.isNotEmpty() && sorted[0].centerX < barXs.min() - 1f
@@ -242,43 +262,58 @@ object SolfaSpatialParser {
             if (head in consumed) continue
             consumed.add(head)
             if (head.plain() == "-") {
-                notes.add(PlacedNote(head.centerX, head.left, head.right, "-", 0, head.uncertain))
+                notes.add(placed(head, "-", 0, head.uncertain))
                 continue
             }
             val vowel = symbols.firstOrNull { mark ->
                 mark !in consumed && isAccidentalVowel(mark.plain()) &&
+                    mark.height <= head.height * 0.72f &&
                     mark.left >= head.centerX &&
                     mark.left - head.right < head.width.coerceAtLeast(8f) &&
                     abs(mark.centerY - head.centerY) <= head.height.coerceAtLeast(8f) * 0.5f
             }
             val syllable = SolfaCellMapper.syllable(head.plain(), vowel?.plain()) ?: continue
-            if (vowel != null && syllable.length > 1) consumed.add(vowel)
+            val covered = mutableListOf(head)
+            if (vowel != null && syllable.length > 1) {
+                consumed.add(vowel)
+                covered.add(vowel)
+            }
             var octave = 0
             val marks = symbols.filter { mark ->
-                mark !in consumed && isOctaveChar(mark.plain()) && belongsTo(mark, head, heads)
+                mark !in consumed && isOctaveChar(mark.plain()) && belongsTo(mark, head, heads) &&
+                    (mark.plain() != "1" || mark.height <= head.height * 0.72f)
             }
             for (mark in marks) {
                 consumed.add(mark)
                 when (classifyMark(mark, head)) {
-                    MarkRole.UP -> octave++
-                    MarkRole.DOWN -> octave--
+                    MarkRole.UP -> {
+                        octave++
+                        covered.add(mark)
+                    }
+                    MarkRole.DOWN -> {
+                        octave--
+                        covered.add(mark)
+                    }
                     MarkRole.DOT -> cuts.add(PlacedCut(mark.centerX, CutKind.JOIN_DOT, mark.uncertain))
                     MarkRole.COMMA -> cuts.add(PlacedCut(mark.centerX, CutKind.JOIN_COMMA, mark.uncertain))
                 }
             }
             notes.add(
-                PlacedNote(
-                    x = head.centerX,
-                    left = head.left,
-                    right = head.right,
-                    syllable = syllable,
-                    octave = octave.coerceIn(-3, 3),
-                    uncertain = head.uncertain || marks.any { it.uncertain },
+                placed(
+                    head,
+                    syllable,
+                    octave.coerceIn(-3, 3),
+                    head.uncertain || marks.any { it.uncertain },
+                    covered,
                 )
             )
         }
         for (symbol in symbols) {
             if (symbol in consumed) continue
+            if (symbol.plain().equals("i", true) && !isSmallMark(symbol, heads)) {
+                cuts.add(PlacedCut(symbol.centerX, CutKind.BEAT, symbol.uncertain))
+                continue
+            }
             val kind = delimiterKind(symbol.plain()) ?: continue
             if (kind == CutKind.JOIN_DOT || kind == CutKind.JOIN_COMMA) {
                 if (notes.any { symbol.centerX in it.left..it.right }) continue
@@ -371,9 +406,25 @@ object SolfaSpatialParser {
                     }
                 when {
                     sample == GapMark.DASH -> slice.notes.add(
-                        PlacedNote(x, x, x, "-", 0, uncertain = true)
+                        PlacedNote(
+                            x = x,
+                            left = x,
+                            right = x,
+                            syllable = "-",
+                            octave = 0,
+                            uncertain = true,
+                            boxLeft = x,
+                            boxTop = slice.baseline,
+                            boxRight = x,
+                            boxBottom = slice.baseline,
+                        )
                     )
-                    nearSibling || sample == GapMark.COLON -> found.add(x)
+                    nearSibling || sample == GapMark.COLON -> {
+                        found.add(x)
+                        if (sample == GapMark.COLON) {
+                            slice.cuts.add(PlacedCut(x, CutKind.BEAT, inferred = true))
+                        }
+                    }
                     else -> slice.cuts.add(PlacedCut(x, CutKind.JOIN_DOT, inferred = true))
                 }
             }
@@ -510,19 +561,23 @@ object SolfaSpatialParser {
     }
 
     private fun clusterByGap(symbols: List<OcrSymbol>, median: Float): List<MutableList<OcrSymbol>> {
-        val threshold = median * 0.5f
+        val gap = median * 0.42f
         val rows = mutableListOf<MutableList<OcrSymbol>>()
-        var rowBottom = Float.NEGATIVE_INFINITY
-        for (symbol in symbols.sortedBy { it.top }) {
-            if (rows.isEmpty() || symbol.top - rowBottom > threshold) {
+        for (symbol in symbols.sortedBy { it.centerY }) {
+            val row = rows.lastOrNull()
+            val center = if (row == null) Float.NEGATIVE_INFINITY else bandCenter(row)
+            if (row == null || symbol.centerY - center > gap) {
                 rows.add(mutableListOf(symbol))
-                rowBottom = symbol.bottom
             } else {
-                rows.last().add(symbol)
-                rowBottom = max(rowBottom, symbol.bottom)
+                row.add(symbol)
             }
         }
         return rows
+    }
+
+    private fun bandCenter(row: List<OcrSymbol>): Float {
+        val centers = row.map { it.centerY }.sorted()
+        return centers[centers.size / 2]
     }
 
     private fun groupSystems(rows: List<List<OcrSymbol>>): List<List<List<OcrSymbol>>> {
@@ -532,7 +587,9 @@ object SolfaSpatialParser {
         val systems = mutableListOf(mutableListOf(rows.first()))
         for (index in 1 until rows.size) {
             val gap = boxes[index].top - boxes[index - 1].bottom
-            val same = gap <= median * 1.5f && horizontalOverlap(boxes[index - 1], boxes[index]) >= 0.4f
+            val overlap = horizontalOverlap(boxes[index - 1], boxes[index]) >= 0.35f
+            val open = systems.last().size < 4
+            val same = overlap && if (open) gap <= median * 1.6f else gap <= median * 0.2f
             if (same) systems.last().add(rows[index]) else systems.add(mutableListOf(rows[index]))
         }
         return systems
@@ -578,6 +635,11 @@ object SolfaSpatialParser {
         return text.equals("i", true) || text.equals("a", true)
     }
 
+    private fun isSmallMark(symbol: OcrSymbol, heads: List<OcrSymbol>): Boolean {
+        val head = heads.minByOrNull { abs(it.centerX - symbol.centerX) } ?: return false
+        return symbol.height <= head.height * 0.72f
+    }
+
     private fun isOctaveChar(text: String): Boolean {
         return text.length == 1 && text[0] in "'’′`.,1"
     }
@@ -608,8 +670,14 @@ object SolfaSpatialParser {
         val height = note.height.coerceAtLeast(1f)
         val above = mark.centerY < note.top + height * 0.35f
         val below = mark.centerY > note.bottom - height * 0.35f
-        if (text[0] in "'’′`1") {
+        if (text[0] in "'’′`") {
             return if (mark.centerY <= note.centerY) MarkRole.UP else MarkRole.DOWN
+        }
+        if (text == "1") {
+            return if (mark.centerY <= note.centerY) MarkRole.UP else MarkRole.DOWN
+        }
+        if (text == "," && mark.centerX <= note.right + height * 0.45f) {
+            return if (mark.centerY + height * 0.2f < note.centerY) MarkRole.UP else MarkRole.DOWN
         }
         if (above) return MarkRole.UP
         if (below) return MarkRole.DOWN
@@ -654,6 +722,45 @@ object SolfaSpatialParser {
         }
         return groups.map { group -> group.sorted()[group.size / 2] }
     }
+
+    private fun placed(
+        head: OcrSymbol,
+        syllable: String,
+        octave: Int,
+        uncertain: Boolean,
+        covered: List<OcrSymbol> = listOf(head),
+    ): PlacedNote {
+        return PlacedNote(
+            x = head.centerX,
+            left = head.left,
+            right = head.right,
+            syllable = syllable,
+            octave = octave,
+            uncertain = uncertain,
+            boxLeft = covered.minOf { it.left },
+            boxTop = covered.minOf { it.top },
+            boxRight = covered.maxOf { it.right },
+            boxBottom = covered.maxOf { it.bottom },
+        )
+    }
+
+    private fun noteBox(note: PlacedNote, voiceIndex: Int, voiceId: String, slice: RowSlice): DebugNoteBox {
+        val wide = note.boxRight - note.boxLeft
+        val tall = note.boxBottom - note.boxTop
+        val rowHeight = (slice.bottom - slice.top).coerceAtLeast(12f)
+        val width = if (wide > 1f) wide else rowHeight * 0.45f
+        val height = if (tall > 1f) tall else rowHeight * 0.55f
+        val centerX = if (wide > 1f) (note.boxLeft + note.boxRight) / 2f else note.x
+        val centerY = if (tall > 1f) (note.boxTop + note.boxBottom) / 2f else slice.baseline
+        return DebugNoteBox(
+            left = centerX - width / 2f,
+            top = centerY - height / 2f,
+            right = centerX + width / 2f,
+            bottom = centerY + height / 2f,
+            voiceIndex = voiceIndex,
+            voiceId = voiceId,
+        )
+    }
 }
 
 private data class BeatCell(val text: String, val inferred: Boolean)
@@ -670,6 +777,10 @@ private data class PlacedNote(
     val syllable: String,
     val octave: Int,
     val uncertain: Boolean,
+    val boxLeft: Float,
+    val boxTop: Float,
+    val boxRight: Float,
+    val boxBottom: Float,
 )
 
 private data class PlacedCut(val x: Float, val kind: CutKind, val inferred: Boolean)
