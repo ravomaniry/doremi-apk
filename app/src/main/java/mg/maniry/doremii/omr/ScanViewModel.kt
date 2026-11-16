@@ -146,7 +146,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         val activePrepared = if (active === cropped) {
             prepared
         } else {
-            recycle(prepared.ocr)
+            prepared.release()
             withContext(Dispatchers.Default) { ImagePreprocessor.prepare(active) }
         }
         val readable = ImagePreprocessor.software(active)
@@ -170,8 +170,8 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
             }
         } finally {
             if (borrowed) recycle(readable)
+            activePrepared.release()
         }
-        recycle(activePrepared.ocr)
         val previous = crop
         crop = active
         if (previous != null && previous !== active && previous !== still) recycle(previous)

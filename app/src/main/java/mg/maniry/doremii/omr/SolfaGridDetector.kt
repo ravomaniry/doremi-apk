@@ -117,7 +117,7 @@ object SolfaGridDetector {
         val voices = step6MajorityVoices(pass.sure)
         val classified = pass.unsure.map { step6ClassifyUnsure(it, voices) }
         val kept = pass.sure + classified
-        val opened = kept.map { it to openBox(it, strokes) }
+        val opened = kept.map { it to openBox(it, strokes, ink) }
         val draft = ScanDraft(
             boxes = opened.mapNotNull { it.second },
             notes = kept.flatMap { it.notes },
@@ -128,19 +128,25 @@ object SolfaGridDetector {
         return ScanResult(finished.parse, finished.signature, draft)
     }
 
-    private fun openBox(read: BoundsRead, strokes: List<VerticalStroke>): OpenBox? {
+    private fun openBox(read: BoundsRead, strokes: List<VerticalStroke>, ink: InkImage): OpenBox? {
         if (read.window.label.contains("not")) return null
         val musical = read.notes.zip(read.lineSymbols)
             .filter { (note, _) -> note.musical }
             .sortedBy { (note, _) -> note.top }
         if (musical.isEmpty()) return null
+        val left = read.window.left - inset
+        val right = read.window.right + inset
+        val top = read.window.top
+        val bottom = read.window.bottom
+        val marks = BeatMarks.detect(ink, musical.map { it.first }, strokes, left, right, top, bottom)
         return MeasureDelimiters.open(
             voices = musical.map { it.second },
             strokes = strokes,
-            left = read.window.left - inset,
-            right = read.window.right + inset,
-            top = read.window.top,
-            bottom = read.window.bottom,
+            left = left,
+            right = right,
+            top = top,
+            bottom = bottom,
+            marks = marks,
         )
     }
 
@@ -642,26 +648,10 @@ object SolfaGridDetector {
         val r = right.coerceIn(l, ink.width)
         val b = bottom.coerceIn(t, ink.height)
         if (r - l < 2 || b - t < 2) return CellInk.EMPTY
-        var minX = r
-        var maxX = l
-        var minY = b
-        var maxY = t
-        var count = 0
-        for (y in t until b) {
-            for (x in l until r) {
-                if (!ink.isDark(x, y)) continue
-                count++
-                if (x < minX) minX = x
-                if (x > maxX) maxX = x
-                if (y < minY) minY = y
-                if (y > maxY) maxY = y
-            }
-        }
-        if (count < 6) return CellInk.EMPTY
-        val width = maxX - minX + 1
-        val height = maxY - minY + 1
+        val patch = OpenCvImages.patch(ink, l, t, r, b) ?: return CellInk.EMPTY
+        if (patch.count < 6) return CellInk.EMPTY
         val cellHeight = b - t
-        if (width >= height * 3 && height <= cellHeight * 0.45f) return CellInk.DASH
+        if (patch.width >= patch.height * 3 && patch.height <= cellHeight * 0.45f) return CellInk.DASH
         return CellInk.GLYPH
     }
 
@@ -678,16 +668,7 @@ object SolfaGridDetector {
     private fun threshold(width: Int): Int = max(3, width / 80)
 
     private fun projection(ink: InkImage, mask: BooleanArray?, top: Int, bottom: Int): IntArray {
-        val counts = IntArray(ink.height)
-        for (y in top until bottom) {
-            var count = 0
-            for (x in 0 until ink.width) {
-                if (mask != null && mask[x]) continue
-                if (ink.isDark(x, y)) count++
-            }
-            counts[y] = count
-        }
-        return counts
+        return OpenCvImages.horizontalProjection(ink, top, bottom, mask)
     }
 
     private fun runs(counts: IntArray, minCount: Int): List<RawBand> {
@@ -721,28 +702,10 @@ object SolfaGridDetector {
     }
 
     private fun barMask(ink: InkImage, bands: List<RawBand>, top: Int, bottom: Int): BooleanArray {
-        val mask = BooleanArray(ink.width)
         val heights = bands.map { it.bottom - it.top }.sorted()
         val median = heights[heights.size / 2].coerceAtLeast(1)
         val limit = max(median + 6, (median * 2.4f).toInt())
-        for (x in 0 until ink.width) {
-            if (longestRun(ink, x, top, bottom) >= limit) mask[x] = true
-        }
-        return mask
-    }
-
-    private fun longestRun(ink: InkImage, x: Int, top: Int, bottom: Int): Int {
-        var best = 0
-        var run = 0
-        for (y in top until bottom) {
-            if (ink.isDark(x, y)) {
-                run++
-                if (run > best) best = run
-            } else {
-                run = 0
-            }
-        }
-        return best
+        return OpenCvImages.verticalRunColumns(ink, top, bottom, limit)
     }
 
     private fun gridRows(strokes: List<VerticalStroke>): List<List<VerticalStroke>> {
@@ -876,7 +839,9 @@ object SolfaGridDetector {
     private fun markersInBand(ink: InkImage, band: RawBand, bandIndex: Int): List<BandHit> {
         val height = band.bottom - band.top
         if (height < 4) return emptyList()
-        val blobs = components(ink, band.top, band.bottom)
+        val blobs = OpenCvImages.blobs(ink, band.top, band.bottom).map { found ->
+            Blob(found.minX, found.maxX, found.minY, found.maxY, found.count)
+        }
         val hits = mutableListOf<BandHit>()
         val dots = blobs.filter { isColonDot(it, height) }.sortedBy { it.minY }
         val used = BooleanArray(dots.size)
@@ -951,55 +916,6 @@ object SolfaGridDetector {
         val align = max(upper.width, lower.width).toFloat().coerceAtLeast(4f)
         if (abs(upper.centerX - lower.centerX) > align) return false
         return true
-    }
-
-    private fun components(ink: InkImage, top: Int, bottom: Int): List<Blob> {
-        val height = bottom - top
-        if (height <= 0 || ink.width <= 0) return emptyList()
-        val seen = BooleanArray(ink.width * height)
-        val stack = IntArray(seen.size)
-        val blobs = mutableListOf<Blob>()
-        fun slot(x: Int, y: Int) = (y - top) * ink.width + x
-        for (y in top until bottom) {
-            for (x in 0 until ink.width) {
-                val origin = slot(x, y)
-                if (seen[origin] || !ink.isDark(x, y)) continue
-                var size = 0
-                seen[origin] = true
-                stack[size++] = origin
-                val blob = Blob()
-                while (size > 0) {
-                    val packed = stack[--size]
-                    val px = packed % ink.width
-                    val py = top + packed / ink.width
-                    blob.add(px, py)
-                    size = push(ink, seen, stack, top, bottom, px - 1, py, size)
-                    size = push(ink, seen, stack, top, bottom, px + 1, py, size)
-                    size = push(ink, seen, stack, top, bottom, px, py - 1, size)
-                    size = push(ink, seen, stack, top, bottom, px, py + 1, size)
-                }
-                if (blob.count >= 3) blobs.add(blob)
-            }
-        }
-        return blobs
-    }
-
-    private fun push(
-        ink: InkImage,
-        seen: BooleanArray,
-        stack: IntArray,
-        top: Int,
-        bottom: Int,
-        x: Int,
-        y: Int,
-        size: Int,
-    ): Int {
-        if (x !in 0 until ink.width || y !in top until bottom || !ink.isDark(x, y)) return size
-        val index = (y - top) * ink.width + x
-        if (seen[index]) return size
-        seen[index] = true
-        stack[size] = index
-        return size + 1
     }
 
     private fun clusterHits(hits: List<BandHit>, tolerance: Float): List<HitColumn> {
@@ -1187,21 +1103,13 @@ private data class HitColumn(val x: Float, val kind: MarkerKind, val bands: Set<
 
 private data class SnappedEdges(val edges: List<Float>, val inferred: Set<Int>)
 
-private class Blob {
-    var minX: Int = Int.MAX_VALUE
-    var maxX: Int = 0
-    var minY: Int = Int.MAX_VALUE
-    var maxY: Int = 0
-    var count: Int = 0
-
-    fun add(x: Int, y: Int) {
-        count++
-        if (x < minX) minX = x
-        if (x > maxX) maxX = x
-        if (y < minY) minY = y
-        if (y > maxY) maxY = y
-    }
-
+private class Blob(
+    val minX: Int,
+    val maxX: Int,
+    val minY: Int,
+    val maxY: Int,
+    val count: Int,
+) {
     val width: Int get() = maxX - minX + 1
     val height: Int get() = maxY - minY + 1
     val centerX: Float get() = (minX + maxX) / 2f

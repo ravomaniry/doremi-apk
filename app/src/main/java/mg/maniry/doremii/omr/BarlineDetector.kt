@@ -1,5 +1,10 @@
 package mg.maniry.doremii.omr
 
+import org.opencv.core.Core
+import org.opencv.core.CvType
+import org.opencv.core.Mat
+import org.opencv.core.Scalar
+import org.opencv.imgproc.Imgproc
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -26,54 +31,14 @@ object BarlineDetector {
 
     fun strokes(ink: InkImage): List<VerticalStroke> {
         if (ink.width < 2 || ink.height < 4) return emptyList()
-        val done = mutableListOf<OpenRun>()
-        var active = emptyList<OpenRun>()
-        for (x in 0 until ink.width) {
-            val runs = columnRuns(ink, x)
-            val next = mutableListOf<OpenRun>()
-            val matched = BooleanArray(runs.size)
-            val pairs = mutableListOf<RunMatch>()
-            for (index in active.indices) {
-                val stroke = active[index]
-                val strokeHeight = stroke.bottom - stroke.top
-                for (runIndex in runs.indices) {
-                    val run = runs[runIndex]
-                    if (abs(run.top - stroke.top) > 2 || abs(run.bottom - stroke.bottom) > 2) continue
-                    val runHeight = run.bottom - run.top
-                    val shared = sharedRows(stroke.top, stroke.bottom, run.top, run.bottom)
-                    val shorter = min(strokeHeight, runHeight)
-                    if (shared > 0 && shared * 20 >= shorter * 17) {
-                        pairs.add(RunMatch(index, runIndex, shared))
-                    }
-                }
-            }
-            pairs.sortByDescending { it.overlap }
-            val usedStroke = BooleanArray(active.size)
-            for (pair in pairs) {
-                if (usedStroke[pair.stroke] || matched[pair.run]) continue
-                usedStroke[pair.stroke] = true
-                matched[pair.run] = true
-                val stroke = active[pair.stroke]
-                val run = runs[pair.run]
-                stroke.x1 = x
-                if (run.top < stroke.top) stroke.top = max(run.top, stroke.top - 2)
-                if (run.bottom > stroke.bottom) stroke.bottom = min(run.bottom, stroke.bottom + 2)
-                stroke.shadeSum += run.shadeSum
-                stroke.blackCount += run.count
-                next.add(stroke)
-            }
-            for (index in active.indices) {
-                if (!usedStroke[index]) done.add(active[index])
-            }
-            for (runIndex in runs.indices) {
-                if (matched[runIndex]) continue
-                val run = runs[runIndex]
-                next.add(OpenRun(x, x, run.top, run.bottom, run.shadeSum, run.count))
-            }
-            active = next
+        val mask = OpenCvImages.shadeMask(ink, black)
+        val gray = OpenCvImages.grayOf(ink)
+        try {
+            return components(mask.mat, gray.mat)
+        } finally {
+            mask.close()
+            gray.close()
         }
-        done.addAll(active)
-        return done.mapNotNull { it.toStroke() }
     }
 
     fun detect(ink: InkImage, top: Int, bottom: Int): List<Float> {
@@ -108,28 +73,61 @@ object BarlineDetector {
         }
     }
 
-    private fun columnRuns(ink: InkImage, x: Int): List<ColumnRun> {
-        val found = mutableListOf<ColumnRun>()
-        var y = 0
-        val height = ink.height
-        while (y < height) {
-            while (y < height && ink.shade(x, y) > black) y++
-            if (y >= height) break
-            val start = y
-            var shadeSum = 0
-            var count = 0
-            while (y < height && ink.shade(x, y) <= black) {
-                shadeSum += ink.shade(x, y)
-                count++
-                y++
+    private fun components(mask: Mat, gray: Mat): List<VerticalStroke> {
+        val labels = Mat()
+        val stats = Mat()
+        val centroids = Mat()
+        try {
+            val count = Imgproc.connectedComponentsWithStats(mask, labels, stats, centroids, 4, CvType.CV_32S)
+            val found = mutableListOf<VerticalStroke>()
+            for (index in 1 until count) {
+                val x = stats.get(index, Imgproc.CC_STAT_LEFT)[0].toInt()
+                val y = stats.get(index, Imgproc.CC_STAT_TOP)[0].toInt()
+                val width = stats.get(index, Imgproc.CC_STAT_WIDTH)[0].toInt()
+                val height = stats.get(index, Imgproc.CC_STAT_HEIGHT)[0].toInt()
+                val area = stats.get(index, Imgproc.CC_STAT_AREA)[0].toInt()
+                val stroke = toStroke(gray, labels, index, x, y, width, height, area) ?: continue
+                found.add(stroke)
             }
-            if (count >= 4) found.add(ColumnRun(start, y, shadeSum, count))
+            return found
+        } finally {
+            labels.release()
+            stats.release()
+            centroids.release()
         }
-        return found
     }
 
-    private fun sharedRows(top: Int, bottom: Int, otherTop: Int, otherBottom: Int): Int {
-        return min(bottom, otherBottom) - max(top, otherTop)
+    private fun toStroke(
+        gray: Mat,
+        labels: Mat,
+        index: Int,
+        x: Int,
+        y: Int,
+        width: Int,
+        height: Int,
+        area: Int,
+    ): VerticalStroke? {
+        if (height < 4 || width <= 0 || area <= 0 || height < width * 4) return null
+        val grayRoi = gray.submat(y, y + height, x, x + width)
+        val labelRoi = labels.submat(y, y + height, x, x + width)
+        val component = Mat()
+        try {
+            Core.compare(labelRoi, Scalar(index.toDouble()), component, Core.CMP_EQ)
+            val average = Core.mean(grayRoi, component).`val`[0]
+            val blackness = (1f - average.toFloat() / 255f).coerceIn(0f, 1f)
+            val continuity = (area.toFloat() / (width * height)).coerceIn(0f, 1f)
+            val slenderness = (height.toFloat() / (width * 8f)).coerceAtMost(1f)
+            return VerticalStroke(
+                x + (width - 1) / 2f,
+                y,
+                y + height,
+                blackness * continuity * slenderness,
+            )
+        } finally {
+            grayRoi.release()
+            labelRoi.release()
+            component.release()
+        }
     }
 
     private fun collapse(sorted: List<VerticalStroke>): List<VerticalStroke> {
@@ -255,26 +253,3 @@ object BarlineDetector {
         return chosen.sortedBy { it.x }
     }
 }
-
-private class OpenRun(
-    val x0: Int,
-    var x1: Int,
-    var top: Int,
-    var bottom: Int,
-    var shadeSum: Int,
-    var blackCount: Int,
-) {
-    fun toStroke(): VerticalStroke? {
-        val thickness = x1 - x0 + 1
-        val height = bottom - top
-        if (height < 4 || height < thickness * 4 || blackCount <= 0) return null
-        val blackness = (1f - shadeSum.toFloat() / (blackCount * 255f)).coerceIn(0f, 1f)
-        val continuity = (blackCount.toFloat() / (thickness * height)).coerceIn(0f, 1f)
-        val slenderness = (height.toFloat() / (thickness * 8f)).coerceAtMost(1f)
-        return VerticalStroke((x0 + x1) / 2f, top, bottom, blackness * continuity * slenderness)
-    }
-}
-
-private data class ColumnRun(val top: Int, val bottom: Int, val shadeSum: Int, val count: Int)
-
-private data class RunMatch(val stroke: Int, val run: Int, val overlap: Int)

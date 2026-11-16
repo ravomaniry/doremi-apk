@@ -648,6 +648,36 @@ class SolfaScanTest {
         }
     }
 
+    private fun beatsOf(ink: MutableInk, lines: List<DebugNoteBox>): List<DelimiterColumn> {
+        return BeatMarks.detect(
+            ink,
+            lines,
+            BarlineDetector.strokes(ink),
+            0f,
+            ink.width.toFloat(),
+            0f,
+            ink.height.toFloat(),
+        )
+    }
+
+    private fun noteLine(top: Float, bottom: Float): DebugNoteBox {
+        return DebugNoteBox(0f, top, 220f, bottom, 0, "S", musical = true)
+    }
+
+    private fun drawBorders(ink: MutableInk) {
+        vertical(ink, 2, 0, ink.height, 2)
+        vertical(ink, ink.width - 4, 0, ink.height, 2)
+    }
+
+    private fun colon(ink: MutableInk, x: Int, top: Int, bottom: Int) {
+        block(ink, x - 1, top + 2, 3, 4)
+        block(ink, x - 1, top + (bottom - top) / 2 + 1, 3, 4)
+    }
+
+    private fun containedPipe(ink: MutableInk, x: Int, top: Int, bottom: Int) {
+        vertical(ink, x - 1, top + 4, (top + 14).coerceAtMost(bottom - 2), 3)
+    }
+
     private fun vertical(ink: MutableInk, x: Int, top: Int, bottom: Int, thickness: Int) {
         for (y in top until bottom) {
             for (dx in 0 until thickness) ink.on(x + dx, y)
@@ -740,6 +770,102 @@ class SolfaScanTest {
         assertEquals(0f, split.first().left)
         assertEquals(30f, split.last().right)
         assertTrue(OcrBands.resolutionDpi(20) < OcrBands.resolutionDpi(64))
+    }
+
+    @Test
+    fun openCvBeatsNeedEveryVoiceAtTheSameX() {
+        val lines = listOf(noteLine(10f, 30f), noteLine(40f, 60f), noteLine(70f, 90f))
+        val colons = MutableInk(220, 120)
+        drawBorders(colons)
+        for (line in lines) colon(colons, 80, line.top.roundToInt(), line.bottom.roundToInt())
+        val colonBeats = beatsOf(colons, lines)
+        assertEquals(1, colonBeats.size)
+        assertEquals(DelimiterKind.BEAT, colonBeats.single().kind)
+        assertTrue(abs(colonBeats.single().x - 80f) < 4f)
+
+        val shifted = MutableInk(220, 120)
+        colon(shifted, 80, 10, 30)
+        colon(shifted, 80, 40, 60)
+        colon(shifted, 140, 70, 90)
+        assertTrue(beatsOf(shifted, lines).isEmpty())
+
+        val pipes = MutableInk(220, 120)
+        for (line in lines) containedPipe(pipes, 80, line.top.roundToInt(), line.bottom.roundToInt())
+        val pipeBeats = beatsOf(pipes, lines)
+        assertEquals(listOf(DelimiterKind.BEAT), pipeBeats.map { it.kind })
+        assertTrue(abs(pipeBeats.single().x - 80f) < 4f)
+
+        val missingPipe = MutableInk(220, 120)
+        containedPipe(missingPipe, 80, 10, 30)
+        containedPipe(missingPipe, 80, 40, 60)
+        assertTrue(beatsOf(missingPipe, lines).isEmpty())
+
+        val full = MutableInk(220, 120)
+        drawBorders(full)
+        vertical(full, 100, 0, 120, 1)
+        val fullBeats = beatsOf(full, lines)
+        assertEquals(listOf(DelimiterKind.MEASURE), fullBeats.map { it.kind })
+        assertTrue(abs(fullBeats.single().x - 100f) < 4f)
+
+        val sharedLines = listOf(noteLine(16f, 36f), noteLine(48f, 68f), noteLine(80f, 100f))
+        val shared = MutableInk(220, 130)
+        vertical(shared, 90, 12, 72, 1)
+        vertical(shared, 90, 48, 96, 1)
+        val sharedBeats = beatsOf(shared, sharedLines)
+        assertEquals(listOf(DelimiterKind.BEAT), sharedBeats.map { it.kind })
+        assertTrue(abs(sharedBeats.single().x - 90f) < 4f)
+
+        val stack = MutableInk(220, 120)
+        for (line in lines) {
+            vertical(stack, 80, line.top.roundToInt() + 3, line.bottom.roundToInt() - 3, 1)
+        }
+        assertEquals(listOf(DelimiterKind.BEAT), beatsOf(stack, lines).map { it.kind })
+
+        val broken = MutableInk(220, 120)
+        vertical(broken, 80, 13, 27, 1)
+        vertical(broken, 80, 43, 57, 1)
+        assertTrue(beatsOf(broken, lines).isEmpty())
+
+        val several = MutableInk(220, 120)
+        for (x in listOf(60, 120)) {
+            for (line in lines) colon(several, x, line.top.roundToInt(), line.bottom.roundToInt())
+        }
+        containedPipe(several, 170, 10, 30)
+        val severalBeats = beatsOf(several, lines)
+        assertEquals(2, severalBeats.size)
+        assertTrue(severalBeats.all { it.kind == DelimiterKind.BEAT })
+        assertTrue(severalBeats.none { abs(it.x - 170f) < 8f })
+
+        val voices = (0 until 3).map { index ->
+            row(20f + index * 30f, listOf(40f to "d", 160f to "r"))
+        }
+        val opened = MeasureDelimiters.open(
+            voices,
+            BarlineDetector.strokes(shared),
+            0f,
+            220f,
+            0f,
+            130f,
+            sharedBeats,
+        )
+        assertEquals(DelimiterKind.BEAT, opened.columns.single().kind)
+        assertEquals(0f, opened.markers.single().top)
+        assertEquals(130f, opened.markers.single().bottom)
+
+        val withColon = (0 until 3).map { index ->
+            row(20f + index * 30f, listOf(40f to "d", 80f to ":", 160f to "r"))
+        }
+        val merged = MeasureDelimiters.open(
+            withColon,
+            BarlineDetector.strokes(pipes),
+            0f,
+            220f,
+            0f,
+            120f,
+            pipeBeats,
+        )
+        assertEquals(1, merged.columns.size)
+        assertEquals(DelimiterKind.BEAT, merged.columns.single().kind)
     }
 }
 

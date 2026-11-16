@@ -11,7 +11,12 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-data class PreparedImage(val ocr: Bitmap, val ink: InkImage)
+data class PreparedImage(val ocr: Bitmap, val ink: InkImage) {
+    fun release() {
+        if (!ocr.isRecycled) ocr.recycle()
+        (ink as? MatInk)?.release()
+    }
+}
 
 data class OcrCanvas(
     val bitmap: Bitmap,
@@ -25,11 +30,22 @@ data class OcrCanvas(
 
 object ImagePreprocessor {
     fun prepare(source: Bitmap): PreparedImage {
-        val gray = contrastGray(source)
-        val binary = adaptiveThreshold(gray)
-        val ink = BitmapInk(gray, binary)
-        binary.recycle()
-        return PreparedImage(gray, ink)
+        val readable = software(source)
+        val gray = OpenCvImages.normalizedGray(readable)
+        if (readable !== source && !readable.isRecycled) readable.recycle()
+        val ink = try {
+            OpenCvImages.adaptiveInk(gray)
+        } catch (error: Throwable) {
+            gray.release()
+            throw error
+        }
+        return try {
+            PreparedImage(OpenCvImages.toOpaqueBitmap(gray), MatInk(gray, ink))
+        } catch (error: Throwable) {
+            gray.release()
+            ink.release()
+            throw error
+        }
     }
 
     fun rotate(source: Bitmap, degrees: Int): Bitmap = rotate(source, degrees.toFloat())
@@ -92,28 +108,38 @@ object ImagePreprocessor {
 
     fun recognitionCanvases(source: Bitmap): List<OcrCanvas> {
         if (source.width < 2 || source.height < 2) return emptyList()
-        val gray = contrastGray(source)
-        val mask = adaptiveThreshold(gray)
+        val readable = software(source)
+        val gray = OpenCvImages.normalizedGray(readable)
+        if (readable !== source && !readable.isRecycled) readable.recycle()
+        val mask = try {
+            OpenCvImages.adaptiveInk(gray)
+        } catch (error: Throwable) {
+            gray.release()
+            throw error
+        }
+        val height = gray.rows()
         val bands = try {
-            val found = OcrBands.find(horizontalInk(mask))
+            val found = OcrBands.find(OpenCvImages.rowCounts(mask))
             if (found.isEmpty()) {
-                listOf((0 until gray.height) to (gray.height < 96))
+                listOf((0 until height) to (height < 96))
             } else {
-                val expanded = OcrBands.expand(found, gray.height)
+                val expanded = OcrBands.expand(found, height)
                 val heights = expanded.map { it.last - it.first + 1 }.sorted()
                 val median = heights[heights.size / 2].coerceAtLeast(1)
                 expanded.map { band ->
-                    val height = band.last - band.first + 1
-                    band to (height <= median * 1.8)
+                    val bandHeight = band.last - band.first + 1
+                    band to (bandHeight <= median * 1.8)
                 }
             }
         } finally {
-            mask.recycle()
+            mask.release()
         }
+        val bitmap = OpenCvImages.toOpaqueBitmap(gray)
+        gray.release()
         return try {
-            bands.map { (band, singleLine) -> lineCanvas(gray, band.first, band.last + 1, singleLine) }
+            bands.map { (band, singleLine) -> lineCanvas(bitmap, band.first, band.last + 1, singleLine) }
         } finally {
-            gray.recycle()
+            bitmap.recycle()
         }
     }
 
@@ -124,82 +150,6 @@ object ImagePreprocessor {
         val width = max(1, (source.width * scale).toInt())
         val height = max(1, (source.height * scale).toInt())
         return Bitmap.createScaledBitmap(source, width, height, true)
-    }
-
-    private fun contrastGray(source: Bitmap): Bitmap {
-        val width = source.width
-        val height = source.height
-        val pixels = IntArray(width * height)
-        source.getPixels(pixels, 0, width, 0, 0, width, height)
-        var minLum = 255
-        var maxLum = 0
-        val lum = IntArray(pixels.size)
-        for (index in pixels.indices) {
-            val color = pixels[index]
-            val value = (0.299f * Color.red(color) + 0.587f * Color.green(color) + 0.114f * Color.blue(color)).toInt()
-            lum[index] = value
-            if (value < minLum) minLum = value
-            if (value > maxLum) maxLum = value
-        }
-        val span = (maxLum - minLum).coerceAtLeast(1)
-        val out = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        for (index in pixels.indices) {
-            val value = ((lum[index] - minLum) * 255 / span).coerceIn(0, 255)
-            pixels[index] = Color.rgb(value, value, value)
-        }
-        out.setPixels(pixels, 0, width, 0, 0, width, height)
-        return out
-    }
-
-    private fun adaptiveThreshold(gray: Bitmap): Bitmap {
-        val width = gray.width
-        val height = gray.height
-        val pixels = IntArray(width * height)
-        gray.getPixels(pixels, 0, width, 0, 0, width, height)
-        val integral = LongArray((width + 1) * (height + 1))
-        for (y in 0 until height) {
-            var row = 0L
-            for (x in 0 until width) {
-                row += Color.red(pixels[y * width + x])
-                val dest = (y + 1) * (width + 1) + (x + 1)
-                integral[dest] = integral[y * (width + 1) + (x + 1)] + row
-            }
-        }
-        val radius = max(8, min(width, height) / 32)
-        val binary = IntArray(pixels.size)
-        for (y in 0 until height) {
-            val y0 = max(0, y - radius)
-            val y1 = min(height - 1, y + radius)
-            for (x in 0 until width) {
-                val x0 = max(0, x - radius)
-                val x1 = min(width - 1, x + radius)
-                val area = (x1 - x0 + 1) * (y1 - y0 + 1)
-                val sum = rectSum(integral, width, x0, y0, x1, y1)
-                val mean = sum / area
-                val dark = Color.red(pixels[y * width + x]) < mean - 8
-                binary[y * width + x] = if (dark) Color.BLACK else Color.WHITE
-            }
-        }
-        val out = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        out.setPixels(binary, 0, width, 0, 0, width, height)
-        return out
-    }
-
-    private fun horizontalInk(binary: Bitmap): IntArray {
-        val width = binary.width
-        val height = binary.height
-        val pixels = IntArray(width * height)
-        binary.getPixels(pixels, 0, width, 0, 0, width, height)
-        val projection = IntArray(height)
-        for (y in 0 until height) {
-            var count = 0
-            val row = y * width
-            for (x in 0 until width) {
-                if (Color.red(pixels[row + x]) < 128) count++
-            }
-            projection[y] = count
-        }
-        return projection
     }
 
     private fun lineCanvas(gray: Bitmap, top: Int, bottom: Int, singleLine: Boolean): OcrCanvas {
@@ -220,41 +170,5 @@ object ImagePreprocessor {
             Paint(Paint.FILTER_BITMAP_FLAG),
         )
         return OcrCanvas(bitmap, scale, pad, 0, top, destHeight, singleLine)
-    }
-
-    private fun rectSum(integral: LongArray, width: Int, left: Int, top: Int, right: Int, bottom: Int): Long {
-        val stride = width + 1
-        val a = integral[top * stride + left]
-        val b = integral[top * stride + (right + 1)]
-        val c = integral[(bottom + 1) * stride + left]
-        val d = integral[(bottom + 1) * stride + (right + 1)]
-        return d - b - c + a
-    }
-}
-
-private class BitmapInk(gray: Bitmap, binary: Bitmap) : InkImage {
-    override val width = binary.width
-    override val height = binary.height
-    private val dark: BooleanArray
-    private val levels: IntArray
-
-    init {
-        val count = width * height
-        val mask = IntArray(count)
-        val grayPixels = IntArray(count)
-        binary.getPixels(mask, 0, width, 0, 0, width, height)
-        gray.getPixels(grayPixels, 0, width, 0, 0, width, height)
-        dark = BooleanArray(count) { Color.red(mask[it]) < 128 }
-        levels = IntArray(count) { Color.red(grayPixels[it]) }
-    }
-
-    override fun isDark(x: Int, y: Int): Boolean {
-        if (x !in 0 until width || y !in 0 until height) return false
-        return dark[y * width + x]
-    }
-
-    override fun shade(x: Int, y: Int): Int {
-        if (x !in 0 until width || y !in 0 until height) return 255
-        return levels[y * width + x]
     }
 }

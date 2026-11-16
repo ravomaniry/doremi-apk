@@ -10,11 +10,13 @@ object GapSampler {
         val y0 = top.coerceIn(0, ink.height)
         val y1 = bottom.coerceIn(0, ink.height)
         if (y1 - y0 < 4) return null
-        val rows = BooleanArray(y1 - y0)
-        for (i in rows.indices) {
-            val y = y0 + i
-            rows[i] = (-1..1).any { dx -> ink.isDark(x + dx, y) }
-        }
+        val rows = OpenCvImages.rowsDark(
+            ink,
+            (x - 1).coerceAtLeast(0),
+            (x + 1).coerceAtMost(ink.width - 1),
+            y0,
+            y1,
+        )
         val runs = mutableListOf<IntRange>()
         var index = 0
         while (index < rows.size) {
@@ -35,25 +37,9 @@ object GapSampler {
         val mid = y0 + (run.first + run.last) / 2
         val runHeight = (run.last - run.first + 1).coerceAtLeast(1)
         val total = y1 - y0
-        val horizontal = horizontalWidth(ink, x, mid)
+        val horizontal = OpenCvImages.rowRun(ink, x, mid)
         if (horizontal >= runHeight * 2 && runHeight <= total * 0.4f) return GapMark.DASH
         if (abs(mid - baseline) <= total * 0.35f) return GapMark.DOT
         return null
-    }
-
-    private fun horizontalWidth(ink: InkImage, x: Int, y: Int): Int {
-        if (y !in 0 until ink.height) return 0
-        var width = 0
-        var cursor = x
-        while (cursor >= 0 && ink.isDark(cursor, y)) {
-            width++
-            cursor--
-        }
-        cursor = x + 1
-        while (cursor < ink.width && ink.isDark(cursor, y)) {
-            width++
-            cursor++
-        }
-        return width
     }
 }

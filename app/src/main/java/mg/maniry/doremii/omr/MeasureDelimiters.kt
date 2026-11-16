@@ -49,6 +49,7 @@ object MeasureDelimiters {
         right: Float,
         top: Float,
         bottom: Float,
+        marks: List<DelimiterColumn> = emptyList(),
     ): OpenBox {
         val tolerance = toleranceOf(voices.flatten())
         val columns = mutableListOf<DelimiterColumn>()
@@ -75,10 +76,16 @@ object MeasureDelimiters {
         for (group in strokeGroups(strokes, tolerance, left, right, top, bottom)) {
             val xs = group.map { it.x }.sorted()
             val x = xs[xs.size / 2]
+            if (marks.any { abs(it.x - x) <= tolerance }) continue
             if (continuous(group, top, bottom)) addMarker(markerXs, x, tolerance)
             if (columns.any { abs(it.x - x) <= tolerance }) continue
             if (!measureBar(group, top, bottom, voices.size)) continue
             columns.add(DelimiterColumn(x, DelimiterKind.MEASURE))
+        }
+        for (mark in marks) {
+            if (columns.any { abs(it.x - mark.x) <= tolerance }) continue
+            columns.add(mark)
+            addMarker(markerXs, mark.x, tolerance)
         }
         return OpenBox(
             left = left,
