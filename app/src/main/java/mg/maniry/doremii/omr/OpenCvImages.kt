@@ -55,6 +55,12 @@ internal class MatInk(val gray: Mat, val ink: Mat) : InkImage {
         if (x !in 0 until width || y !in 0 until height) return 255
         return levels[y * width + x].toInt() and 0xFF
     }
+
+    fun replaceInk(bytes: ByteArray) {
+        if (released || bytes.size != width * height) return
+        if (bytes.isNotEmpty()) ink.put(0, 0, bytes)
+        for (index in bytes.indices) dark[index] = bytes[index].toInt() != 0
+    }
 }
 
 internal data class InkBlob(

@@ -156,9 +156,10 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         val result = try {
             withContext(Dispatchers.Default) {
                 val symbols = recognizeSymbols(activePrepared.ocr)
-                val lines = TextLineDetector.detect(activePrepared.ink, symbols)
-                val blocks = TextBlockDetector.detect(activePrepared.ink, lines)
-                val marks = LineMarks.find(activePrepared.ink, lines, blocks)
+                val ink = HorizontalRules.strip(activePrepared.ink, symbols)
+                val lines = TextLineDetector.detect(ink, symbols)
+                val blocks = TextBlockDetector.detect(ink, lines)
+                val marks = LineMarks.find(ink, lines, blocks)
                 val stored = ScanDraft(
                     emptyList(),
                     emptyList(),

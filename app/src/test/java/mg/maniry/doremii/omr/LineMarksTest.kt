@@ -67,6 +67,43 @@ class LineMarksTest {
         assertEquals(1, marks.count { it.kind == DebugMarkKind.BAR })
     }
 
+    @Test
+    fun colonAboveUnderlineIsKept() {
+        val ink = MarkInk(280, 80)
+        colon(ink, 70, 20)
+        underline(ink, 40, 120, 33, 2)
+        colon(ink, 180, 20)
+        underline(ink, 150, 240, 30, 2)
+        val lines = listOf(DebugLine(30f, 20f, 250f, 44f))
+        val marks = LineMarks.find(ink, lines, emptyList())
+
+        assertEquals(2, marks.count { it.kind == DebugMarkKind.COLON })
+        assertTrue(marks.none { it.kind == DebugMarkKind.PIPE || it.kind == DebugMarkKind.BAR })
+        val colons = marks.filter { it.kind == DebugMarkKind.COLON }.map { it.left }.sorted()
+        assertTrue(colons[0] in 66f..78f)
+        assertTrue(colons[1] in 176f..188f)
+    }
+
+    @Test
+    fun fatLettersAreNotBarsOrPipes() {
+        val ink = MarkInk(240, 110)
+        letterD(ink, 40, 24)
+        letterS(ink, 80, 26)
+        letterF(ink, 120, 24)
+        vertical(ink, 8, 10, 100, 2)
+        vertical(ink, 180, 36, 62, 2)
+        val lines = listOf(DebugLine(20f, 30f, 210f, 70f))
+        val marks = LineMarks.find(ink, lines, emptyList())
+
+        assertEquals(1, marks.count { it.kind == DebugMarkKind.BAR })
+        assertEquals(1, marks.count { it.kind == DebugMarkKind.PIPE })
+        assertTrue(marks.none { it.kind == DebugMarkKind.COLON })
+        val bar = marks.single { it.kind == DebugMarkKind.BAR }
+        assertTrue(bar.left < 20f)
+        val pipe = marks.single { it.kind == DebugMarkKind.PIPE }
+        assertTrue(pipe.left in 170f..190f)
+    }
+
     private fun writeLine(ink: MarkInk, left: Int, top: Int) {
         for (x in listOf(left, left + 70)) glyph(ink, x, top, 8, 12)
     }
@@ -90,6 +127,27 @@ class LineMarksTest {
         for (y in top until bottom) {
             for (dx in 0 until width) ink.on(x + dx, y)
         }
+    }
+
+    private fun underline(ink: MarkInk, left: Int, right: Int, top: Int, thickness: Int) {
+        glyph(ink, left, top, right - left, thickness)
+    }
+
+    private fun letterD(ink: MarkInk, left: Int, top: Int) {
+        glyph(ink, left, top + 12, 10, 20)
+        glyph(ink, left + 10, top, 3, 50)
+    }
+
+    private fun letterS(ink: MarkInk, left: Int, top: Int) {
+        glyph(ink, left, top, 12, 8)
+        glyph(ink, left, top + 14, 12, 8)
+        glyph(ink, left, top + 28, 12, 10)
+    }
+
+    private fun letterF(ink: MarkInk, left: Int, top: Int) {
+        glyph(ink, left + 10, top, 3, 50)
+        glyph(ink, left, top + 18, 13, 3)
+        glyph(ink, left, top + 2, 4, 8)
     }
 }
 

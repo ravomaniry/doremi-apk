@@ -33,8 +33,10 @@ object LineMarks {
         if (x1 - x0 < 2) return emptyList()
         val maxWidth = max(5, (band * 0.45f).roundToInt())
         val thickLimit = max(5, (band * 0.38f).roundToInt())
+        val hairline = max(3, (band * 0.12f).roundToInt())
         val textLeft = line.left - 3f
         val textRight = line.right + 3f
+        suppressUnderlines(bytes, width, top, bottom, band)
         val marks = mutableListOf<DebugMark>()
         var x = x0
         while (x < x1) {
@@ -47,7 +49,8 @@ object LineMarks {
             val end = x
             if (end - start > maxWidth) continue
             if (!isolated(bytes, width, start, end, top, bottom, x0, x1)) continue
-            if (thickness(bytes, width, start, end, top, bottom) > thickLimit) continue
+            val stroke = thickness(bytes, width, start, end, top, bottom)
+            if (stroke > thickLimit) continue
             val rows = BooleanArray(band) { row ->
                 rowHit(bytes, width, start, end, top + row)
             }
@@ -56,6 +59,7 @@ object LineMarks {
                 outsideDark(bytes, width, height, start, end, bottom, 1) >= 3
             val center = (start + end) / 2f
             val inText = center >= textLeft && center <= textRight
+            val slim = end - start <= hairline && stroke <= hairline
             when {
                 inText && runs.size == 2 && !leaves && colon(runs[0], runs[1], band) -> {
                     marks += DebugMark(
@@ -66,7 +70,7 @@ object LineMarks {
                         DebugMarkKind.COLON,
                     )
                 }
-                inText && !leaves && pipe(runs, band) -> {
+                inText && !leaves && slim && pipe(runs, band) -> {
                     val run = runs.maxBy { length(it) }
                     marks += DebugMark(
                         start.toFloat(),
@@ -76,7 +80,7 @@ object LineMarks {
                         DebugMarkKind.PIPE,
                     )
                 }
-                leaves && covers(rows, band) -> {
+                leaves && slim && covers(rows, band) -> {
                     val traced = trace(bytes, width, height, start, end, top, bottom)
                     marks += DebugMark(
                         start.toFloat(),
@@ -89,6 +93,134 @@ object LineMarks {
             }
         }
         return marks
+    }
+
+    private fun suppressUnderlines(bytes: ByteArray, width: Int, top: Int, bottom: Int, band: Int) {
+        val wing = max(3, (band * 0.22f).roundToInt())
+        val thin = max(3, (band * 0.22f).roundToInt())
+        val height = if (width > 0) bytes.size / width else 0
+        val strips = mutableListOf<ClearedStrip>()
+        for (run in horizontalRuns(bytes, width, height, top, bottom, wing * 2)) {
+            var y0 = run.y
+            var y1 = run.y + 1
+            while (y0 > top && rowCovers(bytes, width, height, y0 - 1, run.left, run.right)) y0--
+            while (y1 < bottom && rowCovers(bytes, width, height, y1, run.left, run.right)) y1++
+            if (y1 - y0 > thin) continue
+            if (!sticksOut(bytes, width, top, bottom, run.left, run.right, y0, y1, wing)) continue
+            strips.add(ClearedStrip(run.left, run.right, y0, y1))
+        }
+        for (strip in strips) {
+            for (y in strip.top until strip.bottom) {
+                val row = y * width
+                for (x in strip.left until strip.right) bytes[row + x] = 0
+            }
+        }
+    }
+
+    private fun sticksOut(
+        bytes: ByteArray,
+        width: Int,
+        top: Int,
+        bottom: Int,
+        left: Int,
+        right: Int,
+        y0: Int,
+        y1: Int,
+        wing: Int,
+    ): Boolean {
+        val span = right - left
+        if (span <= 0) return false
+        val support = BooleanArray(span)
+        for (y in top until bottom) {
+            if (y in y0 until y1) continue
+            for (x in left until right) {
+                if (dark(bytes, width, x, y)) support[x - left] = true
+            }
+        }
+        closeSupportGaps(support, 2)
+        var index = 0
+        while (index < support.size) {
+            if (!support[index]) {
+                index++
+                continue
+            }
+            val start = index
+            while (index < support.size && support[index]) index++
+            if (exposed(support, start, index, wing)) return true
+        }
+        return false
+    }
+
+    private fun exposed(support: BooleanArray, start: Int, end: Int, wing: Int): Boolean {
+        var left = 0
+        var index = start - 1
+        while (index >= 0 && !support[index]) {
+            left++
+            index--
+        }
+        var right = 0
+        index = end
+        while (index < support.size && !support[index]) {
+            right++
+            index++
+        }
+        return left >= wing && right >= wing
+    }
+
+    private fun closeSupportGaps(support: BooleanArray, gap: Int) {
+        var index = 0
+        while (index < support.size) {
+            if (support[index]) {
+                index++
+                continue
+            }
+            val start = index
+            while (index < support.size && !support[index]) index++
+            if (start > 0 && index < support.size && index - start <= gap) {
+                for (cursor in start until index) support[cursor] = true
+            }
+        }
+    }
+
+    private fun horizontalRuns(
+        bytes: ByteArray,
+        width: Int,
+        height: Int,
+        top: Int,
+        bottom: Int,
+        minLength: Int,
+    ): List<HorizontalRun> {
+        val found = mutableListOf<HorizontalRun>()
+        for (y in top until bottom) {
+            if (y !in 0 until height) continue
+            var x = 0
+            while (x < width) {
+                if (!dark(bytes, width, x, y)) {
+                    x++
+                    continue
+                }
+                val left = x
+                while (x < width && dark(bytes, width, x, y)) x++
+                if (x - left >= minLength) found.add(HorizontalRun(y, left, x))
+            }
+        }
+        return found
+    }
+
+    private fun rowCovers(
+        bytes: ByteArray,
+        width: Int,
+        height: Int,
+        y: Int,
+        left: Int,
+        right: Int,
+    ): Boolean {
+        if (y !in 0 until height) return false
+        val span = right - left
+        if (span <= 0) return false
+        var count = 0
+        for (x in left until right) if (dark(bytes, width, x, y)) count++
+        return count * 5 >= span * 4
     }
 
     private fun colon(upper: IntRange, lower: IntRange, band: Int): Boolean {
@@ -316,4 +448,8 @@ object LineMarks {
             view.close()
         }
     }
+
+    private data class HorizontalRun(val y: Int, val left: Int, val right: Int)
+
+    private data class ClearedStrip(val left: Int, val right: Int, val top: Int, val bottom: Int)
 }

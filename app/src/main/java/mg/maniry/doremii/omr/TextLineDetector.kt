@@ -21,8 +21,8 @@ object TextLineDetector {
 
     private fun lines(ink: Mat, symbols: List<OcrSymbol>): List<DebugLine> {
         val observed = glyphHeight(ink)
-        val measured = characterHeight(symbols)
-        val glyph = if (measured == null) observed else chosenGlyph(measured, observed)
+        val tall = OcrMetrics.tallHeight(symbols)
+        val glyph = if (tall == null) observed else chosenGlyph(tall, observed)
         val vertical = Mat()
         val text = Mat()
         val kernelHeight = max(8, (glyph * 2.5f).roundToInt())
@@ -38,30 +38,21 @@ object TextLineDetector {
             bridge(rows, max(1, glyph / 6))
             var bands = runs(rows).flatMap { splitTall(it, counts, glyph, minInk) }
             bands = mergeMarks(bands, glyph)
-            if (measured != null) {
-                bands = mergeFragments(bands, glyph)
+            if (tall != null) {
+                bands = mergeFragments(bands, glyph, counts, minInk)
                 bands = solidRows(bands, characterRows(symbols, glyph), glyph, counts)
             }
             bands = extendTips(bands, counts, glyph)
+            if (tall != null) {
+                bands = splitOnLetterGaps(bands, symbols, glyph, counts, minInk)
+                bands = fitToTallLetters(bands, symbols, glyph, tall)
+            }
             return bands.mapNotNull { bounds(text, it, glyph) }
         } finally {
             vertical.release()
             text.release()
             kernel.release()
         }
-    }
-
-    private fun characterHeight(symbols: List<OcrSymbol>): Int? {
-        val heights = symbols.mapNotNull { symbol ->
-            val text = symbol.plain()
-            val letter = text.any { it.isLetter() || it.isDigit() }
-            if (!letter || symbol.height < 4f) null else symbol.height
-        }.sorted()
-        if (heights.size < 2) return null
-        val median = heights[heights.size / 2]
-        val typical = heights.filter { it in median * 0.5f..median * 1.7f }
-        val chosen = (if (typical.isEmpty()) median else typical[typical.size / 2]).roundToInt()
-        return chosen.takeIf { it >= 4 }
     }
 
     private fun chosenGlyph(measured: Int, observed: Int): Int {
@@ -74,6 +65,12 @@ object TextLineDetector {
     }
 
     private fun characterRows(symbols: List<OcrSymbol>, glyph: Int): List<IntRange> {
+        return symbolGroups(symbols, glyph).map { group ->
+            group.minOf { it.top }.roundToInt()..group.maxOf { it.bottom }.roundToInt()
+        }
+    }
+
+    private fun symbolGroups(symbols: List<OcrSymbol>, glyph: Int): List<List<OcrSymbol>> {
         val minHeight = glyph * 0.4f
         val maxHeight = glyph * 3.2f
         val body = symbols.filter { symbol ->
@@ -87,9 +84,100 @@ object TextLineDetector {
             if (group != null && sharesLine(group, symbol)) group.add(symbol)
             else groups.add(mutableListOf(symbol))
         }
-        return groups.map { group ->
-            group.minOf { it.top }.roundToInt()..group.maxOf { it.bottom }.roundToInt()
+        return groups
+    }
+
+    private fun splitOnLetterGaps(
+        bands: List<IntRange>,
+        symbols: List<OcrSymbol>,
+        glyph: Int,
+        counts: IntArray,
+        minInk: Int,
+    ): List<IntRange> {
+        val rows = characterRows(symbols, glyph).sortedBy { it.first }
+        if (rows.size < 2 || bands.isEmpty()) return bands
+        val visibleGap = max(2, glyph / 5)
+        val produced = mutableListOf<IntRange>()
+        for (band in bands) {
+            val hits = rows.filter { row ->
+                minOf(band.last, row.last) - maxOf(band.first, row.first) + 1 > 0
+            }
+            if (hits.size < 2) {
+                produced.add(band)
+                continue
+            }
+            var cursor = band.first
+            for (index in 1 until hits.size) {
+                val upper = hits[index - 1]
+                val lower = hits[index]
+                val gapStart = upper.last + 1
+                val gapEnd = lower.first - 1
+                val gap = gapEnd - gapStart + 1
+                val splits = gap >= visibleGap && clearGap(counts, gapStart, gapEnd, minInk)
+                if (!splits) continue
+                val cut = (gapStart + gapEnd) / 2
+                if (cut <= cursor || cut >= band.last) continue
+                produced.add(cursor..cut)
+                cursor = cut + 1
+            }
+            if (cursor <= band.last) produced.add(cursor..band.last)
         }
+        return produced
+    }
+
+    private fun fitToTallLetters(
+        bands: List<IntRange>,
+        symbols: List<OcrSymbol>,
+        glyph: Int,
+        tall: Int,
+    ): List<IntRange> {
+        val groups = symbolGroups(symbols, glyph)
+        if (groups.isEmpty() || bands.isEmpty()) return bands
+        val targets = groups.map { fittedSpan(it, tall) }
+        val chosen = linkedMapOf<Int, IntRange>()
+        val loose = mutableListOf<IntRange>()
+        for (band in bands) {
+            val match = bestTarget(band, targets)
+            if (match == null) loose.add(band) else chosen[match] = targets[match]
+        }
+        val fitted = (chosen.values + loose).sortedBy { it.first }
+        return separateTips(fitted)
+    }
+
+    private fun fittedSpan(group: List<OcrSymbol>, tall: Int): IntRange {
+        val pad = 2
+        val talls = group.filter { it.height >= tall * 0.8f }
+        val top: Int
+        val bottom: Int
+        if (talls.isNotEmpty()) {
+            top = talls.minOf { it.top }.roundToInt() - pad
+            bottom = talls.maxOf { it.bottom }.roundToInt() + pad
+        } else {
+            val baseline = group.maxOf { it.bottom }.roundToInt()
+            bottom = baseline + pad
+            top = baseline - tall - pad
+        }
+        return top..bottom.coerceAtLeast(top)
+    }
+
+    private fun bestTarget(band: IntRange, targets: List<IntRange>): Int? {
+        var best = -1
+        var bestScore = 0
+        val center = (band.first + band.last) / 2
+        for (index in targets.indices) {
+            val target = targets[index]
+            val overlap = minOf(band.last, target.last) - maxOf(band.first, target.first) + 1
+            val score = when {
+                overlap > 0 -> overlap
+                center in target -> 1
+                else -> 0
+            }
+            if (score > bestScore) {
+                bestScore = score
+                best = index
+            }
+        }
+        return best.takeIf { it >= 0 }
     }
 
     private fun sharesLine(group: List<OcrSymbol>, symbol: OcrSymbol): Boolean {
@@ -101,7 +189,12 @@ object TextLineDetector {
         return shorter > 0f && overlap >= shorter * 0.45f
     }
 
-    private fun mergeFragments(bands: List<IntRange>, glyph: Int): List<IntRange> {
+    private fun mergeFragments(
+        bands: List<IntRange>,
+        glyph: Int,
+        counts: IntArray,
+        minInk: Int,
+    ): List<IntRange> {
         if (bands.size < 2) return bands
         val gapLimit = max(1, (glyph * 0.7f).roundToInt())
         val maxHeight = max(glyph + 2, (glyph * 1.55f).roundToInt())
@@ -110,13 +203,22 @@ object TextLineDetector {
             val previous = merged.last()
             val gap = band.first - previous.last - 1
             val combined = band.last - previous.first + 1
-            if (gap <= gapLimit && combined <= maxHeight) {
+            val clear = gap >= 2 && clearGap(counts, previous.last + 1, band.first - 1, minInk)
+            if (!clear && gap <= gapLimit && combined <= maxHeight) {
                 merged[merged.lastIndex] = previous.first..band.last
             } else {
                 merged.add(band)
             }
         }
         return merged
+    }
+
+    private fun clearGap(counts: IntArray, start: Int, end: Int, minInk: Int): Boolean {
+        if (end < start) return false
+        for (y in start..end) {
+            if (y in counts.indices && counts[y] >= minInk) return false
+        }
+        return true
     }
 
     private fun solidRows(

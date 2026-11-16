@@ -3,6 +3,7 @@ package mg.maniry.doremii.omr
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.abs
 
 class TextLineDetectorTest {
     @Test
@@ -119,7 +120,36 @@ class TextLineDetectorTest {
         assertTrue(lines[0].top <= 32f)
         assertTrue(lines[0].bottom >= bodyBottom.toFloat())
         assertTrue(lines[0].bottom < lines[1].top)
-        assertTrue(lines[1].top >= 110f)
+        assertClose(lines[0].bottom - lines[0].top, 32f)
+        assertClose(lines[1].bottom - lines[1].top, 32f)
+    }
+
+    @Test
+    fun longUnderlineBetweenRowsStaysTwoLines() {
+        val ink = LineInk(360, 140)
+        val xs = listOf(20, 40, 60, 90, 120, 160, 200, 240)
+        for (x in xs) {
+            block(ink, x, 40, 10, 12)
+            block(ink, x, 66, 10, 12)
+        }
+        block(ink, 16, 58, 240, 2)
+        val symbols = xs.flatMap { x ->
+            listOf(
+                OcrSymbol("d", x.toFloat(), 16f, (x + 10).toFloat(), 52f, 0.9f),
+                OcrSymbol("l", x.toFloat(), 66f, (x + 10).toFloat(), 102f, 0.9f),
+            )
+        }
+
+        assertEquals(1, TextLineDetector.detect(ink, symbols).size)
+        val cleaned = HorizontalRules.strip(ink, symbols)
+        assertTrue(!cleaned.isDark(40, 58))
+        val lines = TextLineDetector.detect(cleaned, symbols)
+        assertEquals(2, lines.size)
+        assertTrue(lines[0].bottom <= 58f)
+        assertTrue(lines[1].top >= 60f)
+        assertTrue(lines[0].bottom < lines[1].top)
+        assertClose(lines[0].bottom - lines[0].top, 36f)
+        assertClose(lines[1].bottom - lines[1].top, 36f)
     }
 
     @Test
@@ -129,6 +159,10 @@ class TextLineDetectorTest {
         val lines = TextLineDetector.detect(ink)
         assertEquals(1, lines.size)
         assertTrue(lines.single().right - lines.single().left >= 150f)
+    }
+
+    private fun assertClose(actual: Float, expected: Float) {
+        assertTrue("expected $actual within 8 of $expected", abs(actual - expected) <= 8f)
     }
 
     private fun writeSlices(ink: LineInk, tops: List<Int>) {
