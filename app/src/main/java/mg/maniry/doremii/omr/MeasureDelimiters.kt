@@ -28,6 +28,7 @@ data class ScanDraft(
     val lines: List<DebugLine> = emptyList(),
     val blocks: List<DebugBlock> = emptyList(),
     val marks: List<DebugMark> = emptyList(),
+    val beats: List<DebugMeasureLine> = emptyList(),
 )
 
 data class FinishedScan(
@@ -366,7 +367,7 @@ object MeasureDelimiters {
     private fun overlay(draft: ScanDraft): ScanDebug {
         return ScanDebug(
             notes = draft.notes.filter { it.musical },
-            beats = draft.boxes.flatMap { it.markers },
+            beats = draft.beats.ifEmpty { draft.boxes.flatMap { it.markers } },
             windows = draft.windows,
             lines = draft.lines,
             blocks = draft.blocks,

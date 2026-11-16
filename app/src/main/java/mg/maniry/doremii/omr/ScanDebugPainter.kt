@@ -15,7 +15,6 @@ object ScanDebugPainter {
             debug.beats.isEmpty() &&
             debug.glyphs.isEmpty() &&
             debug.windows.isEmpty() &&
-            debug.lines.isEmpty() &&
             debug.blocks.isEmpty() &&
             debug.marks.isEmpty()
         ) {
@@ -25,15 +24,13 @@ object ScanDebugPainter {
         val stroke = max(2f, min(copy.width, copy.height) / 220f)
         val hairline = max(1.5f, min(copy.width, copy.height) / 420f)
         val photoHeight = copy.height.toFloat()
-        val lineStroke = linePaint(hairline, 0xFF00C853.toInt())
-        for (line in debug.lines) {
-            val rect = photoRect(line.left, line.top, line.right, line.bottom, photoHeight, quarterTurn)
-            canvas.drawRect(rect.left, rect.top, rect.right, rect.bottom, lineStroke)
+        val boxStroke = linePaint(stroke, 0xFF8E24AA.toInt())
+        for (block in debug.blocks) {
+            val rect = photoRect(block.left, block.top, block.right, block.bottom, photoHeight, quarterTurn)
+            canvas.drawRect(rect.left, rect.top, rect.right, rect.bottom, boxStroke)
         }
         val measureGlow = linePaint(stroke * 5f, 0x99FF1744.toInt())
         val measureLine = linePaint(stroke * 1.4f, 0xFFFF1744.toInt())
-        val beatGlow = linePaint(stroke * 5f, 0x99FF6D00.toInt())
-        val beatLine = linePaint(stroke * 1.4f, 0xFFFF6D00.toInt())
         val noteBox = linePaint(stroke * 1.6f, 0xFF00C853.toInt())
         val textBox = linePaint(stroke * 1.6f, 0xFF1976D2.toInt())
         val rightNoteBox = linePaint(stroke * 1.6f, 0xFF00E5FF.toInt())
@@ -54,12 +51,6 @@ object ScanDebugPainter {
             val end = photoPoint(wall.x, wall.bottom, photoHeight, quarterTurn)
             canvas.drawLine(start.first, start.second, end.first, end.second, measureGlow)
             canvas.drawLine(start.first, start.second, end.first, end.second, measureLine)
-        }
-        for (beat in debug.beats) {
-            val start = photoPoint(beat.x, beat.top, photoHeight, quarterTurn)
-            val end = photoPoint(beat.x, beat.bottom, photoHeight, quarterTurn)
-            canvas.drawLine(start.first, start.second, end.first, end.second, beatGlow)
-            canvas.drawLine(start.first, start.second, end.first, end.second, beatLine)
         }
         val failedWindowBox = linePaint(stroke * 2.4f, 0xFFFF1744.toInt())
         val failedLabel = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -135,6 +126,12 @@ object ScanDebugPainter {
                 )
             }
         }
+        val beatLine = linePaint(max(2.5f, stroke * 1.7f), 0xFF2962FF.toInt())
+        for (beat in debug.beats) {
+            val start = photoPoint(beat.x, beat.top, photoHeight, quarterTurn)
+            val end = photoPoint(beat.x, beat.bottom, photoHeight, quarterTurn)
+            canvas.drawLine(start.first, start.second, end.first, end.second, beatLine)
+        }
         drawLegend(canvas, copy.width, copy.height)
         return copy
     }
@@ -142,8 +139,8 @@ object ScanDebugPainter {
     private fun drawLegend(canvas: Canvas, width: Int, height: Int) {
         if (width < 8 || height < 8) return
         val entries = listOf(
-            0xFF00C853.toInt() to "Line",
-            0xFF8E24AA.toInt() to "Box",
+            0xFF8E24AA.toInt() to "Musical box",
+            0xFF2962FF.toInt() to "Beat divider",
             0xFF1E88E5.toInt() to "Colon",
             0xFFE91E63.toInt() to "Pipe",
             0xFF6D4C41.toInt() to "Bar",

@@ -11,7 +11,7 @@ class MusicalLineClassifierTest {
         val ink = ClassInk(480, 160)
         writeLine(ink, 80, 30)
         writeLine(ink, 80, 70)
-        for (x in listOf(100, 160, 220, 280)) {
+        for (x in listOf(100, 180, 250, 320)) {
             colon(ink, x, 30)
             colon(ink, x, 70)
             pipe(ink, x + 24, 30)
@@ -27,18 +27,36 @@ class MusicalLineClassifierTest {
     }
 
     @Test
-    fun aLineWithoutBeatMarksStaysPlain() {
+    fun matchingColonsWithoutPipesKeepBothLinesMusical() {
+        val ink = ClassInk(480, 160)
+        writeLine(ink, 80, 30)
+        writeLine(ink, 80, 70)
+        for (x in listOf(100, 180, 250, 320)) {
+            colon(ink, x, 30)
+            colon(ink, x, 70)
+        }
+        vertical(ink, 12, 24, 90, 3)
+
+        val classified = classify(ink)
+
+        assertEquals(1, classified.blocks.size)
+        assertEquals(2, classified.lines.count { it.musical })
+        assertTrue(classified.lines.all { it.musical })
+    }
+
+    @Test
+    fun aLineWithoutColonsStaysPlain() {
         val ink = ClassInk(480, 220)
         writeLine(ink, 80, 30)
         writeLine(ink, 80, 70)
         writeLine(ink, 80, 120)
-        for (x in listOf(100, 160, 220, 280)) {
+        for (x in listOf(100, 180, 250, 320)) {
             colon(ink, x, 30)
             colon(ink, x, 70)
             pipe(ink, x + 24, 30)
             pipe(ink, x + 24, 70)
         }
-        vertical(ink, 12, 24, 140, 3)
+        vertical(ink, 12, 24, 150, 3)
 
         val classified = classify(ink)
 
@@ -51,22 +69,38 @@ class MusicalLineClassifierTest {
     }
 
     @Test
-    fun aLineWithHalfTheColumnsIsNotMusical() {
+    fun aLineWithTwoAlignedColonsIsMusical() {
         val ink = ClassInk(480, 220)
         writeLine(ink, 80, 30)
         writeLine(ink, 80, 70)
         writeLine(ink, 80, 120)
-        for (x in listOf(100, 160, 220, 280)) {
+        for (x in listOf(100, 180, 250, 320)) {
             colon(ink, x, 30)
             colon(ink, x, 70)
-            pipe(ink, x + 24, 30)
-            pipe(ink, x + 24, 70)
         }
         colon(ink, 100, 120)
-        colon(ink, 160, 120)
-        pipe(ink, 124, 120)
-        pipe(ink, 184, 120)
-        vertical(ink, 12, 24, 140, 3)
+        colon(ink, 180, 120)
+        vertical(ink, 12, 24, 150, 3)
+
+        val classified = classify(ink)
+
+        assertEquals(1, classified.blocks.size)
+        assertEquals(3, classified.lines.count { it.musical })
+        assertTrue(classified.lines.maxBy { it.top }.musical)
+    }
+
+    @Test
+    fun aLineWithOnlyOneAlignedColonStaysPlain() {
+        val ink = ClassInk(480, 220)
+        writeLine(ink, 80, 30)
+        writeLine(ink, 80, 70)
+        writeLine(ink, 80, 120)
+        for (x in listOf(100, 180, 250, 320)) {
+            colon(ink, x, 30)
+            colon(ink, x, 70)
+        }
+        colon(ink, 100, 120)
+        vertical(ink, 12, 24, 150, 3)
 
         val classified = classify(ink)
 
@@ -76,19 +110,20 @@ class MusicalLineClassifierTest {
     }
 
     @Test
-    fun aBoxWithNoSharedDelimitersIsDropped() {
+    fun colonsThatDoNotShareColumnsDropTheBox() {
         val ink = ClassInk(480, 160)
         writeLine(ink, 80, 30)
         writeLine(ink, 80, 70)
-        val lines = TextLineDetector.detect(ink)
-        val block = DebugBlock(
-            lines.minOf { it.left },
-            lines.minOf { it.top },
-            lines.maxOf { it.right },
-            lines.maxOf { it.bottom },
-        )
+        colon(ink, 100, 30)
+        colon(ink, 200, 30)
+        colon(ink, 180, 70)
+        colon(ink, 290, 70)
+        vertical(ink, 12, 24, 90, 3)
 
-        val classified = MusicalLineClassifier.classify(ink, lines, listOf(block))
+        val (lines, blocks, marks) = scan(ink)
+        assertTrue(blocks.isNotEmpty())
+        assertTrue(marks.count { it.kind == DebugMarkKind.COLON } >= 4)
+        val classified = MusicalLineClassifier.classify(lines, blocks, marks)
 
         assertTrue(classified.blocks.isEmpty())
         assertEquals(lines.size, classified.lines.size)
@@ -96,10 +131,10 @@ class MusicalLineClassifierTest {
     }
 
     @Test
-    fun oneLineWithColonsAndPipesIsMusical() {
+    fun oneLineWithColonsAndPipesIsDiscarded() {
         val ink = ClassInk(480, 120)
         writeLine(ink, 80, 36)
-        for (x in listOf(100, 160, 220)) {
+        for (x in listOf(100, 180, 250)) {
             colon(ink, x, 36)
             pipe(ink, x + 24, 36)
         }
@@ -107,20 +142,49 @@ class MusicalLineClassifierTest {
 
         val classified = classify(ink)
 
-        assertEquals(1, classified.blocks.size)
+        assertTrue(classified.blocks.isEmpty())
         assertEquals(1, classified.lines.size)
-        assertTrue(classified.lines.single().musical)
+        assertFalse(classified.lines.single().musical)
+    }
+
+    @Test
+    fun alignedPipesWithFewerThanTwoColonsStayPlain() {
+        val ink = ClassInk(480, 160)
+        writeLine(ink, 80, 30)
+        writeLine(ink, 80, 70)
+        colon(ink, 100, 30)
+        colon(ink, 100, 70)
+        for (x in listOf(124, 184, 244, 304)) {
+            pipe(ink, x, 30)
+            pipe(ink, x, 70)
+        }
+        vertical(ink, 12, 24, 90, 3)
+
+        val (lines, blocks, marks) = scan(ink)
+        assertTrue(blocks.isNotEmpty())
+        assertTrue(marks.count { it.kind == DebugMarkKind.PIPE } >= 2)
+        assertEquals(2, marks.count { it.kind == DebugMarkKind.COLON })
+        val classified = MusicalLineClassifier.classify(lines, blocks, marks)
+
+        assertTrue(classified.blocks.isEmpty())
+        assertTrue(classified.lines.none { it.musical })
     }
 
     private fun classify(ink: ClassInk): ClassifiedLines {
+        val (lines, blocks, marks) = scan(ink)
+        return MusicalLineClassifier.classify(lines, blocks, marks)
+    }
+
+    private fun scan(ink: ClassInk): Triple<List<DebugLine>, List<DebugBlock>, List<DebugMark>> {
         val lines = TextLineDetector.detect(ink)
         val blocks = TextBlockDetector.detect(ink, lines)
-        return MusicalLineClassifier.classify(ink, lines, blocks)
+        val marks = LineMarks.find(ink, lines, blocks)
+        return Triple(lines, blocks, marks)
     }
 
     private fun writeLine(ink: ClassInk, left: Int, top: Int) {
-        for (x in listOf(left, left + 70, left + 180, left + 250)) {
-            glyph(ink, x, top, 8, 12)
+        for (dx in listOf(0, 60, 84, 140, 200, 270, 290, 320, 340, 360)) {
+            glyph(ink, left + dx, top, 8, 10)
         }
     }
 

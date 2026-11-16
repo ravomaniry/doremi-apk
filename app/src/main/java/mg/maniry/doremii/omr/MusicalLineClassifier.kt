@@ -1,7 +1,7 @@
 package mg.maniry.doremii.omr
 
+import kotlin.math.abs
 import kotlin.math.max
-import kotlin.math.min
 
 data class ClassifiedLines(
     val lines: List<DebugLine>,
@@ -9,14 +9,22 @@ data class ClassifiedLines(
 )
 
 object MusicalLineClassifier {
-    fun classify(ink: InkImage, lines: List<DebugLine>, blocks: List<DebugBlock>): ClassifiedLines {
-        if (lines.isEmpty() || blocks.isEmpty()) return ClassifiedLines(lines, emptyList())
-        val strokes = BarlineDetector.strokes(ink)
+    fun classify(lines: List<DebugLine>, blocks: List<DebugBlock>, marks: List<DebugMark>): ClassifiedLines {
+        if (lines.isEmpty() || blocks.isEmpty()) {
+            return ClassifiedLines(plain(lines), emptyList())
+        }
+        val colons = marks.filter { it.kind == DebugMarkKind.COLON }
         val musical = BooleanArray(lines.size)
         val kept = mutableListOf<DebugBlock>()
         for (block in blocks) {
             val members = lines.indices.filter { belongs(lines[it], block) }
-            val chosen = musicalMembers(ink, lines, members, block, strokes)
+            if (members.size < 2) continue
+            val heights = members.map { lines[it].bottom - lines[it].top }.filter { it >= 1f }.sorted()
+            val typical = if (heights.isEmpty()) 12f else heights[heights.size / 2]
+            val tolerance = max(4f, typical * 0.35f)
+            val colonSets = members.map { index -> colonsOn(lines[index], colons) }
+            val counts = alignedCounts(colonSets, tolerance)
+            val chosen = members.filterIndexed { offset, _ -> counts[offset] >= 2 }
             if (chosen.isEmpty()) continue
             kept.add(block)
             for (index in chosen) musical[index] = true
@@ -27,55 +35,38 @@ object MusicalLineClassifier {
         return ClassifiedLines(classified, kept)
     }
 
+    private fun plain(lines: List<DebugLine>): List<DebugLine> {
+        return lines.map { line -> if (line.musical) line.copy(musical = false) else line }
+    }
+
     private fun belongs(line: DebugLine, block: DebugBlock): Boolean {
         val center = (line.top + line.bottom) / 2f
         return center >= block.top && center <= block.bottom
     }
 
-    private fun musicalMembers(
-        ink: InkImage,
-        lines: List<DebugLine>,
-        members: List<Int>,
-        block: DebugBlock,
-        strokes: List<VerticalStroke>,
-    ): List<Int> {
-        if (members.isEmpty()) return emptyList()
-        val heights = members.map { lines[it].bottom - lines[it].top }.filter { it >= 1f }.sorted()
-        val typical = if (heights.isEmpty()) 12f else heights[heights.size / 2]
-        val tolerance = max(4f, typical * 0.35f)
-        if (members.size == 1) {
-            val index = members[0]
-            val marks = merge(glyphXs(ink, lines[index], block), tolerance)
-            return if (marks.isNotEmpty()) listOf(index) else emptyList()
-        }
-        val markSets = members.map { index ->
-            val line = lines[index]
-            val xs = glyphXs(ink, line, block).toMutableList()
-            for (stroke in strokes) {
-                if (stroke.x < block.left || stroke.x > block.right) continue
-                if (!overlaps(stroke, line)) continue
-                xs.add(stroke.x)
+    private fun colonsOn(line: DebugLine, colons: List<DebugMark>): List<Float> {
+        return colons.mapNotNull { mark ->
+            val centerY = (mark.top + mark.bottom) / 2f
+            if (centerY < line.top || centerY > line.bottom) {
+                null
+            } else {
+                (mark.left + mark.right) / 2f
             }
-            merge(xs, tolerance)
-        }
-        val scores = columnScores(markSets, tolerance)
-        val reference = scores.maxOrNull() ?: 0
-        if (reference <= 0) return emptyList()
-        val floor = reference * 4
-        return members.filterIndexed { offset, _ ->
-            val score = scores[offset]
-            score > 0 && score * 5 >= floor
         }
     }
 
-    private fun glyphXs(ink: InkImage, line: DebugLine, block: DebugBlock): List<Float> {
-        return BeatMarks.glyphXs(ink, line.top, line.bottom, block.left, block.right)
-    }
-
-    private fun overlaps(stroke: VerticalStroke, line: DebugLine): Boolean {
-        val overlap = min(stroke.bottom.toFloat(), line.bottom) - max(stroke.top.toFloat(), line.top)
-        val height = (line.bottom - line.top).coerceAtLeast(1f)
-        return overlap >= height * 0.4f
+    private fun alignedCounts(markSets: List<List<Float>>, tolerance: Float): IntArray {
+        val merged = markSets.map { merge(it, tolerance) }
+        val counts = IntArray(merged.size)
+        for (line in merged.indices) {
+            for (x in merged[line]) {
+                val shared = merged.indices.any { other ->
+                    other != line && merged[other].any { abs(it - x) <= tolerance }
+                }
+                if (shared) counts[line]++
+            }
+        }
+        return counts
     }
 
     private fun merge(xs: List<Float>, tolerance: Float): List<Float> {
@@ -86,22 +77,5 @@ object MusicalLineClassifier {
             if (x - out.last() > tolerance) out.add(x)
         }
         return out
-    }
-
-    private fun columnScores(markSets: List<List<Float>>, tolerance: Float): IntArray {
-        val hits = markSets.flatMapIndexed { index, xs -> xs.map { index to it } }.sortedBy { it.second }
-        val scores = IntArray(markSets.size)
-        var start = 0
-        while (start < hits.size) {
-            var end = start + 1
-            while (end < hits.size && hits[end].second - hits[end - 1].second <= tolerance) end++
-            val lines = HashSet<Int>()
-            for (index in start until end) lines.add(hits[index].first)
-            if (lines.size >= 2) {
-                for (line in lines) scores[line]++
-            }
-            start = end
-        }
-        return scores
     }
 }

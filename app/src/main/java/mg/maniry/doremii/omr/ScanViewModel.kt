@@ -160,14 +160,17 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                 val lines = TextLineDetector.detect(ink, symbols)
                 val blocks = TextBlockDetector.detect(ink, lines)
                 val marks = LineMarks.find(ink, lines, blocks)
+                val classified = MusicalLineClassifier.classify(lines, blocks, marks)
+                val divided = BeatDividers.find(ink, classified.lines, classified.blocks, marks)
                 val stored = ScanDraft(
                     emptyList(),
                     emptyList(),
                     emptyList(),
                     emptyList(),
-                    lines,
-                    blocks,
+                    divided.lines,
+                    classified.blocks,
                     marks,
+                    divided.beats,
                 )
                 val finished = MeasureDelimiters.finish(stored, null)
                 ScanResult(finished.parse, finished.signature, stored)
