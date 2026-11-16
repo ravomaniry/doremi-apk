@@ -53,6 +53,3 @@
 -keep class mg.maniry.doremii.editor.sfplayer.SfPlayer {
     native <methods>;
 }
-
--keep class com.googlecode.tesseract.android.** { *; }
--keep class com.googlecode.leptonica.android.** { *; }

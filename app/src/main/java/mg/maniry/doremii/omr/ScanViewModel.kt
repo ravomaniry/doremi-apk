@@ -2,21 +2,15 @@ package mg.maniry.doremii.omr
 
 import android.app.Application
 import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Rect
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.math.abs
-import kotlin.math.roundToInt
+import mg.maniry.doremii.R
 
 data class ReviewVoice(val id: String, val text: String, val inferred: List<IntRange>)
-
-private data class WindowCrop(val bitmap: Bitmap, val left: Int, val top: Int)
 
 data class ReviewState(
     val generation: Int,
@@ -40,7 +34,6 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     var crop: Bitmap? = null
         private set
 
-    private val ocr = TesseractOcr(application)
     private var draft: ScanDraft? = null
     private var parsed: SolfaParse? = null
     private var parsedSignature = 4
@@ -85,7 +78,8 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                 review.value = toState(result.parse, shown)
                 phase.value = Phase.REVIEW
             } catch (error: Exception) {
-                captureMessage.value = error.message
+                captureMessage.value = error.message?.takeIf { it.isNotBlank() }
+                    ?: getApplication<Application>().getString(R.string.scan_failed)
             } finally {
                 busy.value = false
             }
@@ -117,7 +111,6 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
-        ocr.close()
         recycle(still)
         recycle(crop)
         recycle(annotated)
@@ -127,56 +120,14 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun read(cropped: Bitmap): ScanResult {
         quarterTurn = false
         draft = null
-        val prepared = withContext(Dispatchers.Default) { ImagePreprocessor.prepare(cropped) }
-        val plan = withContext(Dispatchers.Default) { PageRectifier.plan(prepared.ink) }
-        val turned = if (abs(plan.rotationDegrees) < 0.5f) {
-            cropped
-        } else {
-            withContext(Dispatchers.Default) { ImagePreprocessor.rotate(cropped, plan.rotationDegrees) }
+        if (!OpenCvSolfa.ensureLoaded()) {
+            throw IllegalStateException(getApplication<Application>().getString(R.string.scan_failed))
         }
-        val quad = plan.quad
-        val active = if (quad == null) {
-            turned
-        } else {
-            withContext(Dispatchers.Default) {
-                ImagePreprocessor.warp(turned, quad, plan.outputWidth, plan.outputHeight)
-            }
-        }
-        if (turned !== cropped && turned !== active) recycle(turned)
-        val activePrepared = if (active === cropped) {
-            prepared
-        } else {
-            recycle(prepared.ocr)
-            withContext(Dispatchers.Default) { ImagePreprocessor.prepare(active) }
-        }
-        val readable = ImagePreprocessor.software(active)
-        val borrowed = readable !== active
-        val result = try {
-            withContext(Dispatchers.Default) {
-                SolfaGridDetector.scan(activePrepared.ink, null) { window ->
-                    val slice = cropWindow(readable, window)
-                    if (slice == null) {
-                        emptyList()
-                    } else {
-                        try {
-                            recognizeLines(slice.bitmap).map { line ->
-                                shiftLine(line, slice.left.toFloat(), slice.top.toFloat())
-                            }
-                        } finally {
-                            recycle(slice.bitmap)
-                        }
-                    }
-                }
-            }
-        } finally {
-            if (borrowed) recycle(readable)
-        }
-        recycle(activePrepared.ocr)
+        val scan = withContext(Dispatchers.Default) { OpenCvSolfa.read(cropped) }
         val previous = crop
-        crop = active
-        if (previous != null && previous !== active && previous !== still) recycle(previous)
-        quarterTurn = false
-        return result
+        crop = scan.page
+        if (previous != null && previous !== scan.page && previous !== still) recycle(previous)
+        return scan.result
     }
 
     private suspend fun publishPreview(debug: ScanDebug) {
@@ -191,40 +142,6 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         preview.value = next
         if (previous != null && previous !== next && previous !== source) recycle(previous)
     }
-
-    private fun cropWindow(source: Bitmap, window: DebugWindow): WindowCrop? {
-        if (source.isRecycled || source.width < 2 || source.height < 2) return null
-        val left = window.left.roundToInt().coerceIn(0, source.width - 1)
-        val top = window.top.roundToInt().coerceIn(0, source.height - 1)
-        val right = window.right.roundToInt().coerceIn(left + 1, source.width)
-        val bottom = window.bottom.roundToInt().coerceIn(top + 1, source.height)
-        if (right - left < 8 || bottom - top < 8) return null
-        val bitmap = Bitmap.createBitmap(right - left, bottom - top, Bitmap.Config.ARGB_8888)
-        Canvas(bitmap).apply {
-            drawColor(Color.WHITE)
-            drawBitmap(source, Rect(left, top, right, bottom), Rect(0, 0, right - left, bottom - top), null)
-        }
-        return WindowCrop(bitmap, left, top)
-    }
-
-    private fun shiftLine(line: OcrLine, dx: Float, dy: Float): OcrLine {
-        return line.copy(
-            left = line.left + dx,
-            top = line.top + dy,
-            right = line.right + dx,
-            bottom = line.bottom + dy,
-            symbols = line.symbols.map { symbol ->
-                symbol.copy(
-                    left = symbol.left + dx,
-                    top = symbol.top + dy,
-                    right = symbol.right + dx,
-                    bottom = symbol.bottom + dy,
-                )
-            },
-        )
-    }
-
-    private fun recognizeLines(bitmap: Bitmap): List<OcrLine> = ocr.recognize(bitmap)
 
     private fun toState(parse: SolfaParse, signature: Int): ReviewState {
         generation += 1
