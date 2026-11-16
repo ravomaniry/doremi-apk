@@ -14,6 +14,10 @@ object SolfaCellMapper {
         return base.takeIf { it in syllables }
     }
 
+    internal fun extends(base: Char, vowel: Char): Boolean {
+        return "$base$vowel" in syllables
+    }
+
     fun token(note: MappedNote): String {
         if (note.syllable == "-") return "-"
         val name = note.syllable

@@ -48,6 +48,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     private var quarterTurn = false
     private var annotated: Bitmap? = null
     private var ocrEngine: GoogleVisionOcr? = null
+    private val shapes = SolfaGlyphReader()
 
     fun setStill(bitmap: Bitmap) {
         if (still != null && still !== bitmap && still?.isRecycled == false) still?.recycle()
@@ -146,36 +147,14 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun readCellText(
-        symbols: List<OcrSymbol>,
         ink: InkImage,
         source: Bitmap,
         cell: NoteCell,
     ): String {
-        val placed = textInCell(symbols, cell)
-        if (placed.isNotEmpty()) return placed
+        val shaped = shapes.read(ink, cell)
+        if (shaped.isNotEmpty()) return shaped
         if (!cellHasInk(ink, cell)) return ""
         return readCell(source, cell)
-    }
-
-    private fun textInCell(symbols: List<OcrSymbol>, cell: NoteCell): String {
-        val width = cell.right - cell.left
-        if (width < 2f) return ""
-        val margin = min(8f, width * 0.18f)
-        val hits = symbols.filter { symbol ->
-            symbol.centerX >= cell.left && symbol.centerX < cell.right &&
-                symbol.centerY >= cell.top && symbol.centerY < cell.bottom &&
-                !edgeBar(symbol, cell, margin)
-        }.sortedBy { it.centerX }
-        if (hits.isEmpty()) return ""
-        return hits.joinToString("") { it.plain() }.filter { it !in ":;|" }
-    }
-
-    private fun edgeBar(symbol: OcrSymbol, cell: NoteCell, margin: Float): Boolean {
-        val nearEdge = symbol.centerX - cell.left < margin || cell.right - symbol.centerX < margin
-        if (!nearEdge) return false
-        val text = symbol.plain()
-        if (text.isEmpty() || text.any { it !in "lI1|:;" }) return false
-        return symbol.height >= symbol.width
     }
 
     private fun cellHasInk(ink: InkImage, cell: NoteCell): Boolean {
@@ -313,7 +292,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                 val recognized = mutableListOf<String>()
                 var done = 0
                 val voices = NoteCells.read(systems) { cell ->
-                    val text = readCellText(symbols, ink, activePrepared.ocr, cell)
+                    val text = readCellText(ink, activePrepared.ocr, cell)
                     recognized += text
                     done += 1
                     report(if (total == 0) 100 else 60 + done * 40 / total)
