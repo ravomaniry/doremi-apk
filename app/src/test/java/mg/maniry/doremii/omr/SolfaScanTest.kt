@@ -191,19 +191,151 @@ class SolfaScanTest {
     }
 
     @Test
-    fun signatureSplitsBeatLinesAndDropsAWeakMeasureBorder() {
-        val beats = (0..4).map { index -> VerticalStroke(index * 10f, 0, 48, 1f) }
-        val split = BarlineDetector.classify(beats, 4)
-        assertEquals(listOf(0f, 40f), split.borders.map { it.x })
-        assertEquals(listOf(10f, 20f, 30f), split.delimiters.map { it.x })
+    fun beatMarkersAreAlignedColonsPipesAndContinuousStrokes() {
+        val voices = (0 until 4).map { index ->
+            row(20f + index * 30f, listOf(40f to "d", 120f to ":", 200f to "|", 280f to "r"))
+        }
+        val box = MeasureDelimiters.open(voices, emptyList(), 0f, 400f, 0f, 140f)
+        val xs = box.markers.map { it.x }.sorted()
+        assertEquals(2, xs.size)
+        assertTrue(abs(xs[0] - 120f) < 8f)
+        assertTrue(abs(xs[1] - 200f) < 8f)
+        assertTrue(box.markers.all { it.top == 0f && it.bottom == 140f })
 
-        val weak = listOf(
-            VerticalStroke(0f, 0, 48, 1f),
-            VerticalStroke(20f, 0, 48, 0.6f),
-            VerticalStroke(40f, 0, 48, 1f),
+        val lone = MeasureDelimiters.open(
+            listOf(
+                row(20f, listOf(80f to "l")),
+                row(60f, listOf(80f to "d", 240f to "r")),
+            ),
+            emptyList(),
+            0f,
+            400f,
+            0f,
+            90f,
         )
-        val kept = BarlineDetector.classify(weak, 4, markerXs = listOf(10f, 20f, 30f))
-        assertEquals(listOf(0f, 40f), kept.borders.map { it.x })
+        assertTrue(lone.markers.isEmpty())
+
+        val tall = MeasureDelimiters.open(
+            listOf(row(20f, listOf(40f to "d", 200f to "r"))),
+            listOf(VerticalStroke(120f, 0, 100, 1f)),
+            0f,
+            280f,
+            0f,
+            100f,
+        )
+        assertEquals(1, tall.markers.size)
+        assertTrue(abs(tall.markers.single().x - 120f) < 8f)
+        assertEquals(0f, tall.markers.single().top)
+        assertEquals(100f, tall.markers.single().bottom)
+
+        val shortVoices = (0 until 4).map { index ->
+            row(16f + index * 28f, listOf(40f to "d", 200f to "r"))
+        }
+        val short = MeasureDelimiters.open(
+            shortVoices,
+            listOf(VerticalStroke(120f, 10, 30, 1f)),
+            0f,
+            400f,
+            0f,
+            120f,
+        )
+        assertTrue(short.markers.none { abs(it.x - 120f) < 8f })
+
+        val musical = DebugNoteBox(10f, 10f, 40f, 30f, 0, "S", musical = true, label = "4/4 musical")
+        val lyric = DebugNoteBox(10f, 40f, 80f, 60f, 0, "", musical = false)
+        val window = DebugWindow(8f, 0f, 392f, 140f)
+        val shown = finish(
+            box,
+            4,
+            notes = listOf(musical, lyric),
+            glyphs = listOf(DebugGlyph("d", 10f, 10f, 20f, 30f)),
+            windows = listOf(window),
+        ).parse.debug
+        assertEquals(listOf(musical), shown.notes)
+        assertTrue(shown.measures.isEmpty())
+        assertTrue(shown.glyphs.isEmpty())
+        assertEquals(listOf(window), shown.windows)
+        assertEquals(box.markers, shown.beats)
+    }
+
+    @Test
+    fun alignedPipeLookalikesAreBeatDelimiters() {
+        val voices = (0 until 4).map { index ->
+            row(20f + index * 30f, listOf(40f to "d", 120f to "l", 200f to "r"))
+        }
+        val box = MeasureDelimiters.open(voices, emptyList(), 0f, 320f, 0f, 140f)
+        val column = box.columns.single()
+        assertEquals(DelimiterKind.BEAT, column.kind)
+        assertTrue(abs(column.x - 120f) < 8f)
+        val soprano = finish(box, 2).parse.voices[0].cells
+        assertEquals(listOf("d", "r"), soprano)
+    }
+
+    @Test
+    fun loneLIsANoteWhenTheOtherVoicesDoNotShareItsX() {
+        val box = MeasureDelimiters.open(
+            listOf(
+                row(20f, listOf(80f to "l")),
+                row(60f, listOf(80f to "d", 240f to "r")),
+            ),
+            emptyList(),
+            0f,
+            400f,
+            0f,
+            90f,
+        )
+        assertTrue(box.columns.none { abs(it.x - 80f) < 12f })
+        val cells = finish(box, 4).parse.voices[0].cells
+        assertEquals("l", cells.first { it.isNotEmpty() })
+    }
+
+    @Test
+    fun singleTallStrokeIsAMeasureAndPerVoicePipesAreBeats() {
+        val voices = (0 until 4).map { index ->
+            row(16f + index * 28f, listOf(40f to "d", 160f to "|", 280f to "r"))
+        }
+        val shorts = (0 until 4).map { index ->
+            val top = 8 + index * 28
+            VerticalStroke(160f, top, top + 16, 1f)
+        }
+        val box = MeasureDelimiters.open(
+            voices,
+            shorts + VerticalStroke(320f, 0, 120, 1f),
+            0f,
+            400f,
+            0f,
+            120f,
+        )
+        assertEquals(DelimiterKind.BEAT, box.columns.single { abs(it.x - 160f) < 8f }.kind)
+        assertEquals(DelimiterKind.MEASURE, box.columns.single { abs(it.x - 320f) < 8f }.kind)
+
+        val alone = MeasureDelimiters.open(
+            listOf(row(20f, listOf(40f to "d", 120f to "|", 200f to "r"))),
+            listOf(VerticalStroke(120f, 10, 30, 1f)),
+            0f,
+            280f,
+            0f,
+            40f,
+        )
+        assertEquals(DelimiterKind.BEAT, alone.columns.single().kind)
+
+        val six = (0 until 6).map { index ->
+            row(16f + index * 20f, listOf(40f to "d", 120f to "|"))
+        }
+        val sixStrokes = (0 until 6).map { index ->
+            val top = 8 + index * 20
+            VerticalStroke(120f, top, top + 12, 1f)
+        }
+        val many = MeasureDelimiters.open(
+            six,
+            sixStrokes + VerticalStroke(200f, 0, 130, 1f),
+            0f,
+            280f,
+            0f,
+            130f,
+        )
+        assertEquals(DelimiterKind.BEAT, many.columns.single { abs(it.x - 120f) < 6f }.kind)
+        assertEquals(DelimiterKind.MEASURE, many.columns.single { abs(it.x - 200f) < 6f }.kind)
     }
 
     @Test
@@ -341,46 +473,50 @@ class SolfaScanTest {
     }
 
     @Test
-    fun gridFindsVoicesWallsAndColonPipeColumns() {
-        val ink = voiceStack(4)
-        val grid = SolfaGridDetector.detect(ink, 4)
-        val system = grid.systems.single()
-        assertEquals(4, system.bands.size)
-        assertEquals(2, system.tallLines.size)
-        assertEquals(3, system.markers.size)
-        val pipe = system.markers.single { it.kind == MarkerKind.PIPE }
-        assertTrue(abs(pipe.x - 212f) < 8f)
-        assertTrue(system.markers.none { abs(it.x - 66f) < 12f })
-        val layout = grid.layout(ink, 4)
-        assertEquals(4, layout.voices.size)
-        val soprano = layout.voices[0]
-        assertEquals(4, soprano.size)
-        assertTrue(soprano[0].right < 118)
-        assertTrue(soprano[1].left > 118)
-        assertEquals(2, layout.debug.measures.size)
-        assertEquals(3, layout.debug.beats.size)
-        assertTrue(layout.debug.beats.all { it.top <= system.top + 1 && it.bottom >= system.bottom - 1 })
-        assertTrue(layout.debug.measures.all { it.top <= system.top + 1 && it.bottom >= system.bottom - 1 })
+    fun majoritySplitsALongSpanFillsAShortOneAndMergesHalves() {
+        val fours = List(2) { index ->
+            val origin = index * 1000f
+            colonMeasure(origin, 400f, listOf(50f to "d", 150f to "r", 250f to "m", 350f to "f"), listOf(100f, 200f, 300f))
+        }
+        val longNotes = (0 until 8).map { beat -> (50f + beat * 100f) to "d" }
+        val longCuts = (1 until 8).map { it * 100f }
+        val longBox = colonMeasure(0f, 800f, longNotes, longCuts)
+        val shortBox = colonMeasure(0f, 400f, listOf(40f to "s", 280f to "t"), listOf(200f))
+        val finished = MeasureDelimiters.finish(ScanDraft(fours + longBox + shortBox, emptyList(), emptyList(), emptyList()), null)
+        assertEquals(4, finished.signature)
+        val soprano = finished.parse.voices[0]
+        assertEquals(20, soprano.cells.size)
+        assertEquals(listOf("d", "r", "m", "f", "d", "r", "m", "f"), soprano.cells.take(8))
+        assertEquals(List(8) { "d" }, soprano.cells.subList(8, 16))
+        assertEquals(listOf("s", "", "t", ""), soprano.cells.takeLast(4))
+        assertEquals(listOf(16, 18), soprano.inferredBeats)
+        assertTrue((0..15).none { it in soprano.inferredBeats })
+
+        val halves = MeasureDelimiters.open(
+            listOf(0f, 40f).map { y ->
+                row(
+                    y + 20f,
+                    listOf(50f to "d", 100f to ":", 150f to "r", 250f to "m", 300f to ":", 350f to "f"),
+                )
+            },
+            listOf(VerticalStroke(200f, 0, 80, 1f)),
+            0f,
+            400f,
+            0f,
+            80f,
+        )
+        assertEquals(DelimiterKind.MEASURE, halves.columns.single { abs(it.x - 200f) < 4f }.kind)
+        val merged = MeasureDelimiters.finish(
+            ScanDraft(fours + halves, emptyList(), emptyList(), emptyList()),
+            null,
+        )
+        assertEquals(4, merged.signature)
+        assertEquals(listOf("d", "r", "m", "f"), merged.parse.voices[0].cells.takeLast(4))
+        assertTrue(merged.parse.voices[0].inferredBeats.none { it >= 8 })
     }
 
     @Test
-    fun blankAndUnreadableCellsStayOnTheirBeat() {
-        val ink = beatInk()
-        val layout = SolfaGridDetector.detect(ink, 4).layout(ink, 4)
-        val cells = layout.voices.single()
-        assertEquals(4, cells.size)
-        assertEquals(CellInk.EMPTY, cells[0].ink)
-        assertEquals(CellInk.GLYPH, cells[1].ink)
-        assertEquals(CellInk.DASH, cells[2].ink)
-        assertEquals(CellInk.GLYPH, cells[3].ink)
-        val readings = mutableMapOf<CellKey, String>()
-        for (cell in cells) {
-            if (cell.ink != CellInk.GLYPH) continue
-            val raw = if (cell.left < 200) "xyz" else "d"
-            readings[cell.key] = SolfaCellMapper.fromOcrText(raw)
-        }
-        val parsed = GridScore.fromLayout(layout, readings, emptyMap())
-        assertEquals(listOf("", "", "-", "d"), parsed.voices.single().cells)
+    fun ocrTextMapsToSolfaCells() {
         assertEquals("", SolfaCellMapper.fromOcrText("hello"))
         assertEquals("-", SolfaCellMapper.fromOcrText("-"))
         assertEquals("d", SolfaCellMapper.fromOcrText("d"))
@@ -390,34 +526,6 @@ class SolfaScanTest {
         assertEquals("d.r", SolfaCellMapper.fromOcrText("d.r"))
         assertEquals("d,r", SolfaCellMapper.fromOcrText("d,r"))
         assertEquals("l", SolfaCellMapper.fromOcrText("l"))
-    }
-
-    @Test
-    fun gridWorksForOneVoiceAndSixVoices() {
-        for (voices in listOf(1, 6)) {
-            val ink = voiceStack(voices)
-            val grid = SolfaGridDetector.detect(ink, 4)
-            assertEquals(voices, grid.systems.single().bands.size)
-            assertEquals(3, grid.systems.single().markers.size)
-            assertEquals(voices, grid.layout(ink, 4).voices.size)
-        }
-    }
-
-    @Test
-    fun lyricBandWithoutSharedColumnsIsDropped() {
-        val ink = voiceStack(4, lyric = true)
-        val grid = SolfaGridDetector.detect(ink, 4)
-        assertEquals(4, grid.systems.single().bands.size)
-        assertEquals(4, grid.layout(ink, 4).voices.size)
-    }
-
-    @Test
-    fun denseTallStrokesKeepEverySignatureAsAWall() {
-        val ink = voiceStack(4, beatWalls = true)
-        val layout = SolfaGridDetector.detect(ink, 4).layout(ink, 4)
-        assertEquals(2, layout.debug.measures.size)
-        assertEquals(3, layout.debug.beats.size)
-        assertEquals(4, layout.voices[0].size)
     }
 
     @Test
@@ -504,58 +612,34 @@ class SolfaScanTest {
         vertical(ink, 400, top, bottom, 2)
     }
 
-    private fun voiceStack(voices: Int, lyric: Boolean = false, beatWalls: Boolean = false): MutableInk {
-        val voiceTop = 40
-        val voiceHeight = 18
-        val pitch = 34
-        val rows = voices + if (lyric) 1 else 0
-        val ink = MutableInk(430, voiceTop + rows * pitch + 24)
-        for (voice in 0 until rows) {
-            val top = voiceTop + voice * pitch
-            val bottom = top + voiceHeight
-            val isLyric = lyric && voice == voices
-            if (!isLyric && !beatWalls) {
-                colon(ink, 118, top, bottom)
-                colon(ink, 306, top, bottom)
-                vertical(ink, 212, top + 1, bottom - 1, 2)
-            }
-            if (isLyric) {
-                block(ink, 70, top + 2, 16, voiceHeight - 4)
-                block(ink, 180, top + 2, 16, voiceHeight - 4)
-                block(ink, 280, top + 2, 16, voiceHeight - 4)
-            } else {
-                block(ink, 340, top + 2, 10, voiceHeight - 4)
-                if (voice == 0) block(ink, 62, top + 2, 9, voiceHeight - 4)
-            }
+    private fun finish(
+        box: OpenBox,
+        signature: Int?,
+        notes: List<DebugNoteBox> = emptyList(),
+        glyphs: List<DebugGlyph> = emptyList(),
+        windows: List<DebugWindow> = emptyList(),
+    ): FinishedScan {
+        return MeasureDelimiters.finish(ScanDraft(listOf(box), notes, glyphs, windows), signature)
+    }
+
+    private fun colonMeasure(
+        left: Float,
+        width: Float,
+        notes: List<Pair<Float, String>>,
+        cuts: List<Float>,
+    ): OpenBox {
+        val voices = listOf(0f, 40f).map { y ->
+            val glyphs = notes.map { (x, name) -> (left + x) to name } + cuts.map { left + it to ":" }
+            row(y + 20f, glyphs)
         }
-        val lineTop = voiceTop - 4
-        val lineBottom = voiceTop + voices * pitch - pitch + voiceHeight + 4
-        val xs = if (beatWalls) listOf(24, 118, 212, 306, 400) else listOf(24, 400)
-        for (x in xs) vertical(ink, x, lineTop, lineBottom, 2)
-        return ink
+        return MeasureDelimiters.open(voices, emptyList(), left, left + width, 0f, 80f)
     }
 
-    private fun beatInk(): MutableInk {
-        val ink = MutableInk(360, 90)
-        val top = 36
-        val bottom = 56
-        vertical(ink, 16, 30, 64, 2)
-        vertical(ink, 336, 30, 64, 2)
-        vertical(ink, 96, top, bottom, 2)
-        vertical(ink, 176, top, bottom, 2)
-        vertical(ink, 256, top, bottom, 2)
-        block(ink, 128, top + 1, 12, 16)
-        for (x in 196..236) ink.on(x, top + 10)
-        block(ink, 286, top + 1, 12, 16)
-        return ink
-    }
-
-    private fun colon(ink: MutableInk, x: Int, top: Int, bottom: Int) {
-        val height = bottom - top
-        val blob = max(4, height / 5)
-        val gap = max(3, height / 5)
-        block(ink, x - 2, top + 2, 5, blob)
-        block(ink, x - 2, top + 2 + blob + gap, 5, blob)
+    private fun row(y: Float, items: List<Pair<Float, String>>): List<OcrSymbol> {
+        return items.map { (x, text) ->
+            val width = if (text.length == 1 && text[0] in ":|lI1;") 8f else 18f
+            sym(text, x, y, w = width)
+        }
     }
 
     private fun block(ink: MutableInk, left: Int, top: Int, width: Int, height: Int) {
@@ -618,6 +702,45 @@ class SolfaScanTest {
 
     private fun bar(x: Float, top: Float = 0f, bottom: Float = 90f) =
         OcrSymbol("|", x - 2f, top, x + 2f, bottom)
+
+    @Test
+    fun textRowsStaySplitWhenABarlineCrossesTheGap() {
+        val projection = IntArray(80) { 4 }
+        for (y in 12..28) projection[y] = 60
+        for (y in 48..64) projection[y] = 55
+        val bands = OcrBands.find(projection)
+        assertEquals(2, bands.size)
+        assertEquals(12, bands[0].first)
+        assertEquals(28, bands[0].last)
+        assertEquals(48, bands[1].first)
+    }
+
+    @Test
+    fun octaveMarksJoinTheNoteLineBeneathThem() {
+        val projection = IntArray(40) { 2 }
+        for (y in 8..10) projection[y] = 14
+        for (y in 13..28) projection[y] = 50
+        val bands = OcrBands.find(projection)
+        assertEquals(listOf(8..28), bands)
+    }
+
+    @Test
+    fun aDashLineStaysSeparateFromTheVoiceBelow() {
+        val projection = IntArray(50) { 2 }
+        for (y in 8..12) projection[y] = 20
+        for (y in 24..40) projection[y] = 50
+        assertEquals(2, OcrBands.find(projection).size)
+    }
+
+    @Test
+    fun recognizedGlyphsKeepSolfaMarksAndSplitRuns() {
+        assertEquals("d:r|m'", OcrGlyphs.accept("d ： r │ m\u2032 c"))
+        val split = OcrGlyphs.split(OcrSymbol("d:r", 0f, 0f, 30f, 10f))
+        assertEquals(listOf("d", ":", "r"), split.map { it.text })
+        assertEquals(0f, split.first().left)
+        assertEquals(30f, split.last().right)
+        assertTrue(OcrBands.resolutionDpi(20) < OcrBands.resolutionDpi(64))
+    }
 }
 
 private class MutableInk(override val width: Int, override val height: Int) : InkImage {

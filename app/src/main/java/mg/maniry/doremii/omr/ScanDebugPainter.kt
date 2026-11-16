@@ -23,8 +23,8 @@ object ScanDebugPainter {
         val photoHeight = copy.height.toFloat()
         val measureGlow = linePaint(stroke * 5f, 0x99FF1744.toInt())
         val measureLine = linePaint(stroke * 1.4f, 0xFFFF1744.toInt())
-        val beatGlow = linePaint(stroke * 5f, 0x9900C853.toInt())
-        val beatLine = linePaint(stroke * 1.4f, 0xFF00C853.toInt())
+        val beatGlow = linePaint(stroke * 5f, 0x99FF6D00.toInt())
+        val beatLine = linePaint(stroke * 1.4f, 0xFFFF6D00.toInt())
         val noteBox = linePaint(stroke * 1.6f, 0xFF00C853.toInt())
         val textBox = linePaint(stroke * 1.6f, 0xFF1976D2.toInt())
         val rightNoteBox = linePaint(stroke * 1.6f, 0xFF00E5FF.toInt())
@@ -52,7 +52,6 @@ object ScanDebugPainter {
             canvas.drawLine(start.first, start.second, end.first, end.second, beatGlow)
             canvas.drawLine(start.first, start.second, end.first, end.second, beatLine)
         }
-        val windowBox = linePaint(stroke * 2f, 0xFFAA00FF.toInt())
         val failedWindowBox = linePaint(stroke * 2.4f, 0xFFFF1744.toInt())
         val failedLabel = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = 0xFFFF1744.toInt()
@@ -61,16 +60,10 @@ object ScanDebugPainter {
             setShadowLayer(max(1f, stroke), 0f, 0f, 0xE6000000.toInt())
         }
         for (window in debug.windows) {
+            if (window.bounds != DebugBounds.LEFT) continue
             val rect = photoRect(window.left, window.top, window.right, window.bottom, photoHeight, quarterTurn)
-            val failed = window.bounds == DebugBounds.LEFT
-            canvas.drawRect(
-                rect.left,
-                rect.top,
-                rect.right,
-                rect.bottom,
-                if (failed) failedWindowBox else windowBox,
-            )
-            if (failed && window.label.isNotEmpty()) {
+            canvas.drawRect(rect.left, rect.top, rect.right, rect.bottom, failedWindowBox)
+            if (window.label.isNotEmpty()) {
                 val width = (rect.right - rect.left - stroke * 2f).coerceAtLeast(1f)
                 failedLabel.textSize = max(18f, stroke * 7f)
                 val measured = failedLabel.measureText(window.label).coerceAtLeast(1f)

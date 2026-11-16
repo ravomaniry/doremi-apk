@@ -5,11 +5,23 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.RectF
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 data class PreparedImage(val ocr: Bitmap, val ink: InkImage)
+
+data class OcrCanvas(
+    val bitmap: Bitmap,
+    val scale: Float,
+    val pad: Int,
+    val originX: Int,
+    val originY: Int,
+    val contentHeight: Int,
+    val singleLine: Boolean,
+)
 
 object ImagePreprocessor {
     fun prepare(source: Bitmap): PreparedImage {
@@ -78,6 +90,33 @@ object ImagePreprocessor {
         return Bitmap.createBitmap(source, l, t, r - l, b - t)
     }
 
+    fun recognitionCanvases(source: Bitmap): List<OcrCanvas> {
+        if (source.width < 2 || source.height < 2) return emptyList()
+        val gray = contrastGray(source)
+        val mask = adaptiveThreshold(gray)
+        val bands = try {
+            val found = OcrBands.find(horizontalInk(mask))
+            if (found.isEmpty()) {
+                listOf((0 until gray.height) to (gray.height < 96))
+            } else {
+                val expanded = OcrBands.expand(found, gray.height)
+                val heights = expanded.map { it.last - it.first + 1 }.sorted()
+                val median = heights[heights.size / 2].coerceAtLeast(1)
+                expanded.map { band ->
+                    val height = band.last - band.first + 1
+                    band to (height <= median * 1.8)
+                }
+            }
+        } finally {
+            mask.recycle()
+        }
+        return try {
+            bands.map { (band, singleLine) -> lineCanvas(gray, band.first, band.last + 1, singleLine) }
+        } finally {
+            gray.recycle()
+        }
+    }
+
     fun scaleDown(source: Bitmap, maxSide: Int = 2400): Bitmap {
         val longest = max(source.width, source.height)
         if (longest <= maxSide) return source
@@ -144,6 +183,43 @@ object ImagePreprocessor {
         val out = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         out.setPixels(binary, 0, width, 0, 0, width, height)
         return out
+    }
+
+    private fun horizontalInk(binary: Bitmap): IntArray {
+        val width = binary.width
+        val height = binary.height
+        val pixels = IntArray(width * height)
+        binary.getPixels(pixels, 0, width, 0, 0, width, height)
+        val projection = IntArray(height)
+        for (y in 0 until height) {
+            var count = 0
+            val row = y * width
+            for (x in 0 until width) {
+                if (Color.red(pixels[row + x]) < 128) count++
+            }
+            projection[y] = count
+        }
+        return projection
+    }
+
+    private fun lineCanvas(gray: Bitmap, top: Int, bottom: Int, singleLine: Boolean): OcrCanvas {
+        val contentHeight = (bottom - top).coerceAtLeast(1)
+        val contentWidth = gray.width
+        var scale = if (contentHeight >= 56) 1f else (64f / contentHeight).coerceAtMost(4f)
+        if (contentWidth * scale > 3200f) scale = (3200f / contentWidth).coerceAtLeast(1f)
+        val pad = 16
+        val destWidth = max(1, (contentWidth * scale).roundToInt())
+        val destHeight = max(1, (contentHeight * scale).roundToInt())
+        val bitmap = Bitmap.createBitmap(destWidth + pad * 2, destHeight + pad * 2, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        canvas.drawColor(Color.WHITE)
+        canvas.drawBitmap(
+            gray,
+            Rect(0, top, contentWidth, bottom),
+            Rect(pad, pad, pad + destWidth, pad + destHeight),
+            Paint(Paint.FILTER_BITMAP_FLAG),
+        )
+        return OcrCanvas(bitmap, scale, pad, 0, top, destHeight, singleLine)
     }
 
     private fun rectSum(integral: LongArray, width: Int, left: Int, top: Int, right: Int, bottom: Int): Long {

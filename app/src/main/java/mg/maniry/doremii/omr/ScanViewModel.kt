@@ -1,20 +1,16 @@
 package mg.maniry.doremii.omr
 
+import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Rect
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import kotlin.coroutines.resume
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -30,7 +26,7 @@ data class ReviewState(
     val empty: Boolean,
 )
 
-class ScanViewModel : ViewModel() {
+class ScanViewModel(application: Application) : AndroidViewModel(application) {
     enum class Phase { CAMERA, ADJUST, REVIEW }
 
     val phase = MutableLiveData(Phase.CAMERA)
@@ -44,11 +40,8 @@ class ScanViewModel : ViewModel() {
     var crop: Bitmap? = null
         private set
 
-    private var symbols: List<OcrSymbol> = emptyList()
-    private var ink: InkImage? = null
-    private var detected: DetectedGrid? = null
-    private val cellText = mutableMapOf<CellKey, String>()
-    private val regionText = mutableMapOf<CellKey, String>()
+    private val ocr = TesseractOcr(application)
+    private var draft: ScanDraft? = null
     private var parsed: SolfaParse? = null
     private var parsedSignature = 4
     private var generation = 0
@@ -66,11 +59,7 @@ class ScanViewModel : ViewModel() {
         recycle(crop)
         still = null
         crop = null
-        symbols = emptyList()
-        ink = null
-        detected = null
-        cellText.clear()
-        regionText.clear()
+        draft = null
         parsed = null
         review.value = null
         quarterTurn = false
@@ -87,11 +76,13 @@ class ScanViewModel : ViewModel() {
             try {
                 if (crop != null && crop !== cropped) recycle(crop)
                 crop = cropped
-                val result = read(cropped, signature)
-                parsed = result
-                parsedSignature = signature.coerceIn(2, 6)
-                publishPreview(result.debug)
-                review.value = toState(result, parsedSignature)
+                val result = read(cropped)
+                draft = result.draft
+                parsed = result.parse
+                val shown = if (result.draft.boxes.isEmpty()) signature.coerceIn(2, 6) else result.signature
+                parsedSignature = shown
+                publishPreview(result.parse.debug)
+                review.value = toState(result.parse, shown)
                 phase.value = Phase.REVIEW
             } catch (error: Exception) {
                 captureMessage.value = error.message
@@ -102,34 +93,14 @@ class ScanViewModel : ViewModel() {
     }
 
     fun reparse(signature: Int) {
-        val grid = detected
-        val source = crop
+        val stored = draft ?: return
         val sig = signature.coerceIn(2, 6)
-        if (grid != null && source != null && !source.isRecycled) {
-            viewModelScope.launch {
-                val prepared = withContext(Dispatchers.Default) { ImagePreprocessor.prepare(source) }
-                try {
-                    val next = readCells(prepared.ocr, prepared.ink, grid, sig)
-                    ink = prepared.ink
-                    parsed = next
-                    parsedSignature = sig
-                    publishPreview(next.debug)
-                    review.value = toState(next, sig)
-                } finally {
-                    recycle(prepared.ocr)
-                }
-            }
-            return
-        }
-        if (symbols.isEmpty()) return
         viewModelScope.launch {
-            val next = withContext(Dispatchers.Default) {
-                SolfaSpatialParser.parse(symbols, sig, ink)
-            }
-            parsed = next
-            parsedSignature = sig
-            publishPreview(next.debug)
-            review.value = toState(next, sig)
+            val finished = withContext(Dispatchers.Default) { MeasureDelimiters.finish(stored, sig) }
+            parsed = finished.parse
+            parsedSignature = finished.signature
+            publishPreview(finished.parse.debug)
+            review.value = toState(finished.parse, finished.signature)
         }
     }
 
@@ -138,33 +109,24 @@ class ScanViewModel : ViewModel() {
         val sig = signature.coerceIn(2, 6)
         val current = parsed
         if (current != null && parsedSignature == sig) return current.voices
-        val grid = detected
-        val inkImage = ink
-        if (grid != null && inkImage != null) {
-            val next = GridScore.fromLayout(grid.layout(inkImage, sig), cellText, regionText)
-            parsed = next
-            parsedSignature = sig
-            return next.voices
-        }
-        if (symbols.isEmpty()) return emptyList()
-        val next = SolfaSpatialParser.parse(symbols, sig, ink)
-        parsed = next
-        parsedSignature = sig
-        return next.voices
+        val stored = draft ?: return current?.voices ?: emptyList()
+        val finished = MeasureDelimiters.finish(stored, sig)
+        parsed = finished.parse
+        parsedSignature = finished.signature
+        return finished.parse.voices
     }
 
     override fun onCleared() {
+        ocr.close()
         recycle(still)
         recycle(crop)
         recycle(annotated)
         super.onCleared()
     }
 
-    private suspend fun read(cropped: Bitmap, signature: Int): SolfaParse {
+    private suspend fun read(cropped: Bitmap): ScanResult {
         quarterTurn = false
-        detected = null
-        cellText.clear()
-        regionText.clear()
+        draft = null
         val prepared = withContext(Dispatchers.Default) { ImagePreprocessor.prepare(cropped) }
         val plan = withContext(Dispatchers.Default) { PageRectifier.plan(prepared.ink) }
         val turned = if (abs(plan.rotationDegrees) < 0.5f) {
@@ -189,9 +151,9 @@ class ScanViewModel : ViewModel() {
         }
         val readable = ImagePreprocessor.software(active)
         val borrowed = readable !== active
-        val debug = try {
+        val result = try {
             withContext(Dispatchers.Default) {
-                SolfaGridDetector.debug(activePrepared.ink) { window ->
+                SolfaGridDetector.scan(activePrepared.ink, null) { window ->
                     val slice = cropWindow(readable, window)
                     if (slice == null) {
                         emptyList()
@@ -213,51 +175,8 @@ class ScanViewModel : ViewModel() {
         val previous = crop
         crop = active
         if (previous != null && previous !== active && previous !== still) recycle(previous)
-        detected = null
-        ink = activePrepared.ink
-        symbols = emptyList()
         quarterTurn = false
-        return SolfaParse(emptyList(), null, empty = true, debug = debug)
-    }
-
-    private suspend fun readCells(
-        source: Bitmap,
-        inkImage: InkImage,
-        grid: DetectedGrid,
-        signature: Int,
-    ): SolfaParse {
-        return withContext(Dispatchers.Default) {
-            CellReader.read(source, inkImage, grid, signature, cellText, regionText, ::recognizeLines)
-        }
-    }
-
-    private suspend fun legacy(cropped: Bitmap, signature: Int, existing: PreparedImage?): SolfaParse {
-        quarterTurn = false
-        val prepared = existing ?: withContext(Dispatchers.Default) { ImagePreprocessor.prepare(cropped) }
-        var bestSymbols = recognizeSymbols(prepared.ocr)
-        var bestInk = prepared.ink
-        recycle(prepared.ocr)
-        val retry = bestSymbols.isNotEmpty() &&
-            (SolfaSpatialParser.looksSideways(bestSymbols) ||
-                SolfaSpatialParser.musicRowCount(bestSymbols) == 0)
-        if (retry) {
-            val rotated = withContext(Dispatchers.Default) { ImagePreprocessor.rotate(cropped, 90) }
-            val second = withContext(Dispatchers.Default) { ImagePreprocessor.prepare(rotated) }
-            val symbols2 = recognizeSymbols(second.ocr)
-            recycle(second.ocr)
-            if (SolfaSpatialParser.musicRowCount(symbols2) > SolfaSpatialParser.musicRowCount(bestSymbols)) {
-                bestSymbols = symbols2
-                bestInk = second.ink
-                quarterTurn = true
-            }
-            if (rotated !== cropped) recycle(rotated)
-        }
-        symbols = bestSymbols
-        ink = bestInk
-        detected = null
-        return withContext(Dispatchers.Default) {
-            SolfaSpatialParser.parse(bestSymbols, signature, bestInk)
-        }
+        return result
     }
 
     private suspend fun publishPreview(debug: ScanDebug) {
@@ -305,50 +224,7 @@ class ScanViewModel : ViewModel() {
         )
     }
 
-    private suspend fun recognizeSymbols(bitmap: Bitmap): List<OcrSymbol> {
-        return recognizeLines(bitmap).flatMap { it.symbols }
-    }
-
-    private suspend fun recognizeLines(bitmap: Bitmap): List<OcrLine> =
-        suspendCancellableCoroutine { continuation ->
-            val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-            recognizer.process(InputImage.fromBitmap(bitmap, 0))
-                .addOnSuccessListener { vision ->
-                    val lines = mutableListOf<OcrLine>()
-                    for (block in vision.textBlocks) {
-                        for (line in block.lines) {
-                            val symbols = mutableListOf<OcrSymbol>()
-                            for (element in line.elements) {
-                                for (symbol in element.symbols) {
-                                    val box = symbol.boundingBox ?: continue
-                                    symbols.add(
-                                        OcrSymbol(
-                                            text = symbol.text,
-                                            left = box.left.toFloat(),
-                                            top = box.top.toFloat(),
-                                            right = box.right.toFloat(),
-                                            bottom = box.bottom.toFloat(),
-                                            confidence = symbol.confidence,
-                                        )
-                                    )
-                                }
-                            }
-                            val box = line.boundingBox
-                            val left = box?.left?.toFloat() ?: symbols.minOfOrNull { it.left } ?: 0f
-                            val top = box?.top?.toFloat() ?: symbols.minOfOrNull { it.top } ?: 0f
-                            val right = box?.right?.toFloat() ?: symbols.maxOfOrNull { it.right } ?: left
-                            val bottom = box?.bottom?.toFloat() ?: symbols.maxOfOrNull { it.bottom } ?: top
-                            lines.add(OcrLine(line.text, left, top, right, bottom, symbols))
-                        }
-                    }
-                    recognizer.close()
-                    if (continuation.isActive) continuation.resume(lines)
-                }
-                .addOnFailureListener {
-                    recognizer.close()
-                    if (continuation.isActive) continuation.resume(emptyList())
-                }
-        }
+    private fun recognizeLines(bitmap: Bitmap): List<OcrLine> = ocr.recognize(bitmap)
 
     private fun toState(parse: SolfaParse, signature: Int): ReviewState {
         generation += 1

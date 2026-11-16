@@ -107,25 +107,40 @@ object SolfaGridDetector {
         return step4BuildSystems(ink, kept, signature)
     }
 
-    suspend fun debug(
+    suspend fun scan(
         ink: InkImage,
+        targetSignature: Int?,
         readWindow: suspend (DebugWindow) -> List<OcrLine>,
-    ): ScanDebug {
+    ): ScanResult {
         val strokes = step1VerticalLines(ink)
         val pass = step5CropUntilMusical(strokes, ink.width, readWindow)
         val voices = step6MajorityVoices(pass.sure)
         val classified = pass.unsure.map { step6ClassifyUnsure(it, voices) }
         val kept = pass.sure + classified
-        return ScanDebug(
+        val opened = kept.map { it to openBox(it, strokes) }
+        val draft = ScanDraft(
+            boxes = opened.mapNotNull { it.second },
             notes = kept.flatMap { it.notes },
-            measures = (pass.left + pass.pairs.map { it.right }).distinct().map { stroke ->
-                DebugMeasureLine(stroke.x, stroke.top.toFloat(), stroke.bottom.toFloat())
-            },
-            beats = pass.leftOnly.map { stroke ->
-                DebugMeasureLine(stroke.x, stroke.top.toFloat(), stroke.bottom.toFloat())
-            },
             glyphs = kept.flatMap { it.glyphs },
-            windows = kept.map { it.window },
+            windows = opened.mapNotNull { (read, box) -> if (box == null) null else read.window },
+        )
+        val finished = MeasureDelimiters.finish(draft, targetSignature)
+        return ScanResult(finished.parse, finished.signature, draft)
+    }
+
+    private fun openBox(read: BoundsRead, strokes: List<VerticalStroke>): OpenBox? {
+        if (read.window.label.contains("not")) return null
+        val musical = read.notes.zip(read.lineSymbols)
+            .filter { (note, _) -> note.musical }
+            .sortedBy { (note, _) -> note.top }
+        if (musical.isEmpty()) return null
+        return MeasureDelimiters.open(
+            voices = musical.map { it.second },
+            strokes = strokes,
+            left = read.window.left - inset,
+            right = read.window.right + inset,
+            top = read.window.top,
+            bottom = read.window.bottom,
         )
     }
 
@@ -135,10 +150,12 @@ object SolfaGridDetector {
         readWindow: suspend (DebugWindow) -> List<OcrLine>,
     ): BoundsRead {
         val lines = readWindow(window)
+        val classified = step4ClassifyLines(lines, bounds)
         return BoundsRead(
             window = window,
-            notes = step4ClassifyLines(lines, bounds),
+            notes = classified.map { it.box },
             glyphs = step4Glyphs(lines, bounds),
+            lineSymbols = classified.map { it.symbols },
         )
     }
 
@@ -298,7 +315,7 @@ object SolfaGridDetector {
         return DebugWindow(left, top, right, bottom, DebugBounds.LEFT)
     }
 
-    private fun step4ClassifyLines(lines: List<OcrLine>, bounds: DebugBounds): List<DebugNoteBox> {
+    private fun step4ClassifyLines(lines: List<OcrLine>, bounds: DebugBounds): List<ClassifiedLine> {
         return horizontalLines(detectedTexts(lines)).mapNotNull { row ->
             val text = row.joinToString("") { it.plain() }
             if (text.isEmpty()) return@mapNotNull null
@@ -308,16 +325,19 @@ object SolfaGridDetector {
             val bottom = row.maxOf { it.bottom }
             if (right - left < 2f || bottom - top < 2f) return@mapNotNull null
             val score = scoreLine(text)
-            DebugNoteBox(
-                left = left,
-                top = top,
-                right = right,
-                bottom = bottom,
-                voiceIndex = 0,
-                voiceId = "",
-                musical = score.musical,
-                bounds = bounds,
-                label = score.label,
+            ClassifiedLine(
+                box = DebugNoteBox(
+                    left = left,
+                    top = top,
+                    right = right,
+                    bottom = bottom,
+                    voiceIndex = 0,
+                    voiceId = "",
+                    musical = score.musical,
+                    bounds = bounds,
+                    label = score.label,
+                ),
+                symbols = row,
             )
         }
     }
@@ -408,10 +428,13 @@ object SolfaGridDetector {
         return LineScore(hits, total, musical, label)
     }
 
+    private data class ClassifiedLine(val box: DebugNoteBox, val symbols: List<OcrSymbol>)
+
     private data class BoundsRead(
         val window: DebugWindow,
         val notes: List<DebugNoteBox>,
         val glyphs: List<DebugGlyph>,
+        val lineSymbols: List<List<OcrSymbol>>,
     )
 
     private data class ColumnGeometry(
