@@ -16,35 +16,43 @@ object ScanDebugPainter {
             debug.glyphs.isEmpty() &&
             debug.windows.isEmpty() &&
             debug.blocks.isEmpty() &&
-            debug.marks.isEmpty()
+            debug.marks.isEmpty() &&
+            debug.lines.none { it.musical }
         ) {
             return copy
         }
         val canvas = Canvas(copy)
         val stroke = max(2f, min(copy.width, copy.height) / 220f)
-        val hairline = max(1.5f, min(copy.width, copy.height) / 420f)
+        val hairline = max(1f, min(copy.width, copy.height) / 900f)
         val photoHeight = copy.height.toFloat()
-        val boxStroke = linePaint(stroke, 0xFF8E24AA.toInt())
+        val fade = Paint().apply { alpha = 128 }
+        val layer = canvas.saveLayer(0f, 0f, copy.width.toFloat(), copy.height.toFloat(), fade)
+        val boxStroke = linePaint(hairline, 0xFF8E24AA.toInt())
         for (block in debug.blocks) {
             val rect = photoRect(block.left, block.top, block.right, block.bottom, photoHeight, quarterTurn)
             canvas.drawRect(rect.left, rect.top, rect.right, rect.bottom, boxStroke)
         }
-        val measureGlow = linePaint(stroke * 5f, 0x99FF1744.toInt())
-        val measureLine = linePaint(stroke * 1.4f, 0xFFFF1744.toInt())
-        val noteBox = linePaint(stroke * 1.6f, 0xFF00C853.toInt())
-        val textBox = linePaint(stroke * 1.6f, 0xFF1976D2.toInt())
-        val rightNoteBox = linePaint(stroke * 1.6f, 0xFF00E5FF.toInt())
-        val rightTextBox = linePaint(stroke * 1.6f, 0xFFFF4081.toInt())
+        val lineBox = linePaint(hairline, 0xFF1565C0.toInt())
+        for (line in debug.lines) {
+            if (!line.musical) continue
+            val rect = photoRect(line.left, line.top, line.right, line.bottom, photoHeight, quarterTurn)
+            canvas.drawRect(rect.left, rect.top, rect.right, rect.bottom, lineBox)
+        }
+        val measureGlow = linePaint(hairline * 2f, 0x99FF1744.toInt())
+        val measureLine = linePaint(hairline, 0xFFFF1744.toInt())
+        val noteBox = linePaint(hairline, 0xFF1B5E20.toInt())
+        val textBox = linePaint(hairline, 0xFF1976D2.toInt())
+        val rightNoteBox = linePaint(hairline, 0xFF00E5FF.toInt())
+        val rightTextBox = linePaint(hairline, 0xFFFF4081.toInt())
         for (note in debug.notes) {
             val rect = photoRect(note.left, note.top, note.right, note.bottom, photoHeight, quarterTurn)
-            val pad = stroke
             val paint = when {
                 note.bounds == DebugBounds.LEFT && note.musical -> rightNoteBox
                 note.bounds == DebugBounds.LEFT -> rightTextBox
                 note.musical -> noteBox
                 else -> textBox
             }
-            canvas.drawRect(rect.left - pad, rect.top - pad, rect.right + pad, rect.bottom + pad, paint)
+            canvas.drawRect(rect.left, rect.top, rect.right, rect.bottom, paint)
         }
         for (wall in debug.measures) {
             val start = photoPoint(wall.x, wall.top, photoHeight, quarterTurn)
@@ -78,10 +86,10 @@ object ScanDebugPainter {
             setShadowLayer(max(1f, stroke), 0f, 0f, 0xE6000000.toInt())
         }
         for (note in debug.notes) {
-            if (note.label.isEmpty()) continue
+            if (note.label.isEmpty() || note.musical) continue
             val rect = photoRect(note.left, note.top, note.right, note.bottom, photoHeight, quarterTurn)
             val height = (rect.bottom - rect.top).coerceAtLeast(stroke * 4f)
-            lineLabel.color = if (note.musical) 0xFF00C853.toInt() else 0xFFFF1744.toInt()
+            lineLabel.color = 0xFFFF1744.toInt()
             lineLabel.textSize = height * 0.7f
             val baseline = (rect.top + rect.bottom) / 2f - (lineLabel.ascent() + lineLabel.descent()) / 2f
             canvas.drawText(note.label, rect.right + stroke * 2f, baseline, lineLabel)
@@ -105,45 +113,53 @@ object ScanDebugPainter {
             val baseline = (rect.top + rect.bottom) / 2f - (glyphPaint.ascent() + glyphPaint.descent()) / 2f
             canvas.drawText(text, centerX, baseline, glyphPaint)
         }
-        val markStroke = hairline * 1.7f
-        val markPaint = mapOf(
-            DebugMarkKind.BAR to linePaint(markStroke, 0xFF6D4C41.toInt()),
-            DebugMarkKind.PIPE to linePaint(markStroke, 0xFFE91E63.toInt()),
-            DebugMarkKind.COLON to linePaint(markStroke, 0xFF1E88E5.toInt()),
-        )
-        val markPad = markStroke * 0.55f
-        for (kind in listOf(DebugMarkKind.BAR, DebugMarkKind.PIPE, DebugMarkKind.COLON)) {
-            val paint = markPaint.getValue(kind)
-            for (mark in debug.marks) {
-                if (mark.kind != kind) continue
-                val rect = photoRect(mark.left, mark.top, mark.right, mark.bottom, photoHeight, quarterTurn)
-                canvas.drawRect(
-                    rect.left - markPad,
-                    rect.top - markPad,
-                    rect.right + markPad,
-                    rect.bottom + markPad,
-                    paint,
-                )
-            }
-        }
-        val beatLine = linePaint(max(2.5f, stroke * 1.7f), 0xFF2962FF.toInt())
+        val beatLine = linePaint(hairline, 0xFF2962FF.toInt())
         for (beat in debug.beats) {
             val start = photoPoint(beat.x, beat.top, photoHeight, quarterTurn)
             val end = photoPoint(beat.x, beat.bottom, photoHeight, quarterTurn)
             canvas.drawLine(start.first, start.second, end.first, end.second, beatLine)
         }
         drawLegend(canvas, copy.width, copy.height)
+        canvas.restoreToCount(layer)
+        drawRecognized(canvas, debug, photoHeight, quarterTurn, stroke)
         return copy
+    }
+
+    private fun drawRecognized(
+        canvas: Canvas,
+        debug: ScanDebug,
+        photoHeight: Float,
+        quarterTurn: Boolean,
+        stroke: Float,
+    ) {
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFFE53935.toInt()
+            textAlign = Paint.Align.CENTER
+            isFakeBoldText = true
+        }
+        for (note in debug.notes) {
+            val text = note.label.trim()
+            if (!note.musical || text.isEmpty()) continue
+            val rect = photoRect(note.left, note.top, note.right, note.bottom, photoHeight, quarterTurn)
+            val height = (rect.bottom - rect.top).coerceAtLeast(stroke * 4f)
+            val width = (rect.right - rect.left).coerceAtLeast(1f)
+            paint.textSize = height * 0.72f
+            val measured = paint.measureText(text).coerceAtLeast(1f)
+            if (measured > width) paint.textSize *= width / measured
+            val centerX = (rect.left + rect.right) / 2f
+            val baseline = (rect.top + rect.bottom) / 2f - (paint.ascent() + paint.descent()) / 2f
+            canvas.drawText(text, centerX, baseline, paint)
+        }
     }
 
     private fun drawLegend(canvas: Canvas, width: Int, height: Int) {
         if (width < 8 || height < 8) return
         val entries = listOf(
+            0xFF1B5E20.toInt() to "Cell",
+            0xFF1565C0.toInt() to "Musical line",
             0xFF8E24AA.toInt() to "Musical box",
             0xFF2962FF.toInt() to "Beat divider",
-            0xFF1E88E5.toInt() to "Colon",
-            0xFFE91E63.toInt() to "Pipe",
-            0xFF6D4C41.toInt() to "Bar",
+            0xFFE53935.toInt() to "OCR",
         )
         val textSize = max(18f, min(width, height) / 42f)
         val swatch = textSize * 0.85f

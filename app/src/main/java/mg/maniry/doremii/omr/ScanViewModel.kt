@@ -2,13 +2,19 @@ package mg.maniry.doremii.omr
 
 import android.app.Application
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Rect
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import mg.maniry.doremii.editor.partition.PartitionData
 import kotlin.math.abs
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 data class ReviewVoice(val id: String, val text: String, val inferred: List<IntRange>)
 
@@ -25,6 +31,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
 
     val phase = MutableLiveData(Phase.CAMERA)
     val busy = MutableLiveData(false)
+    val progress = MutableLiveData(0)
     val captureMessage = MutableLiveData<String?>(null)
     val review = MutableLiveData<ReviewState?>(null)
     val preview = MutableLiveData<Bitmap?>(null)
@@ -40,7 +47,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     private var generation = 0
     private var quarterTurn = false
     private var annotated: Bitmap? = null
-    private var ocrEngine: TesseractOcr? = null
+    private var ocrEngine: GoogleVisionOcr? = null
 
     fun setStill(bitmap: Bitmap) {
         if (still != null && still !== bitmap && still?.isRecycled == false) still?.recycle()
@@ -65,18 +72,18 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
 
     fun recognize(cropped: Bitmap, signature: Int) {
         viewModelScope.launch {
+            progress.value = 0
             busy.value = true
             captureMessage.value = null
             try {
                 if (crop != null && crop !== cropped) recycle(crop)
                 crop = cropped
-                val result = read(cropped)
+                val result = read(cropped, signature)
                 draft = result.draft
                 parsed = result.parse
-                val shown = if (result.draft.boxes.isEmpty()) signature.coerceIn(2, 6) else result.signature
-                parsedSignature = shown
+                parsedSignature = result.signature
                 publishPreview(result.parse.debug)
-                review.value = toState(result.parse, shown)
+                review.value = toState(result.parse, result.signature)
                 phase.value = Phase.REVIEW
             } catch (error: Exception) {
                 captureMessage.value = error.message
@@ -87,27 +94,18 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun reparse(signature: Int) {
-        val stored = draft ?: return
+        val current = parsed ?: return
         val sig = signature.coerceIn(2, 6)
-        viewModelScope.launch {
-            val finished = withContext(Dispatchers.Default) { MeasureDelimiters.finish(stored, sig) }
-            parsed = finished.parse
-            parsedSignature = finished.signature
-            publishPreview(finished.parse.debug)
-            review.value = toState(finished.parse, finished.signature)
-        }
+        if (sig == parsedSignature) return
+        parsedSignature = sig
+        review.value = toState(current, sig)
     }
 
     fun scoreVoices(signature: Int, edited: List<ParsedVoice>?): List<ParsedVoice> {
         if (edited != null) return edited
-        val sig = signature.coerceIn(2, 6)
-        val current = parsed
-        if (current != null && parsedSignature == sig) return current.voices
-        val stored = draft ?: return current?.voices ?: emptyList()
-        val finished = MeasureDelimiters.finish(stored, sig)
-        parsed = finished.parse
-        parsedSignature = finished.signature
-        return finished.parse.voices
+        val current = parsed ?: return emptyList()
+        parsedSignature = signature.coerceIn(2, 6)
+        return current.voices
     }
 
     override fun onCleared() {
@@ -119,20 +117,141 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         super.onCleared()
     }
 
+    private fun cellBoxes(
+        systems: List<List<List<NoteCell>>>,
+        recognized: List<String>,
+    ): List<DebugNoteBox> {
+        var index = 0
+        return systems.flatMap { voices ->
+            voices.mapIndexed { voiceIndex, cells ->
+                val voiceId = PartitionData.voiceIds[voiceIndex % PartitionData.voiceIds.size]
+                cells.map { cell ->
+                    DebugNoteBox(
+                        left = cell.left,
+                        top = cell.top,
+                        right = cell.right,
+                        bottom = cell.bottom,
+                        voiceIndex = voiceIndex,
+                        voiceId = voiceId,
+                        musical = true,
+                        label = recognized.getOrElse(index++) { "" },
+                    )
+                }
+            }.flatten()
+        }
+    }
+
+    private fun report(percent: Int) {
+        progress.postValue(percent.coerceIn(0, 100))
+    }
+
+    private fun readCellText(
+        symbols: List<OcrSymbol>,
+        ink: InkImage,
+        source: Bitmap,
+        cell: NoteCell,
+    ): String {
+        val placed = textInCell(symbols, cell)
+        if (placed.isNotEmpty()) return placed
+        if (!cellHasInk(ink, cell)) return ""
+        return readCell(source, cell)
+    }
+
+    private fun textInCell(symbols: List<OcrSymbol>, cell: NoteCell): String {
+        val width = cell.right - cell.left
+        if (width < 2f) return ""
+        val margin = min(8f, width * 0.18f)
+        val hits = symbols.filter { symbol ->
+            symbol.centerX >= cell.left && symbol.centerX < cell.right &&
+                symbol.centerY >= cell.top && symbol.centerY < cell.bottom &&
+                !edgeBar(symbol, cell, margin)
+        }.sortedBy { it.centerX }
+        if (hits.isEmpty()) return ""
+        return hits.joinToString("") { it.plain() }.filter { it !in ":;|" }
+    }
+
+    private fun edgeBar(symbol: OcrSymbol, cell: NoteCell, margin: Float): Boolean {
+        val nearEdge = symbol.centerX - cell.left < margin || cell.right - symbol.centerX < margin
+        if (!nearEdge) return false
+        val text = symbol.plain()
+        if (text.isEmpty() || text.any { it !in "lI1|:;" }) return false
+        return symbol.height >= symbol.width
+    }
+
+    private fun cellHasInk(ink: InkImage, cell: NoteCell): Boolean {
+        if (ink.width < 2 || ink.height < 2) return false
+        val left = cell.left.roundToInt().coerceIn(0, ink.width - 1)
+        val top = cell.top.roundToInt().coerceIn(0, ink.height - 1)
+        val right = cell.right.roundToInt().coerceIn(left + 1, ink.width)
+        val bottom = cell.bottom.roundToInt().coerceIn(top + 1, ink.height)
+        val stepX = ((right - left) / 24).coerceIn(1, 2)
+        val stepY = ((bottom - top) / 12).coerceIn(1, 2)
+        var dark = 0
+        var y = top
+        while (y < bottom) {
+            var x = left
+            while (x < right) {
+                if (ink.isDark(x, y)) {
+                    dark++
+                    if (dark >= 3) return true
+                }
+                x += stepX
+            }
+            y += stepY
+        }
+        return false
+    }
+
+    private fun readCell(source: Bitmap, cell: NoteCell): String {
+        val crop = cropCell(source, cell) ?: return ""
+        return try {
+            engine().readCell(crop)
+        } catch (_: Exception) {
+            ""
+        } finally {
+            if (!crop.isRecycled) crop.recycle()
+        }
+    }
+
+    private fun cropCell(source: Bitmap, cell: NoteCell): Bitmap? {
+        if (source.isRecycled || source.width < 2 || source.height < 2) return null
+        val gap = cell.right - cell.left
+        val inset = min(2f, gap * 0.05f).coerceAtLeast(0f)
+        val left = (cell.left + inset).roundToInt()
+        val right = (cell.right - inset).roundToInt()
+        val top = cell.top.roundToInt()
+        val bottom = cell.bottom.roundToInt()
+        val l = left.coerceIn(0, source.width - 1)
+        val t = top.coerceIn(0, source.height - 1)
+        val r = right.coerceIn(l + 1, source.width)
+        val b = bottom.coerceIn(t + 1, source.height)
+        if (r - l < 2 || b - t < 2) return null
+        val out = Bitmap.createBitmap(r - l, b - t, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(out)
+        canvas.drawColor(Color.WHITE)
+        canvas.drawBitmap(source, Rect(l, t, r, b), Rect(0, 0, r - l, b - t), null)
+        return out
+    }
+
     private fun recognizeSymbols(bitmap: Bitmap): List<OcrSymbol> {
         return try {
-            val engine = ocrEngine ?: TesseractOcr(getApplication()).also { ocrEngine = it }
-            engine.symbols(bitmap)
+            engine().symbols(bitmap)
         } catch (_: Exception) {
             emptyList()
         }
     }
 
-    private suspend fun read(cropped: Bitmap): ScanResult {
+    private fun engine(): GoogleVisionOcr {
+        return ocrEngine ?: GoogleVisionOcr().also { ocrEngine = it }
+    }
+
+    private suspend fun read(cropped: Bitmap, signature: Int): ScanResult {
         quarterTurn = false
         draft = null
         val prepared = withContext(Dispatchers.Default) { ImagePreprocessor.prepare(cropped) }
+        report(5)
         val plan = withContext(Dispatchers.Default) { PageRectifier.plan(prepared.ink) }
+        report(10)
         val turned = if (abs(plan.rotationDegrees) < 0.5f) {
             cropped
         } else {
@@ -146,6 +265,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                 ImagePreprocessor.warp(turned, quad, plan.outputWidth, plan.outputHeight)
             }
         }
+        report(15)
         if (turned !== cropped && turned !== active) recycle(turned)
         val activePrepared = if (active === cropped) {
             prepared
@@ -153,15 +273,23 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
             prepared.release()
             withContext(Dispatchers.Default) { ImagePreprocessor.prepare(active) }
         }
+        report(20)
         val result = try {
             withContext(Dispatchers.Default) {
                 val symbols = recognizeSymbols(activePrepared.ocr)
+                report(25)
                 val ink = HorizontalRules.strip(activePrepared.ink, symbols)
+                report(30)
                 val lines = TextLineDetector.detect(ink, symbols)
+                report(35)
                 val blocks = TextBlockDetector.detect(ink, lines)
+                report(40)
                 val marks = LineMarks.find(ink, lines, blocks)
+                report(45)
                 val classified = MusicalLineClassifier.classify(lines, blocks, marks)
+                report(50)
                 val divided = BeatDividers.find(ink, classified.lines, classified.blocks, marks)
+                report(55)
                 val stored = ScanDraft(
                     emptyList(),
                     emptyList(),
@@ -172,8 +300,40 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                     marks,
                     divided.beats,
                 )
-                val finished = MeasureDelimiters.finish(stored, null)
-                ScanResult(finished.parse, finished.signature, stored)
+                val detected = BeatSignature.detect(
+                    divided.lines,
+                    classified.blocks,
+                    marks,
+                    divided.beats,
+                )
+                report(60)
+                val shown = detected ?: signature.coerceIn(2, 6)
+                val systems = NoteCells.grid(divided.lines, classified.blocks, divided.beats)
+                val total = systems.sumOf { system -> system.sumOf { it.size } }
+                val recognized = mutableListOf<String>()
+                var done = 0
+                val voices = NoteCells.read(systems) { cell ->
+                    val text = readCellText(symbols, ink, activePrepared.ocr, cell)
+                    recognized += text
+                    done += 1
+                    report(if (total == 0) 100 else 60 + done * 40 / total)
+                    text
+                }
+                if (total == 0) report(100)
+                val empty = voices.isEmpty() || voices.all { voice -> voice.cells.all { it.isBlank() } }
+                val parse = SolfaParse(
+                    voices = voices,
+                    keyIndex = null,
+                    empty = empty,
+                    debug = ScanDebug(
+                        notes = cellBoxes(systems, recognized),
+                        beats = divided.beats,
+                        lines = divided.lines,
+                        blocks = classified.blocks,
+                        marks = marks,
+                    ),
+                )
+                ScanResult(parse, shown, stored)
             }
         } finally {
             activePrepared.release()

@@ -100,7 +100,7 @@ dependencies {
     implementation 'com.google.android.flexbox:flexbox:3.0.0'
     implementation 'com.android.volley:volley:1.2.1'
     implementation 'com.google.code.gson:gson:2.13.1'
-    implementation 'cz.adaptech.tesseract4android:tesseract4android:4.9.0'
+    implementation 'com.google.mlkit:text-recognition:16.0.1'
     implementation 'org.opencv:opencv:4.14.0'
     testImplementation 'org.openpnp:opencv:4.9.0-0'
     def camerax = '1.4.2'

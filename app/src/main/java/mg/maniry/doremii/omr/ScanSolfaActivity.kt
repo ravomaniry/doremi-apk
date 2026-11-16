@@ -174,9 +174,19 @@ class ScanSolfaActivity : AppCompatActivity() {
             }
         }
         viewModel.busy.observe(this) { busy ->
-            progress.visibility = if (busy == true) View.VISIBLE else View.GONE
-            readButton.isEnabled = busy != true
-            confirmButton.isEnabled = busy != true
+            val working = busy == true
+            progress.visibility = if (working) View.VISIBLE else View.GONE
+            if (working) {
+                progress.isIndeterminate = false
+                progress.progress = viewModel.progress.value ?: 0
+            }
+            readButton.isEnabled = !working
+            confirmButton.isEnabled = !working
+        }
+        viewModel.progress.observe(this) { value ->
+            if (viewModel.busy.value != true) return@observe
+            progress.isIndeterminate = false
+            progress.progress = value ?: 0
         }
         viewModel.captureMessage.observe(this) { showCaptureMessage(it) }
         viewModel.review.observe(this) { state ->
@@ -233,9 +243,11 @@ class ScanSolfaActivity : AppCompatActivity() {
     }
 
     private fun loadGallery(uri: Uri) {
+        progress.isIndeterminate = true
         progress.visibility = View.VISIBLE
         lifecycleScope.launch {
             val bitmap = withContext(Dispatchers.IO) { decodeGallery(uri) }
+            progress.isIndeterminate = false
             progress.visibility = View.GONE
             if (bitmap == null) showCaptureMessage(getString(R.string.scan_failed))
             else showStill(bitmap)

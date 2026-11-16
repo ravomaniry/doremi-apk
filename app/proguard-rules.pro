@@ -54,6 +54,4 @@
     native <methods>;
 }
 
--keep class com.googlecode.tesseract.android.** { *; }
--keep class com.googlecode.leptonica.android.** { *; }
 -keep class org.opencv.** { *; }
