@@ -25,6 +25,8 @@ data class ScanDraft(
     val notes: List<DebugNoteBox>,
     val glyphs: List<DebugGlyph>,
     val windows: List<DebugWindow>,
+    val lines: List<DebugLine> = emptyList(),
+    val blocks: List<DebugBlock> = emptyList(),
 )
 
 data class FinishedScan(
@@ -365,6 +367,8 @@ object MeasureDelimiters {
             notes = draft.notes.filter { it.musical },
             beats = draft.boxes.flatMap { it.markers },
             windows = draft.windows,
+            lines = draft.lines,
+            blocks = draft.blocks,
         )
     }
 

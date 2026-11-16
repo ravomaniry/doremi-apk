@@ -41,12 +41,29 @@ data class DebugGlyph(
     val bounds: DebugBounds = DebugBounds.BOTH,
 )
 
+data class DebugLine(
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float,
+    val musical: Boolean = false,
+)
+
+data class DebugBlock(
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float,
+)
+
 data class ScanDebug(
     val notes: List<DebugNoteBox> = emptyList(),
     val measures: List<DebugMeasureLine> = emptyList(),
     val beats: List<DebugMeasureLine> = emptyList(),
     val glyphs: List<DebugGlyph> = emptyList(),
     val windows: List<DebugWindow> = emptyList(),
+    val lines: List<DebugLine> = emptyList(),
+    val blocks: List<DebugBlock> = emptyList(),
 )
 
 data class PhotoRect(

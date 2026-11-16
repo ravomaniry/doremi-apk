@@ -14,13 +14,34 @@ object ScanDebugPainter {
             debug.measures.isEmpty() &&
             debug.beats.isEmpty() &&
             debug.glyphs.isEmpty() &&
-            debug.windows.isEmpty()
+            debug.windows.isEmpty() &&
+            debug.lines.isEmpty() &&
+            debug.blocks.isEmpty()
         ) {
             return copy
         }
         val canvas = Canvas(copy)
         val stroke = max(2f, min(copy.width, copy.height) / 220f)
         val photoHeight = copy.height.toFloat()
+        val plainGlow = linePaint(stroke * 4f, 0x99FFEA00.toInt())
+        val plainStroke = linePaint(stroke * 1.5f, 0xFFFFEA00.toInt())
+        val musicalGlow = linePaint(stroke * 4f, 0x9900C853.toInt())
+        val musicalStroke = linePaint(stroke * 1.5f, 0xFF00C853.toInt())
+        for (line in debug.lines) {
+            val rect = photoRect(line.left, line.top, line.right, line.bottom, photoHeight, quarterTurn)
+            val glow = if (line.musical) musicalGlow else plainGlow
+            val paint = if (line.musical) musicalStroke else plainStroke
+            canvas.drawRect(rect.left, rect.top, rect.right, rect.bottom, glow)
+            canvas.drawRect(rect.left, rect.top, rect.right, rect.bottom, paint)
+        }
+        val blockGlow = linePaint(stroke * 5f, 0x992979FF.toInt())
+        val blockStroke = linePaint(stroke * 2.2f, 0xFF2979FF.toInt())
+        for (block in debug.blocks) {
+            val rect = photoRect(block.left, block.top, block.right, block.bottom, photoHeight, quarterTurn)
+            val pad = stroke * 1.5f
+            canvas.drawRect(rect.left - pad, rect.top - pad, rect.right + pad, rect.bottom + pad, blockGlow)
+            canvas.drawRect(rect.left - pad, rect.top - pad, rect.right + pad, rect.bottom + pad, blockStroke)
+        }
         val measureGlow = linePaint(stroke * 5f, 0x99FF1744.toInt())
         val measureLine = linePaint(stroke * 1.4f, 0xFFFF1744.toInt())
         val beatGlow = linePaint(stroke * 5f, 0x99FF6D00.toInt())

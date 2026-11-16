@@ -28,22 +28,16 @@ object BeatMarks {
         return columns(marks, musical.size)
     }
 
-    private fun marksInLine(
-        ink: InkImage,
-        line: DebugNoteBox,
-        voice: Int,
-        left: Float,
-        right: Float,
-    ): List<Mark> {
-        val y0 = line.top.roundToInt().coerceIn(0, ink.height)
-        val y1 = line.bottom.roundToInt().coerceIn(0, ink.height)
+    internal fun glyphXs(ink: InkImage, top: Float, bottom: Float, left: Float, right: Float): List<Float> {
+        val y0 = top.roundToInt().coerceIn(0, ink.height)
+        val y1 = bottom.roundToInt().coerceIn(0, ink.height)
         val height = y1 - y0
         if (height < 4) return emptyList()
         val blobs = OpenCvImages.blobs(ink, y0, y1).filter { blob ->
             val x = (blob.minX + blob.maxX) / 2f
             x > left && x < right
         }
-        val marks = mutableListOf<Mark>()
+        val marks = mutableListOf<Float>()
         val dots = blobs.filter { isColonDot(it, height) }.sortedBy { it.minY }
         val used = BooleanArray(dots.size)
         for (index in dots.indices) {
@@ -59,14 +53,23 @@ object BeatMarks {
             if (match < 0) continue
             used[index] = true
             used[match] = true
-            val x = (centerX(dots[index]) + centerX(dots[match])) / 2f
-            marks.add(Mark(x, setOf(voice), measure = false))
+            marks.add((centerX(dots[index]) + centerX(dots[match])) / 2f)
         }
         for (blob in blobs) {
             if (!isPipe(blob, height) || leavesLine(ink, centerX(blob), y0, y1)) continue
-            marks.add(Mark(centerX(blob), setOf(voice), measure = false))
+            marks.add(centerX(blob))
         }
         return marks
+    }
+
+    private fun marksInLine(
+        ink: InkImage,
+        line: DebugNoteBox,
+        voice: Int,
+        left: Float,
+        right: Float,
+    ): List<Mark> {
+        return glyphXs(ink, line.top, line.bottom, left, right).map { Mark(it, setOf(voice), measure = false) }
     }
 
     private fun strokeMarks(

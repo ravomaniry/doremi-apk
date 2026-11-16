@@ -2,9 +2,6 @@ package mg.maniry.doremii.omr
 
 import android.app.Application
 import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Rect
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
@@ -12,11 +9,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
-import kotlin.math.roundToInt
 
 data class ReviewVoice(val id: String, val text: String, val inferred: List<IntRange>)
-
-private data class WindowCrop(val bitmap: Bitmap, val left: Int, val top: Int)
 
 data class ReviewState(
     val generation: Int,
@@ -40,7 +34,6 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     var crop: Bitmap? = null
         private set
 
-    private val ocr = TesseractOcr(application)
     private var draft: ScanDraft? = null
     private var parsed: SolfaParse? = null
     private var parsedSignature = 4
@@ -117,7 +110,6 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
-        ocr.close()
         recycle(still)
         recycle(crop)
         recycle(annotated)
@@ -149,27 +141,23 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
             prepared.release()
             withContext(Dispatchers.Default) { ImagePreprocessor.prepare(active) }
         }
-        val readable = ImagePreprocessor.software(active)
-        val borrowed = readable !== active
         val result = try {
             withContext(Dispatchers.Default) {
-                SolfaGridDetector.scan(activePrepared.ink, null) { window ->
-                    val slice = cropWindow(readable, window)
-                    if (slice == null) {
-                        emptyList()
-                    } else {
-                        try {
-                            recognizeLines(slice.bitmap).map { line ->
-                                shiftLine(line, slice.left.toFloat(), slice.top.toFloat())
-                            }
-                        } finally {
-                            recycle(slice.bitmap)
-                        }
-                    }
-                }
+                val lines = TextLineDetector.detect(activePrepared.ink)
+                val blocks = TextBlockDetector.detect(activePrepared.ink, lines)
+                val classified = MusicalLineClassifier.classify(activePrepared.ink, lines, blocks)
+                val stored = ScanDraft(
+                    emptyList(),
+                    emptyList(),
+                    emptyList(),
+                    emptyList(),
+                    classified.lines,
+                    classified.blocks,
+                )
+                val finished = MeasureDelimiters.finish(stored, null)
+                ScanResult(finished.parse, finished.signature, stored)
             }
         } finally {
-            if (borrowed) recycle(readable)
             activePrepared.release()
         }
         val previous = crop
@@ -191,40 +179,6 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         preview.value = next
         if (previous != null && previous !== next && previous !== source) recycle(previous)
     }
-
-    private fun cropWindow(source: Bitmap, window: DebugWindow): WindowCrop? {
-        if (source.isRecycled || source.width < 2 || source.height < 2) return null
-        val left = window.left.roundToInt().coerceIn(0, source.width - 1)
-        val top = window.top.roundToInt().coerceIn(0, source.height - 1)
-        val right = window.right.roundToInt().coerceIn(left + 1, source.width)
-        val bottom = window.bottom.roundToInt().coerceIn(top + 1, source.height)
-        if (right - left < 8 || bottom - top < 8) return null
-        val bitmap = Bitmap.createBitmap(right - left, bottom - top, Bitmap.Config.ARGB_8888)
-        Canvas(bitmap).apply {
-            drawColor(Color.WHITE)
-            drawBitmap(source, Rect(left, top, right, bottom), Rect(0, 0, right - left, bottom - top), null)
-        }
-        return WindowCrop(bitmap, left, top)
-    }
-
-    private fun shiftLine(line: OcrLine, dx: Float, dy: Float): OcrLine {
-        return line.copy(
-            left = line.left + dx,
-            top = line.top + dy,
-            right = line.right + dx,
-            bottom = line.bottom + dy,
-            symbols = line.symbols.map { symbol ->
-                symbol.copy(
-                    left = symbol.left + dx,
-                    top = symbol.top + dy,
-                    right = symbol.right + dx,
-                    bottom = symbol.bottom + dy,
-                )
-            },
-        )
-    }
-
-    private fun recognizeLines(bitmap: Bitmap): List<OcrLine> = ocr.recognize(bitmap)
 
     private fun toState(parse: SolfaParse, signature: Int): ReviewState {
         generation += 1
