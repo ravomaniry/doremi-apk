@@ -56,6 +56,16 @@ data class DebugBlock(
     val bottom: Float,
 )
 
+enum class DebugMarkKind { COLON, PIPE, BAR }
+
+data class DebugMark(
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float,
+    val kind: DebugMarkKind,
+)
+
 data class ScanDebug(
     val notes: List<DebugNoteBox> = emptyList(),
     val measures: List<DebugMeasureLine> = emptyList(),
@@ -64,6 +74,7 @@ data class ScanDebug(
     val windows: List<DebugWindow> = emptyList(),
     val lines: List<DebugLine> = emptyList(),
     val blocks: List<DebugBlock> = emptyList(),
+    val marks: List<DebugMark> = emptyList(),
 )
 
 data class PhotoRect(

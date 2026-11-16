@@ -34,6 +34,17 @@ class TesseractOcr(context: Context) {
         }
     }
 
+    fun symbols(bitmap: Bitmap): List<OcrSymbol> {
+        if (bitmap.isRecycled || bitmap.width < 2 || bitmap.height < 2) return emptyList()
+        val canvas = OcrCanvas(bitmap, 1f, 0, 0, 0, bitmap.height, false)
+        synchronized(lock) {
+            val engine = ensureReady()
+            val found = readBoxed(engine, canvas, TessBaseAPI.PageSegMode.PSM_AUTO)
+            if (found.isNotEmpty()) return found
+            return readBoxed(engine, canvas, TessBaseAPI.PageSegMode.PSM_SPARSE_TEXT)
+        }
+    }
+
     fun close() {
         synchronized(lock) {
             api?.recycle()
@@ -47,12 +58,26 @@ class TesseractOcr(context: Context) {
         } else {
             TessBaseAPI.PageSegMode.PSM_SINGLE_BLOCK
         }
-        val found = readSymbols(engine, canvas, mode)
+        val found = readSymbols(engine, canvas, mode, false)
         if (found.isNotEmpty() || !canvas.singleLine) return found
-        return readSymbols(engine, canvas, TessBaseAPI.PageSegMode.PSM_RAW_LINE)
+        return readSymbols(engine, canvas, TessBaseAPI.PageSegMode.PSM_RAW_LINE, false)
     }
 
-    private fun readSymbols(engine: TessBaseAPI, canvas: OcrCanvas, mode: Int): List<OcrSymbol> {
+    private fun readBoxed(engine: TessBaseAPI, canvas: OcrCanvas, mode: Int): List<OcrSymbol> {
+        return try {
+            readSymbols(engine, canvas, mode, true)
+        } catch (_: Exception) {
+            engine.clear()
+            emptyList()
+        }
+    }
+
+    private fun readSymbols(
+        engine: TessBaseAPI,
+        canvas: OcrCanvas,
+        mode: Int,
+        keepAll: Boolean,
+    ): List<OcrSymbol> {
         val image = canvas.bitmap
         if (image.isRecycled) return emptyList()
         engine.setPageSegMode(mode)
@@ -72,7 +97,8 @@ class TesseractOcr(context: Context) {
             val symbols = mutableListOf<OcrSymbol>()
             val level = TessBaseAPI.PageIteratorLevel.RIL_SYMBOL
             do {
-                val text = OcrGlyphs.accept(iterator.getUTF8Text(level).orEmpty())
+                val raw = iterator.getUTF8Text(level).orEmpty()
+                val text = if (keepAll) raw.trim() else OcrGlyphs.accept(raw)
                 if (text.isEmpty()) continue
                 val box = iterator.getBoundingBox(level) ?: continue
                 if (box.size < 4) continue

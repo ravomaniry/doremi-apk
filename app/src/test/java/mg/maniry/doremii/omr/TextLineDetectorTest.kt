@@ -42,12 +42,105 @@ class TextLineDetectorTest {
     }
 
     @Test
+    fun characterHeightsJoinSlicesOfOneLine() {
+        val ink = LineInk(360, 120)
+        writeSlices(ink, listOf(20, 45, 70))
+        assertTrue(TextLineDetector.detect(ink).size > 1)
+
+        val lines = TextLineDetector.detect(ink, letters(20f, 75f))
+        assertEquals(1, lines.size)
+        assertTrue(lines.single().top <= 20f)
+        assertTrue(lines.single().bottom >= 75f)
+        assertTrue(lines.single().left <= 20f)
+        assertTrue(lines.single().right >= 280f)
+    }
+
+    @Test
+    fun characterHeightsKeepSeparateLines() {
+        val ink = LineInk(360, 280)
+        writeSlices(ink, listOf(20, 45, 70))
+        writeSlices(ink, listOf(150, 175, 200))
+        val symbols = letters(20f, 75f) + letters(150f, 205f)
+        val lines = TextLineDetector.detect(ink, symbols)
+        assertEquals(2, lines.size)
+        assertTrue(lines[0].bottom < lines[1].top)
+        assertTrue(lines[0].bottom - lines[0].top >= 50f)
+        assertTrue(lines[1].bottom - lines[1].top >= 50f)
+    }
+
+    @Test
+    fun punctuationDoesNotSetTheLineHeight() {
+        val ink = LineInk(360, 120)
+        writeSlices(ink, listOf(20, 45, 70))
+        val dots = listOf(20, 70, 130, 200, 270).map { x ->
+            OcrSymbol(".", x.toFloat(), 20f, (x + 3).toFloat(), 25f, 0.9f)
+        }
+        assertTrue(TextLineDetector.detect(ink, dots).size > 1)
+    }
+
+    @Test
+    fun thinAscendersStayInsideALineOfShortLetters() {
+        val ink = LineInk(420, 180)
+        val bodyTop = 48
+        val bodyHeight = 16
+        for (x in listOf(16, 48, 80, 112, 220, 270, 330)) block(ink, x, bodyTop, 12, bodyHeight)
+        vertical(ink, 150, 32, bodyTop + bodyHeight, 2)
+        vertical(ink, 184, 32, bodyTop + bodyHeight, 2)
+        for (x in listOf(16, 80, 150, 220, 300)) block(ink, x, 120, 12, bodyHeight)
+
+        val lines = TextLineDetector.detect(ink)
+        assertEquals(2, lines.size)
+        assertTrue(lines[0].top <= 32f)
+        assertTrue(lines[0].bottom >= (bodyTop + bodyHeight).toFloat())
+        assertTrue(lines[0].bottom < lines[1].top)
+        assertTrue(lines[1].top >= 110f)
+    }
+
+    @Test
+    fun tallLetterBoxesRaiseALineThatStartsWithShortLetters() {
+        val ink = LineInk(420, 180)
+        val bodyTop = 48
+        val bodyHeight = 16
+        val bodyBottom = bodyTop + bodyHeight
+        for (x in listOf(16, 48, 80, 112, 220, 270, 330)) block(ink, x, bodyTop, 12, bodyHeight)
+        for (x in listOf(16, 80, 150, 220, 300)) block(ink, x, 120, 12, bodyHeight)
+        val shorts = listOf(16, 48, 80, 112, 220, 270, 330).map { x ->
+            OcrSymbol("m", x.toFloat(), bodyTop.toFloat(), (x + 12).toFloat(), bodyBottom.toFloat(), 0.9f)
+        }
+        val talls = listOf(150 to "f", 184 to "l").map { (x, name) ->
+            OcrSymbol(name, x.toFloat(), 32f, (x + 10).toFloat(), bodyBottom.toFloat(), 0.9f)
+        }
+        val below = listOf(16, 80, 150, 220, 300).map { x ->
+            OcrSymbol("s", x.toFloat(), 120f, (x + 12).toFloat(), 136f, 0.9f)
+        }
+
+        val lines = TextLineDetector.detect(ink, shorts + talls + below)
+        assertEquals(2, lines.size)
+        assertTrue(lines[0].top <= 32f)
+        assertTrue(lines[0].bottom >= bodyBottom.toFloat())
+        assertTrue(lines[0].bottom < lines[1].top)
+        assertTrue(lines[1].top >= 110f)
+    }
+
+    @Test
     fun keepsAHyphenRow() {
         val ink = LineInk(240, 60)
         block(ink, 20, 28, 160, 2)
         val lines = TextLineDetector.detect(ink)
         assertEquals(1, lines.size)
         assertTrue(lines.single().right - lines.single().left >= 150f)
+    }
+
+    private fun writeSlices(ink: LineInk, tops: List<Int>) {
+        for (x in listOf(20, 70, 130, 200, 270)) {
+            for (top in tops) block(ink, x, top, 10, 5)
+        }
+    }
+
+    private fun letters(top: Float, bottom: Float): List<OcrSymbol> {
+        return listOf(20, 70, 130, 200, 270).map { x ->
+            OcrSymbol("d", x.toFloat(), top, (x + 10).toFloat(), bottom, 0.9f)
+        }
     }
 
     private fun block(ink: LineInk, left: Int, top: Int, width: Int, height: Int) {

@@ -92,15 +92,15 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:padding="@dimen/spacing4">
+        android:padding="@dimen/spacing4"
+        android:splitMotionEvents="false">
 
-        <ImageView
+        <mg.maniry.doremii.omr.ZoomableImageView
             android:id="@+id/scan_review_image"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:contentDescription="@string/scan_crop"
-            android:scaleType="fitCenter" />
+            android:contentDescription="@string/scan_crop" />
 
         <LinearLayout
             android:layout_width="match_parent"

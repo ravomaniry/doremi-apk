@@ -40,6 +40,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     private var generation = 0
     private var quarterTurn = false
     private var annotated: Bitmap? = null
+    private var ocrEngine: TesseractOcr? = null
 
     fun setStill(bitmap: Bitmap) {
         if (still != null && still !== bitmap && still?.isRecycled == false) still?.recycle()
@@ -110,10 +111,21 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
+        ocrEngine?.close()
+        ocrEngine = null
         recycle(still)
         recycle(crop)
         recycle(annotated)
         super.onCleared()
+    }
+
+    private fun recognizeSymbols(bitmap: Bitmap): List<OcrSymbol> {
+        return try {
+            val engine = ocrEngine ?: TesseractOcr(getApplication()).also { ocrEngine = it }
+            engine.symbols(bitmap)
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 
     private suspend fun read(cropped: Bitmap): ScanResult {
@@ -143,16 +155,18 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         }
         val result = try {
             withContext(Dispatchers.Default) {
-                val lines = TextLineDetector.detect(activePrepared.ink)
+                val symbols = recognizeSymbols(activePrepared.ocr)
+                val lines = TextLineDetector.detect(activePrepared.ink, symbols)
                 val blocks = TextBlockDetector.detect(activePrepared.ink, lines)
-                val classified = MusicalLineClassifier.classify(activePrepared.ink, lines, blocks)
+                val marks = LineMarks.find(activePrepared.ink, lines, blocks)
                 val stored = ScanDraft(
                     emptyList(),
                     emptyList(),
                     emptyList(),
                     emptyList(),
-                    classified.lines,
-                    classified.blocks,
+                    lines,
+                    blocks,
+                    marks,
                 )
                 val finished = MeasureDelimiters.finish(stored, null)
                 ScanResult(finished.parse, finished.signature, stored)

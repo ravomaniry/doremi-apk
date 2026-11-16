@@ -9,21 +9,23 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 object TextLineDetector {
-    fun detect(ink: InkImage): List<DebugLine> {
+    fun detect(ink: InkImage, symbols: List<OcrSymbol> = emptyList()): List<DebugLine> {
         if (ink.width < 4 || ink.height < 4) return emptyList()
         val mask = OpenCvImages.inkOf(ink)
         try {
-            return lines(mask.mat)
+            return lines(mask.mat, symbols)
         } finally {
             mask.close()
         }
     }
 
-    private fun lines(ink: Mat): List<DebugLine> {
-        val glyph = glyphHeight(ink)
+    private fun lines(ink: Mat, symbols: List<OcrSymbol>): List<DebugLine> {
+        val observed = glyphHeight(ink)
+        val measured = characterHeight(symbols)
+        val glyph = if (measured == null) observed else chosenGlyph(measured, observed)
         val vertical = Mat()
         val text = Mat()
-        val kernelHeight = (glyph * 2).coerceAtLeast(8)
+        val kernelHeight = max(8, (glyph * 2.5f).roundToInt())
         val kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, Size(1.0, kernelHeight.toDouble()))
         try {
             Imgproc.morphologyEx(ink, vertical, Imgproc.MORPH_OPEN, kernel)
@@ -34,13 +36,194 @@ object TextLineDetector {
             val minInk = max(3, (peak * 0.08f).roundToInt())
             val rows = BooleanArray(counts.size) { counts[it] >= minInk }
             bridge(rows, max(1, glyph / 6))
-            val bands = runs(rows).flatMap { splitTall(it, counts, glyph, minInk) }
-            return mergeMarks(bands, glyph).mapNotNull { bounds(text, it, glyph) }
+            var bands = runs(rows).flatMap { splitTall(it, counts, glyph, minInk) }
+            bands = mergeMarks(bands, glyph)
+            if (measured != null) {
+                bands = mergeFragments(bands, glyph)
+                bands = solidRows(bands, characterRows(symbols, glyph), glyph, counts)
+            }
+            bands = extendTips(bands, counts, glyph)
+            return bands.mapNotNull { bounds(text, it, glyph) }
         } finally {
             vertical.release()
             text.release()
             kernel.release()
         }
+    }
+
+    private fun characterHeight(symbols: List<OcrSymbol>): Int? {
+        val heights = symbols.mapNotNull { symbol ->
+            val text = symbol.plain()
+            val letter = text.any { it.isLetter() || it.isDigit() }
+            if (!letter || symbol.height < 4f) null else symbol.height
+        }.sorted()
+        if (heights.size < 2) return null
+        val median = heights[heights.size / 2]
+        val typical = heights.filter { it in median * 0.5f..median * 1.7f }
+        val chosen = (if (typical.isEmpty()) median else typical[typical.size / 2]).roundToInt()
+        return chosen.takeIf { it >= 4 }
+    }
+
+    private fun chosenGlyph(measured: Int, observed: Int): Int {
+        val glyph = when {
+            measured > observed * 1.4f -> measured
+            observed > measured * 1.4f -> observed
+            else -> ((measured + observed) / 2f).roundToInt()
+        }
+        return glyph.coerceAtLeast(4)
+    }
+
+    private fun characterRows(symbols: List<OcrSymbol>, glyph: Int): List<IntRange> {
+        val minHeight = glyph * 0.4f
+        val maxHeight = glyph * 3.2f
+        val body = symbols.filter { symbol ->
+            val text = symbol.plain()
+            text.any { it.isLetter() || it.isDigit() } && symbol.height in minHeight..maxHeight
+        }.sortedWith(compareBy({ it.top }, { it.left }))
+        if (body.isEmpty()) return emptyList()
+        val groups = mutableListOf<MutableList<OcrSymbol>>()
+        for (symbol in body) {
+            val group = groups.lastOrNull()
+            if (group != null && sharesLine(group, symbol)) group.add(symbol)
+            else groups.add(mutableListOf(symbol))
+        }
+        return groups.map { group ->
+            group.minOf { it.top }.roundToInt()..group.maxOf { it.bottom }.roundToInt()
+        }
+    }
+
+    private fun sharesLine(group: List<OcrSymbol>, symbol: OcrSymbol): Boolean {
+        val top = group.minOf { it.top }
+        val bottom = group.maxOf { it.bottom }
+        val overlap = minOf(bottom, symbol.bottom) - maxOf(top, symbol.top)
+        if (overlap <= 0f) return false
+        val shorter = minOf(bottom - top, symbol.height)
+        return shorter > 0f && overlap >= shorter * 0.45f
+    }
+
+    private fun mergeFragments(bands: List<IntRange>, glyph: Int): List<IntRange> {
+        if (bands.size < 2) return bands
+        val gapLimit = max(1, (glyph * 0.7f).roundToInt())
+        val maxHeight = max(glyph + 2, (glyph * 1.55f).roundToInt())
+        val merged = mutableListOf(bands.first())
+        for (band in bands.drop(1)) {
+            val previous = merged.last()
+            val gap = band.first - previous.last - 1
+            val combined = band.last - previous.first + 1
+            if (gap <= gapLimit && combined <= maxHeight) {
+                merged[merged.lastIndex] = previous.first..band.last
+            } else {
+                merged.add(band)
+            }
+        }
+        return merged
+    }
+
+    private fun solidRows(
+        bands: List<IntRange>,
+        rows: List<IntRange>,
+        glyph: Int,
+        counts: IntArray,
+    ): List<IntRange> {
+        if (rows.isEmpty() || bands.isEmpty()) return bands
+        val used = BooleanArray(bands.size)
+        val produced = mutableListOf<IntRange>()
+        val pad = max(1, (glyph * 0.15f).roundToInt())
+        val bandCap = max(glyph + 2, (glyph * 2.6f).roundToInt())
+        val letterCap = max(bandCap, (glyph * 3.2f).roundToInt())
+        val lastRow = counts.lastIndex.coerceAtLeast(0)
+        for (row in rows) {
+            val top = row.first - pad
+            val bottom = row.last + pad
+            val covered = bands.indices.filter { index ->
+                if (used[index]) return@filter false
+                val band = bands[index]
+                val center = (band.first + band.last) / 2
+                center in top..bottom
+            }
+            if (covered.isEmpty()) continue
+            val unionTop = covered.minOf { bands[it].first }
+            val unionBottom = covered.maxOf { bands[it].last }
+            if (unionBottom - unionTop + 1 > bandCap) continue
+            val spanTop = minOf(unionTop, row.first).coerceAtLeast(0)
+            val spanBottom = maxOf(unionBottom, row.last).coerceAtMost(lastRow)
+            if (spanBottom < spanTop || spanBottom - spanTop + 1 > letterCap) continue
+            covered.forEach { used[it] = true }
+            produced.add(spanTop..spanBottom)
+        }
+        bands.forEachIndexed { index, band ->
+            if (!used[index]) produced.add(band)
+        }
+        return joinTouching(produced.sortedBy { it.first })
+    }
+
+    private fun extendTips(bands: List<IntRange>, counts: IntArray, glyph: Int): List<IntRange> {
+        if (bands.isEmpty() || counts.isEmpty()) return bands
+        val reach = max(2, glyph * 2)
+        val hole = max(1, glyph / 8)
+        val grown = bands.mapIndexed { index, band ->
+            val ceiling = if (index == 0) 0 else bands[index - 1].last + 1
+            val floor = if (index == bands.lastIndex) counts.lastIndex else bands[index + 1].first - 1
+            val top = extend(counts, band.first, ceiling, -1, reach, hole)
+            val bottom = extend(counts, band.last, floor, 1, reach, hole)
+            top..bottom
+        }
+        return separateTips(grown)
+    }
+
+    private fun extend(
+        counts: IntArray,
+        start: Int,
+        limit: Int,
+        step: Int,
+        reach: Int,
+        hole: Int,
+    ): Int {
+        var edge = start
+        var skipped = 0
+        var moved = 0
+        var y = start + step
+        while (moved < reach && y in counts.indices && ((step < 0 && y >= limit) || (step > 0 && y <= limit))) {
+            if (counts[y] > 0) {
+                edge = y
+                skipped = 0
+            } else {
+                skipped++
+                if (skipped > hole) break
+            }
+            moved++
+            y += step
+        }
+        return edge
+    }
+
+    private fun separateTips(bands: List<IntRange>): List<IntRange> {
+        if (bands.size < 2) return bands
+        val tops = bands.map { it.first }.toIntArray()
+        val bottoms = bands.map { it.last }.toIntArray()
+        for (index in 1 until bands.size) {
+            if (tops[index] > bottoms[index - 1]) continue
+            val split = (bottoms[index - 1] + tops[index]) / 2
+            val upperBottom = split.coerceIn(tops[index - 1], bottoms[index - 1])
+            val lowerTop = (upperBottom + 1).coerceIn(tops[index], bottoms[index])
+            bottoms[index - 1] = upperBottom
+            if (lowerTop > upperBottom) tops[index] = lowerTop
+        }
+        return List(bands.size) { tops[it]..bottoms[it] }
+    }
+
+    private fun joinTouching(bands: List<IntRange>): List<IntRange> {
+        if (bands.isEmpty()) return bands
+        val merged = mutableListOf(bands.first())
+        for (band in bands.drop(1)) {
+            val previous = merged.last()
+            if (band.first <= previous.last + 1) {
+                merged[merged.lastIndex] = previous.first..max(previous.last, band.last)
+            } else {
+                merged.add(band)
+            }
+        }
+        return merged
     }
 
     private fun glyphHeight(ink: Mat): Int {

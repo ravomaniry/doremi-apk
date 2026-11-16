@@ -27,6 +27,7 @@ data class ScanDraft(
     val windows: List<DebugWindow>,
     val lines: List<DebugLine> = emptyList(),
     val blocks: List<DebugBlock> = emptyList(),
+    val marks: List<DebugMark> = emptyList(),
 )
 
 data class FinishedScan(
@@ -369,6 +370,7 @@ object MeasureDelimiters {
             windows = draft.windows,
             lines = draft.lines,
             blocks = draft.blocks,
+            marks = draft.marks,
         )
     }
 

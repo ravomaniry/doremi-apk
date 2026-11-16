@@ -16,31 +16,19 @@ object ScanDebugPainter {
             debug.glyphs.isEmpty() &&
             debug.windows.isEmpty() &&
             debug.lines.isEmpty() &&
-            debug.blocks.isEmpty()
+            debug.blocks.isEmpty() &&
+            debug.marks.isEmpty()
         ) {
             return copy
         }
         val canvas = Canvas(copy)
         val stroke = max(2f, min(copy.width, copy.height) / 220f)
+        val hairline = max(1.5f, min(copy.width, copy.height) / 420f)
         val photoHeight = copy.height.toFloat()
-        val plainGlow = linePaint(stroke * 4f, 0x99FFEA00.toInt())
-        val plainStroke = linePaint(stroke * 1.5f, 0xFFFFEA00.toInt())
-        val musicalGlow = linePaint(stroke * 4f, 0x9900C853.toInt())
-        val musicalStroke = linePaint(stroke * 1.5f, 0xFF00C853.toInt())
+        val lineStroke = linePaint(hairline, 0xFF00C853.toInt())
         for (line in debug.lines) {
             val rect = photoRect(line.left, line.top, line.right, line.bottom, photoHeight, quarterTurn)
-            val glow = if (line.musical) musicalGlow else plainGlow
-            val paint = if (line.musical) musicalStroke else plainStroke
-            canvas.drawRect(rect.left, rect.top, rect.right, rect.bottom, glow)
-            canvas.drawRect(rect.left, rect.top, rect.right, rect.bottom, paint)
-        }
-        val blockGlow = linePaint(stroke * 5f, 0x992979FF.toInt())
-        val blockStroke = linePaint(stroke * 2.2f, 0xFF2979FF.toInt())
-        for (block in debug.blocks) {
-            val rect = photoRect(block.left, block.top, block.right, block.bottom, photoHeight, quarterTurn)
-            val pad = stroke * 1.5f
-            canvas.drawRect(rect.left - pad, rect.top - pad, rect.right + pad, rect.bottom + pad, blockGlow)
-            canvas.drawRect(rect.left - pad, rect.top - pad, rect.right + pad, rect.bottom + pad, blockStroke)
+            canvas.drawRect(rect.left, rect.top, rect.right, rect.bottom, lineStroke)
         }
         val measureGlow = linePaint(stroke * 5f, 0x99FF1744.toInt())
         val measureLine = linePaint(stroke * 1.4f, 0xFFFF1744.toInt())
@@ -126,7 +114,75 @@ object ScanDebugPainter {
             val baseline = (rect.top + rect.bottom) / 2f - (glyphPaint.ascent() + glyphPaint.descent()) / 2f
             canvas.drawText(text, centerX, baseline, glyphPaint)
         }
+        val markStroke = hairline * 1.7f
+        val markPaint = mapOf(
+            DebugMarkKind.BAR to linePaint(markStroke, 0xFF6D4C41.toInt()),
+            DebugMarkKind.PIPE to linePaint(markStroke, 0xFFE91E63.toInt()),
+            DebugMarkKind.COLON to linePaint(markStroke, 0xFF1E88E5.toInt()),
+        )
+        val markPad = markStroke * 0.55f
+        for (kind in listOf(DebugMarkKind.BAR, DebugMarkKind.PIPE, DebugMarkKind.COLON)) {
+            val paint = markPaint.getValue(kind)
+            for (mark in debug.marks) {
+                if (mark.kind != kind) continue
+                val rect = photoRect(mark.left, mark.top, mark.right, mark.bottom, photoHeight, quarterTurn)
+                canvas.drawRect(
+                    rect.left - markPad,
+                    rect.top - markPad,
+                    rect.right + markPad,
+                    rect.bottom + markPad,
+                    paint,
+                )
+            }
+        }
+        drawLegend(canvas, copy.width, copy.height)
         return copy
+    }
+
+    private fun drawLegend(canvas: Canvas, width: Int, height: Int) {
+        if (width < 8 || height < 8) return
+        val entries = listOf(
+            0xFF00C853.toInt() to "Line",
+            0xFF8E24AA.toInt() to "Box",
+            0xFF1E88E5.toInt() to "Colon",
+            0xFFE91E63.toInt() to "Pipe",
+            0xFF6D4C41.toInt() to "Bar",
+        )
+        val textSize = max(18f, min(width, height) / 42f)
+        val swatch = textSize * 0.85f
+        val pad = textSize * 0.5f
+        val gap = textSize * 0.4f
+        val row = textSize * 1.45f
+        val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFF1A1A1A.toInt()
+            this.textSize = textSize
+            textAlign = Paint.Align.LEFT
+        }
+        val labelWidth = entries.maxOf { text.measureText(it.second) }
+        val boxWidth = pad * 2f + swatch + gap + labelWidth
+        val boxHeight = pad * 2f + row * (entries.size - 1) + swatch
+        val margin = pad
+        val left = (width - boxWidth - margin).coerceAtLeast(0f)
+        val top = margin.coerceAtMost((height - boxHeight).coerceAtLeast(0f))
+        val background = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xE6FFFFFF.toInt()
+            style = Paint.Style.FILL
+        }
+        val border = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0x33000000
+            style = Paint.Style.STROKE
+            strokeWidth = max(1f, textSize / 16f)
+        }
+        canvas.drawRoundRect(left, top, left + boxWidth, top + boxHeight, pad, pad, background)
+        canvas.drawRoundRect(left, top, left + boxWidth, top + boxHeight, pad, pad, border)
+        val chip = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+        entries.forEachIndexed { index, (color, label) ->
+            val y = top + pad + index * row
+            chip.color = color
+            canvas.drawRect(left + pad, y, left + pad + swatch, y + swatch, chip)
+            val baseline = y + swatch / 2f - (text.ascent() + text.descent()) / 2f
+            canvas.drawText(label, left + pad + swatch + gap, baseline, text)
+        }
     }
 
     private fun linePaint(width: Float, color: Int): Paint {
