@@ -50,6 +50,11 @@
     <string name="action_save">Tehirizo</string>
     <string name="action_copy">Copier</string>
     <string name="action_paste">Coller</string>
+    <string name="action_select_all">Tout</string>
+    <string name="action_move_left">Gauche</string>
+    <string name="action_move_right">Droite</string>
+    <string name="action_move_up">Haut</string>
+    <string name="action_move_down">Bas</string>
     <string name="action_print">Printy</string>
     <string name="action_midi">Midi</string>
     <string name="piano_btns_descr">Piano button</string>
@@ -145,7 +150,7 @@
     <string name="help_explore">Manokatra ny lisitry ny solfa ao amin\'ny findainao</string>
     <string name="help_print">Mitahiry ny solfa ho .html sy excel. Afaka ovaina na sokafana amin\'ny solosaina</string>
     <string name="help_midi">Mitahiry ny feon-kira ho .mid afaka sokafana amin\'ny application hafa</string>
-    <string name="help_copy">"Copier": misafidy ireo naoty hadika</string>
+    <string name="help_copy">"Copier": mitahiry ny sela voafantina ho copie</string>
     <string name="help_paste">Coller / mandika ny naoty natao "Copie"</string>
 
     <string name="help_menu">2. Ny \"Menu\"</string>
@@ -180,21 +185,21 @@
 
     <string name="help_copy_paste_title">4. Mandika naoty - Copier/Coller</string>
     <string name="help_copy_paste_1">
-        1. Tsindrio ny toerana misy ny naoty voalohany tiana ho adika
+        1. Tsindrio ary tazomy kely ny sela, dia tariho mankany amin\'ny sela farany. Voafantina ny feo sy ny toerana eo anelanelan\'izy ireo, na aiza na aiza eo amin\'ny efijery.
     </string>
     <string name="help_copy_paste_2">
-        2. Tsindrio ny bokotra "Copier"
+        2. "Tout" mifantina ny sela rehetra ao amin\'ny solfa.
     </string>
     <string name="help_copy_paste_3">
-        3. Tsindrio ny toerana misy ny naoty farany tiana ho adika
+        3. "Gauche", "Droite", "Haut" ary "Bas" mamindra ny naoty voafantina raha mbola misy toerana.
     </string>
     <string name="help_copy_paste_4">
-        4. Tsindrio fanindroany ny bokotra "Copier"
+        4. Tsindrio "Copier" mba hitahiry ilay copie. Ny loko dia manjavona, fa mbola azo apetaka.
     </string>
     <string name="help_copy_paste_5">
-        5. Tsindrio ny toerana tiana handikana ny naoty
+        5. Tsindrio ny toerana tiana handraisana ny naoty.
     </string>
-    <string name="help_copy_paste_6">6. Tsindina ny bokotra "Coller"</string>
+    <string name="help_copy_paste_6">6. Tsindrio ny bokotra "Coller".</string>
     <string name="help_dc_ds_title">
         5. FIVERENANA
     </string>

@@ -31,6 +31,10 @@ class AppBarManager(
     private lateinit var stopBtn: ImageButton
     private lateinit var copyBtn: View
     private lateinit var editGroup: View
+    private lateinit var moveLeftBtn: View
+    private lateinit var moveRightBtn: View
+    private lateinit var moveUpBtn: View
+    private lateinit var moveDownBtn: View
     private val trayHandler = Handler(Looper.getMainLooper())
     private var openSection: Pair<View, View>? = null
     private val collapseOpenSection = Runnable {
@@ -87,6 +91,15 @@ class AppBarManager(
             copyBtn = findViewById(R.id.copy_btn)
             copyBtn.onSectionAction { editorViewModel.toggleSelectMode() }
             findViewById<View>(R.id.paste_btn).onSectionAction { editorViewModel.paste() }
+            findViewById<View>(R.id.select_all_btn).onSectionAction { editorViewModel.selectAll() }
+            moveLeftBtn = findViewById(R.id.move_left_btn)
+            moveRightBtn = findViewById(R.id.move_right_btn)
+            moveUpBtn = findViewById(R.id.move_up_btn)
+            moveDownBtn = findViewById(R.id.move_down_btn)
+            moveLeftBtn.onSectionAction { editorViewModel.moveSelection(0, -1) }
+            moveRightBtn.onSectionAction { editorViewModel.moveSelection(0, 1) }
+            moveUpBtn.onSectionAction { editorViewModel.moveSelection(-1, 0) }
+            moveDownBtn.onSectionAction { editorViewModel.moveSelection(1, 0) }
             findViewById<View>(R.id.new_btn).onSectionAction { editorViewModel.createNew() }
         }
     }
@@ -150,10 +163,24 @@ class AppBarManager(
 
 
     private fun observeSelectMode() {
-        editorViewModel.selectModeState.observe(mainContext as EditorActivity) { mode ->
-            val copying = mode == SelectMode.COPY
-            copyBtn.isSelected = copying
-            editGroup.isActivated = copying
+        val activity = mainContext as EditorActivity
+        editorViewModel.selectModeState.observe(activity) { refreshEditActions() }
+        editorViewModel.reRenderNotifier.observe(activity) { refreshEditActions() }
+    }
+
+
+    private fun refreshEditActions() {
+        val copying = editorViewModel.selectMode == SelectMode.COPY
+        copyBtn.isSelected = copying
+        editGroup.isActivated = copying
+        listOf(
+            moveLeftBtn to editorViewModel.canMoveSelection(0, -1),
+            moveRightBtn to editorViewModel.canMoveSelection(0, 1),
+            moveUpBtn to editorViewModel.canMoveSelection(-1, 0),
+            moveDownBtn to editorViewModel.canMoveSelection(1, 0),
+        ).forEach { (button, enabled) ->
+            button.isEnabled = enabled
+            button.alpha = if (enabled) 1f else 0.35f
         }
     }
 

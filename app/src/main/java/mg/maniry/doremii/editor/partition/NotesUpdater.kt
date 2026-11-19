@@ -222,4 +222,66 @@ class NotesUpdater constructor(
 
         return PartitionPasteResult(updatedCells, history)
     }
+
+
+    fun canMove(clipBoard: ClipBoard, dVoice: Int, dIndex: Int): Boolean {
+        clipBoard.reorder()
+        val startVoice = clipBoard.start.voice + dVoice
+        val endVoice = clipBoard.end.voice + dVoice
+        val startIndex = clipBoard.start.index + dIndex
+        val endIndex = clipBoard.end.index + dIndex
+        if (startVoice < 0 || endVoice >= partitionData.voicesNum) return false
+        if (startIndex < 0 || endIndex < 0) return false
+        return endIndex < partitionData.getMaxLength()
+    }
+
+
+    /**
+     * Shifts the rectangle by one musical step. Source values are snapshotted
+     * first so a one-cell overlap keeps the original notes. Returns null when
+     * the destination would leave the score.
+     */
+    fun move(clipBoard: ClipBoard, dVoice: Int, dIndex: Int): PartitionPasteResult? {
+        if (!canMove(clipBoard, dVoice, dIndex)) return null
+
+        val srcVoices = clipBoard.start.voice..clipBoard.end.voice
+        val srcIndexes = clipBoard.start.index..clipBoard.end.index
+        val snapshot = mutableMapOf<Pair<Int, Int>, String>()
+        for (voice in srcVoices) {
+            for (index in srcIndexes) {
+                snapshot[voice to index] = partitionData.safelyGetNote(voice, index)
+            }
+        }
+
+        val destVoices = (clipBoard.start.voice + dVoice)..(clipBoard.end.voice + dVoice)
+        val destIndexes = (clipBoard.start.index + dIndex)..(clipBoard.end.index + dIndex)
+        val cells = linkedSetOf<Pair<Int, Int>>()
+        for (voice in srcVoices) {
+            for (index in srcIndexes) cells.add(voice to index)
+        }
+        for (voice in destVoices) {
+            for (index in destIndexes) cells.add(voice to index)
+        }
+
+        val updatedCells = mutableListOf<Cell>()
+        val history = mutableListOf<EditionHistory.Change>()
+        for ((voice, index) in cells) {
+            val inDest = voice in destVoices && index in destIndexes
+            val next = if (inDest) {
+                snapshot.getValue((voice - dVoice) to (index - dIndex))
+            } else {
+                ""
+            }
+            val exists = partitionData.notes.size > voice && partitionData.notes[voice].size > index
+            val prev = partitionData.safelyGetNote(voice, index)
+            if (!exists && next == "") continue
+            if (prev == next) continue
+            partitionData.createMissingCells(voice, index)
+            partitionData.notes[voice][index] = next
+            history.add(EditionHistory.Change(voice, index, prev, next))
+            updatedCells.add(Cell(voice, index, next))
+        }
+
+        return PartitionPasteResult(updatedCells, history)
+    }
 }

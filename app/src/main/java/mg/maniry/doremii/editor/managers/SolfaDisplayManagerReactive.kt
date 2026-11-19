@@ -18,6 +18,7 @@ class SolfaDisplayManagerReactive(
     private val container: FlexboxLayout,
 ) {
     private val colors = SolfaColors(container.context)
+    private val gesture = SelectionGesture(editorVM, container)
     private var signature: Int = 1
     private var currentLayout = listOf<VirtualTable>()
 
@@ -171,12 +172,22 @@ class SolfaDisplayManagerReactive(
                 }
             }
         }
-        // Click listener
-        val onClickListener = OnclickListenerWrapper("$voiceIndex$voiceIndex") {
+        val cellId = "$voiceIndex:$cellIndex"
+        val onClickListener = OnclickListenerWrapper(cellId) {
             editorVM.moveCursor(voiceIndex, cellIndex)
         }
+        val onTouchListener = OnTouchListenerWrapper(cellId) { view, event ->
+            gesture.onNoteTouch(voiceIndex, cellIndex, view, event)
+        }
         return VirtualCell(
-            text, span, textColor, backgroundColor, 30, onClickListener
+            text,
+            span,
+            textColor,
+            backgroundColor,
+            30,
+            onClickListener,
+            onTouchListener = onTouchListener,
+            noteRef = NoteCellRef(voiceIndex, cellIndex),
         )
     }
 
