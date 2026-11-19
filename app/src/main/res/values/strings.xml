@@ -14,6 +14,25 @@
     <string name="text_tempo">Tempo</string>
     <string name="text_swing">Swing</string>
     <string name="instrument">Zava-maneno</string>
+    <string name="soundfonts_title">SoundFonts</string>
+    <string name="soundfonts_open">SoundFonts</string>
+    <string name="soundfonts_delete">Fafana</string>
+    <string name="soundfonts_use_default">Hampiasa</string>
+    <string name="soundfonts_default">Ampiasaina</string>
+    <string name="soundfonts_import">Ampidirina avy ao @ findainao</string>
+    <string name="soundfonts_import_hint">Alaivo rakitra .sf2 na .sf3, dia ampidiro eto.</string>
+    <string name="soundfonts_browse">Hijery SoundFonts hafa</string>
+    <string name="soundfonts_browse_artifacts">Musical Artifacts (musical-artifacts.com)</string>
+    <string name="soundfonts_browse_general_user">GeneralUser (schristiancollins.com)</string>
+    <string name="soundfonts_invalid_file">Tsy SoundFont azo vakiana ilay rakitra.</string>
+    <string name="soundfonts_import_failed">Tsy voampiditra ilay rakitra.</string>
+    <string name="soundfont_label">SoundFont</string>
+    <string name="playback_loading">Manomana ny feo …</string>
+    <string name="timbre_label">Timbre</string>
+    <string name="timbre_search">Hikaroka …</string>
+    <string name="timbre_empty">Tsy misy timbre</string>
+    <string name="voice_solo">Solo</string>
+    <string name="voice_mute">Mangina</string>
     <string name="text_voices_num">Isan\'ny feo:</string>
     <string name="voice_s">S</string>
     <string name="voice_a">A</string>
@@ -22,9 +41,44 @@
     <string name="text_loog">Andininy</string>
 
     <string name="appbar_content_descr">App par button</string>
+    <string name="group_file">Solfa</string>
+    <string name="group_edit">Fanovana</string>
+    <string name="group_export">Avoaka</string>
+    <string name="group_more">Hafa</string>
+    <string name="action_new">Hamorona</string>
+    <string name="action_open">Sokafy</string>
+    <string name="action_save">Tehirizo</string>
+    <string name="action_copy">Copier</string>
+    <string name="action_paste">Coller</string>
+    <string name="action_print">Printy</string>
+    <string name="action_midi">Midi</string>
     <string name="piano_btns_descr">Piano button</string>
 
     <string name="search">Hikaroka …</string>
+    <string name="home_new_song">Hira vaovao</string>
+    <string name="home_scan_song">Haka solfa</string>
+    <string name="scan_shutter">Haka sary</string>
+    <string name="scan_gallery">Galerie</string>
+    <string name="scan_read">Vakio</string>
+    <string name="scan_retake">Haka indray</string>
+    <string name="scan_confirm">Ampiasaina</string>
+    <string name="scan_empty">Tsy nahitana solfa amin\'ity sary ity. Azonao soratana eto, na alao sary indray.</string>
+    <string name="scan_failed">Tsy voavaky ilay sary.</string>
+    <string name="scan_permission">Tsy misy fahazoan-dàlana amin\'ny fakan-tsary. Mbola afaka misafidy sary avy ao amin\'ny galerie.</string>
+    <string name="scan_crop_small">Alefaso lehibe kokoa ny faritra voafantina.</string>
+    <string name="scan_inferred">Ny soratra miloko dia vinavina.</string>
+    <string name="scan_crop">Faritra hovakiana</string>
+    <string name="home_empty">Tsy mbola misy hira. Tsindrio + hanomboka.</string>
+    <string name="home_empty_search">Tsy misy hira mitovy amin\'izay nosoratana.</string>
+    <string name="home_untitled">Tsy misy lohateny</string>
+    <string name="home_songs">Hira</string>
+    <string name="settings">Fikirakirana</string>
+    <string name="settings_playback">Feon-kira</string>
+    <string name="settings_more">Fanampiny</string>
+    <string name="text_help">Fanampiana</string>
+    <string name="nav_back">Hiverina</string>
+    <string name="more_actions">Safidy</string>
+    <string name="delete_confirm">Fafana ve ny \"%1$s\"?</string>
 
     <string name="cd_coord_placeholder">1 : 1</string>
     <string name="text_sign">Marika</string>
@@ -76,11 +130,10 @@
         Facebook: Ravo Maniry\n https://www.facebook.com/ravomaniry
     </string>
     <string name="text_website">Tranonkala: https://fitiavana.org</string>
-    <string name="text_website_value">https://fitiavana.org</string>
 
     <string name="help_buttons">1. Ireo bokotra samihafa</string>
     <string name="help_open_menu">
-        Manokatra ny \"menu\" ahafahana manova ny firafitry ny hira sy ny zava-maneno
+        Manokatra ny \"menu\" ahafahana manova ny firafitry ny hira
     </string>
     <string name="help_play">Mandefa ny feon-kira</string>
     <string name="hep_stop">Manajanona ny feon-kira</string>

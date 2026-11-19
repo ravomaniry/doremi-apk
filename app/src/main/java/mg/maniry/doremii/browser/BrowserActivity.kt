@@ -1,15 +1,16 @@
 package mg.maniry.doremii.browser
 
-import android.arch.lifecycle.ViewModelProviders
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Bundle
-import android.support.v7.app.AppCompatActivity
 import android.view.View
+import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProvider
 import mg.maniry.doremii.R
 import mg.maniry.doremii.browser.networking.Networking
 import mg.maniry.doremii.browser.uiManagers.UiManager
-import mg.maniry.doremii.commonUtils.PermissionsManager
+import mg.maniry.doremii.commonUtils.FileManager
 
 
 class BrowserActivity : AppCompatActivity() {
@@ -17,28 +18,30 @@ class BrowserActivity : AppCompatActivity() {
     var viewModel: BrowserViewModel? = null
     lateinit var networking: Networking
     private var prefs: SharedPreferences? = null
-    private lateinit var permissionsManager: PermissionsManager
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        FileManager.initDir(this)
+        FileManager.copyDemoFiles(assets)
 
         val mainView = View.inflate(this, R.layout.browser_activity, null)
         setContentView(mainView)
 
         if (viewModel == null) {
-            viewModel = ViewModelProviders.of(this).get(BrowserViewModel::class.java)
+            viewModel = ViewModelProvider(this)[BrowserViewModel::class.java]
         }
 
-        permissionsManager = PermissionsManager(this).apply { network() }
         networking = Networking(this)
         UiManager(this, mainView)
         prefs = getPreferences(Context.MODE_PRIVATE)
     }
 
 
-    override fun onRequestPermissionsResult(reqCode: Int, permissions: Array<out String>, results: IntArray) {
-        permissionsManager.grantPermission(reqCode, results) { }
+    override fun onResume() {
+        super.onResume()
+        viewModel?.refreshFilesList()
     }
 
 

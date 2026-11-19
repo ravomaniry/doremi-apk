@@ -19,3 +19,39 @@
 # If you keep the line number information, uncomment this to
 # hide the original source getFileFromName name.
 #-renamesourcefileattribute SourceFile
+
+# Apache POI, OOXML schemas, and Aalto (StAX) are loaded by reflection.
+-keep class org.apache.poi.** { *; }
+-keep class org.apache.xmlbeans.** { *; }
+-keep class org.apache.poi.schemas.** { *; }
+-keep class org.openxmlformats.schemas.** { *; }
+-keep class com.microsoft.schemas.** { *; }
+-keep class com.fasterxml.aalto.** { *; }
+-keep class org.codehaus.stax2.** { *; }
+-keep class javax.xml.stream.** { *; }
+
+-keeppackagenames org.apache.poi.ss.formula.function
+-keep,allowoptimization class org.apache.commons.compress.archivers.zip.** { *; }
+
+-dontwarn java.awt.**
+-dontwarn javax.xml.stream.**
+-dontwarn javax.naming.**
+-dontwarn java.lang.management.**
+-dontwarn org.apache.**
+-dontwarn org.apache.logging.log4j.**
+-dontwarn org.apache.batik.**
+-dontwarn org.openxmlformats.schemas.**
+-dontwarn org.etsi.**
+-dontwarn org.w3.**
+-dontwarn org.slf4j.impl.**
+-dontwarn com.microsoft.schemas.**
+-dontwarn com.graphbuilder.**
+-dontwarn net.sf.saxon.**
+-dontwarn com.fasterxml.aalto.**
+
+# JNI looks up SfPlayer's native methods by class and method name.
+-keep class mg.maniry.doremii.editor.sfplayer.SfPlayer {
+    native <methods>;
+}
+
+-keep class org.opencv.** { *; }

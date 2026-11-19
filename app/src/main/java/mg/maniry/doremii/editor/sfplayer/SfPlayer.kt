@@ -1,124 +1,216 @@
 package mg.maniry.doremii.editor.sfplayer
 
-import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import cn.sherlock.com.sun.media.sound.SF2Soundbank
-import cn.sherlock.com.sun.media.sound.SoftSynthesizer
-import jp.kshoji.javax.sound.midi.Receiver
-import jp.kshoji.javax.sound.midi.ShortMessage
+import android.util.Log
 import mg.maniry.doremii.editor.partition.Note
-import org.jetbrains.anko.doAsync
+import mg.maniry.doremii.soundfont.DiscoveredPreset
 
+data class VoicePatch(
+    val path: String,
+    val bank: Int,
+    val program: Int,
+)
 
-class SfPlayer(
-    private val mainContext: Context
-) {
+class SfPlayer {
+    var onPresetsDiscovered: ((path: String, presets: List<DiscoveredPreset>) -> Unit)? = null
     private var completionListener: (() -> Unit)? = null
-    private var synth: SoftSynthesizer? = null
-    private val receiver: Receiver? get() = synth?.receiver
-    private var instrumentName = "Piano"
+    private var engine = 0L
+    private val discoveredPaths = mutableSetOf<String>()
+
+    @Volatile
     private var sessionId = 0
 
-    private data class InstrumentConfig(val assetPath: String, val program: Int)
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     fun setOnCompletionListener(listener: () -> Unit) {
         completionListener = listener
     }
 
-    fun prepare(instrument: String) {
-        ensureInitialization(instrument)
-    }
-
-    fun play(notes: List<Note>, tempo: Int, instrument: String) {
-        ensureInitialization(instrument)
-        var timeout = 0L
-        synth?.run {
-            val t0 = microsecondPosition + 1_000_000
-            for (note in notes) {
-                val relativeNoteOnMs = tickToMicroseconds(note.tick, tempo)
-                val durationInMs = tickToMicroseconds(note.duration, tempo)
-                val noteOnTst = t0 + relativeNoteOnMs
-                val noteOffTst = noteOnTst + durationInMs
-                timeout = (relativeNoteOnMs + durationInMs) / 1000
-                receiver.send(ShortMessage().apply {
-                    setMessage(ShortMessage.NOTE_ON, 0, note.pitch, note.velocity)
-                }, noteOnTst)
-                receiver.send(ShortMessage().apply {
-                    setMessage(ShortMessage.NOTE_OFF, 0, note.pitch, note.velocity)
-                }, noteOffTst)
+    fun play(notes: List<Note>, tempo: Int, voices: List<VoicePatch>): Boolean {
+        val discovered = mutableListOf<Pair<String, List<DiscoveredPreset>>>()
+        val delayMs: Long
+        val sessionToStop: Int
+        synchronized(this) {
+            if (!ensureEngine() || !prepareVoices(voices, discovered)) {
+                return false
             }
-        }
-        scheduleCompletionHandlerCall(timeout)
-    }
-
-    fun playSingleNote(pitch: Int) {
-        ensureInitialization(instrumentName)
-        val velocity = 100
-        receiver?.send(ShortMessage().apply {
-            setMessage(ShortMessage.NOTE_ON, 0, pitch, velocity)
-        }, -1)
-        val noteOffTimestamp = synth!!.microsecondPosition + 500_000
-        receiver?.send(ShortMessage().apply {
-            setMessage(ShortMessage.NOTE_OFF, 0, pitch, velocity)
-        }, noteOffTimestamp)
-    }
-
-    private fun scheduleCompletionHandlerCall(timeout: Long) {
-        sessionId++
-        val sessionToStop = sessionId
-        Handler(Looper.getMainLooper()).postDelayed(
-            {
-                if (sessionToStop == sessionId) {
-                    completionListener?.invoke()
-                    println("Completion handler called")
-                } else {
-                    println("Outdated session so we don't stop the player")
+            sessionId++
+            sessionToStop = sessionId
+            val pitches = IntArray(notes.size)
+            val velocities = IntArray(notes.size)
+            val channels = IntArray(notes.size)
+            val onMs = LongArray(notes.size)
+            val offMs = LongArray(notes.size)
+            var latestOffMs = 0L
+            for (i in notes.indices) {
+                val note = notes[i]
+                val noteOnUs = tickToMicroseconds(note.tick, tempo)
+                val noteOffUs = noteOnUs + tickToMicroseconds(note.duration, tempo)
+                onMs[i] = noteOnUs / 1000
+                offMs[i] = noteOffUs / 1000
+                pitches[i] = note.pitch
+                velocities[i] = note.velocity
+                channels[i] = note.channel.coerceIn(0, MAX_CHANNEL)
+                if (offMs[i] > latestOffMs) {
+                    latestOffMs = offMs[i]
                 }
-            }, timeout
-        )
-    }
-
-    private fun ensureInitialization(instrument: String) {
-        if (instrument !== this.instrumentName) {
-            instrumentName = instrument
-            dispose()
+            }
+            nativeReplaceScore(engine, pitches, velocities, channels, onMs, offMs)
+            delayMs = latestOffMs + PREROLL_MS
         }
-        if (synth == null) {
-            val instrumentConfig = parseInstrumentName()
-            val sf = SF2Soundbank(mainContext.assets.open(instrumentConfig.assetPath))
-            val synth = SoftSynthesizer()
-            synth.open()
-            synth.loadAllInstruments(sf)
-            synth.channels[0].programChange(instrumentConfig.program)
-            this.synth = synth
+        publish(discovered)
+        scheduleCompletion(sessionToStop, delayMs)
+        return true
+    }
+
+    fun playSingleNote(pitch: Int, voice: VoicePatch, channel: Int) {
+        val discovered = mutableListOf<Pair<String, List<DiscoveredPreset>>>()
+        synchronized(this) {
+            if (!ensureEngine()) return
+            val id = load(voice.path, discovered)
+            if (id < 0) return
+            val midiChannel = channel.coerceIn(0, MAX_CHANNEL)
+            if (!nativeSelectInstrument(engine, midiChannel, id, voice.bank, voice.program)) {
+                nativeSelectInstrument(engine, midiChannel, id, 0, 0)
+            }
+            nativeAddNote(engine, midiChannel, pitch, SINGLE_NOTE_VELOCITY, SINGLE_NOTE_DURATION_MS)
         }
-    }
-
-    private fun parseInstrumentName(): InstrumentConfig {
-        val colonIndex = instrumentName.indexOf(':')
-        val fileName =
-            if (colonIndex > 0) instrumentName.subSequence(0, colonIndex) else instrumentName
-        return InstrumentConfig(
-            "soundfonts/$fileName.sf2",
-            if (colonIndex > 0) instrumentName.substring(colonIndex + 1).toInt() else 0
-        )
-    }
-
-    private fun tickToMicroseconds(tick: Long, tempo: Int): Long {
-        // 480L is the tick value of 1 bar
-        return 1_000_000 * tick * 60 / (tempo * 480L)
+        publish(discovered)
     }
 
     fun stopPlaying() {
-        dispose()
-        doAsync {
-            ensureInitialization(instrumentName)
+        synchronized(this) {
+            sessionId++
+            if (engine != 0L) {
+                nativeStop(engine)
+            }
         }
     }
 
     fun dispose() {
-        synth?.close()
-        synth = null
+        val handle: Long
+        synchronized(this) {
+            sessionId++
+            handle = engine
+            engine = 0L
+            discoveredPaths.clear()
+        }
+        if (handle != 0L) {
+            nativeDestroy(handle)
+        }
+    }
+
+    private fun publish(discovered: List<Pair<String, List<DiscoveredPreset>>>) {
+        val listener = onPresetsDiscovered ?: return
+        discovered.forEach { (path, presets) -> listener(path, presets) }
+    }
+
+    private fun prepareVoices(
+        voices: List<VoicePatch>,
+        discovered: MutableList<Pair<String, List<DiscoveredPreset>>>,
+    ): Boolean {
+        if (voices.isEmpty()) return false
+        val ids = ArrayList<Int>(voices.size)
+        voices.forEachIndexed { channel, voice ->
+            val id = load(voice.path, discovered)
+            if (id < 0) {
+                Log.e(TAG, "Unable to load ${voice.path}")
+                return false
+            }
+            val midiChannel = channel.coerceAtMost(MAX_CHANNEL)
+            if (!nativeSelectInstrument(engine, midiChannel, id, voice.bank, voice.program)) {
+                nativeSelectInstrument(engine, midiChannel, id, 0, 0)
+            }
+            ids += id
+        }
+        nativeReleaseUnused(engine, ids.distinct().toIntArray())
+        return true
+    }
+
+    private fun load(
+        path: String,
+        discovered: MutableList<Pair<String, List<DiscoveredPreset>>>,
+    ): Int {
+        if (engine == 0L || path.isEmpty()) return -1
+        val id = nativeLoadSoundFont(engine, path)
+        if (id < 0 || path in discoveredPaths) return id
+        val presets = nativePresets(engine, id)?.mapNotNull(DiscoveredPreset::parseRow).orEmpty()
+        if (presets.isNotEmpty()) {
+            discoveredPaths += path
+            discovered += path to presets
+        }
+        return id
+    }
+
+    private fun ensureEngine(): Boolean {
+        if (engine == 0L) {
+            engine = nativeCreate()
+        }
+        return engine != 0L
+    }
+
+    private fun scheduleCompletion(sessionToStop: Int, delayMs: Long) {
+        mainHandler.postDelayed({
+            if (sessionToStop == sessionId) {
+                completionListener?.invoke()
+            }
+        }, delayMs.coerceAtLeast(0L))
+    }
+
+    private fun tickToMicroseconds(tick: Long, tempo: Int): Long {
+        return 1_000_000 * tick * 60 / (tempo * 480L)
+    }
+
+    private external fun nativeCreate(): Long
+    private external fun nativeDestroy(handle: Long)
+    private external fun nativeLoadSoundFont(handle: Long, path: String): Int
+    private external fun nativePresets(handle: Long, sfontId: Int): Array<String>?
+    private external fun nativeSelectInstrument(
+        handle: Long,
+        channel: Int,
+        sfontId: Int,
+        bank: Int,
+        program: Int,
+    ): Boolean
+
+    private external fun nativeReleaseUnused(handle: Long, keepIds: IntArray)
+    private external fun nativeReplaceScore(
+        handle: Long,
+        pitches: IntArray,
+        velocities: IntArray,
+        channels: IntArray,
+        onMs: LongArray,
+        offMs: LongArray,
+    )
+
+    private external fun nativeAddNote(
+        handle: Long,
+        channel: Int,
+        pitch: Int,
+        velocity: Int,
+        durationMs: Long,
+    )
+
+    private external fun nativeStop(handle: Long)
+
+    companion object {
+        private const val TAG = "SfPlayer"
+        private const val PREROLL_MS = 100L
+        private const val SINGLE_NOTE_VELOCITY = 100
+        private const val SINGLE_NOTE_DURATION_MS = 500L
+        private const val MAX_CHANNEL = 15
+
+        init {
+            System.loadLibrary("doremi_synth")
+        }
+
+        fun probe(path: String): List<DiscoveredPreset>? {
+            val rows = nativeProbe(path) ?: return null
+            return rows.mapNotNull(DiscoveredPreset::parseRow).takeIf { it.isNotEmpty() }
+        }
+
+        @JvmStatic
+        private external fun nativeProbe(path: String): Array<String>?
     }
 }

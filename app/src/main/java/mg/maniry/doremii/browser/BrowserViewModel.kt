@@ -1,22 +1,24 @@
 package mg.maniry.doremii.browser
 
-import android.arch.lifecycle.MutableLiveData
-import android.arch.lifecycle.ViewModel
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import mg.maniry.doremii.commonUtils.FileManager
-import org.jetbrains.anko.doAsync
-import org.jetbrains.anko.uiThread
+import mg.maniry.doremii.commonUtils.SongFile
 
 
 class BrowserViewModel : ViewModel() {
-    val filesList = MutableLiveData<List<String>>()
+    val filesList = MutableLiveData<List<SongFile>>()
     val remoteFilesList = MutableLiveData<List<RemoteSolfa>>()
     val isLoading = MutableLiveData<Boolean>()
     val solfaDownloading = MutableLiveData<Boolean>()
 
     fun refreshFilesList() {
-        doAsync {
-            val list = FileManager.listFiles()
-            uiThread { filesList.value = list ?: listOf() }
+        viewModelScope.launch {
+            filesList.value = withContext(Dispatchers.IO) { FileManager.listFiles() }
         }
     }
 }

@@ -3,9 +3,12 @@ package mg.maniry.doremii.browser
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Bundle
-import android.support.v7.app.AppCompatActivity
 import android.view.View
+import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.appbar.MaterialToolbar
 import mg.maniry.doremii.R
+import mg.maniry.doremii.commonUtils.navigateBack
 import mg.maniry.doremii.browser.networking.Networking
 import mg.maniry.doremii.browser.uiManagers.LoginUiManager
 import mg.maniry.doremii.browser.uiManagers.UploadSolfaUiManager
@@ -19,10 +22,12 @@ class UploadSolfaActivity : AppCompatActivity() {
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         mainView = View.inflate(this, R.layout.upload_solfa_activity, null)
         setContentView(mainView)
+        mainView.findViewById<MaterialToolbar>(R.id.screen_toolbar).navigateBack(this)
 
         prefs = getPreferences(Context.MODE_PRIVATE)
         internet = Networking(this)

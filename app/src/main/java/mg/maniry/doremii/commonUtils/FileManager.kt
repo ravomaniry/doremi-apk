@@ -1,46 +1,76 @@
 package mg.maniry.doremii.commonUtils
 
 
+import android.content.ClipData
+import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
+import android.content.res.AssetManager
+import android.net.Uri
 import android.os.Environment
+import android.provider.MediaStore
+import android.provider.OpenableColumns
+import androidx.core.content.FileProvider
+import mg.maniry.doremii.editor.partition.PartitionData
+import mg.maniry.doremii.editor.viewModels.FileContent
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
-import java.lang.Exception
-import java.util.*
-import android.content.Intent
-import android.content.res.AssetManager
-import android.support.v4.content.FileProvider
-import mg.maniry.doremii.editor.viewModels.FileContent
+import java.io.IOException
+import java.util.Date
+import java.util.Scanner
 
 
 class FileManager {
 
     companion object {
-        private const val authority = "mg.maniry.doremi"
+        const val SOLFA_EXTENSION = ".doremi.json"
+        private const val LEGACY_EXTENSION = ".drm"
+        private const val authority = "mg.maniry.doremii.fileprovider"
         private val sep = File.separator
-        private lateinit var rootDir: File
+        private lateinit var appContext: Context
         private lateinit var solfaDir: File
-        private val exportDir =
-            "${Environment.getExternalStorageDirectory().absoluteFile}${sep}${Environment.DIRECTORY_DOWNLOADS}$sep"
-        private val instrumentFilePath get() = File(rootDir, "instrument.txt").absolutePath
 
         private fun buildSolfaPath(name: String) = "${solfaDir.absolutePath}$sep$name"
 
+        fun solfaStem(name: String): String {
+            val lower = name.lowercase()
+            val suffix = when {
+                lower.endsWith(SOLFA_EXTENSION) -> SOLFA_EXTENSION
+                lower.endsWith(LEGACY_EXTENSION) -> LEGACY_EXTENSION
+                else -> return name
+            }
+            return name.dropLast(suffix.length)
+        }
+
+        fun extensionOf(name: String): String {
+            val lower = name.lowercase()
+            return when {
+                lower.endsWith(SOLFA_EXTENSION) -> SOLFA_EXTENSION
+                lower.endsWith(LEGACY_EXTENSION) -> LEGACY_EXTENSION
+                else -> SOLFA_EXTENSION
+            }
+        }
+
+        fun isJsonSolfa(filename: String): Boolean =
+            getFileFromName(filename).name.lowercase().endsWith(SOLFA_EXTENSION)
+
         fun initDir(context: Context) {
-            rootDir = context.filesDir
+            appContext = context.applicationContext
             solfaDir = File(context.filesDir, "solfa")
         }
 
-        fun listFiles() =
-            solfaDir.listFiles { f -> f.extension == "drm" }?.map { it.name.replace(".drm", "") }
-                ?.sorted()
+        fun listFiles(): List<SongFile> =
+            solfaDir.listFiles { f -> f.isFile && f.name.lowercase().endsWith(SOLFA_EXTENSION) }
+                ?.map { SongFile(solfaStem(it.name), it.lastModified()) }
+                ?: emptyList()
 
 
         fun rename(oldName: String?, newName: String) {
             if (oldName != null && newName != "") {
-                with(getFileFromName(oldName)) {
-                    if (exists()) renameTo(File(buildSolfaPath("$newName.drm")))
+                val src = getFileFromName(oldName)
+                if (src.exists()) {
+                    src.renameTo(File(buildSolfaPath(solfaStem(newName) + SOLFA_EXTENSION)))
                 }
             }
         }
@@ -60,54 +90,57 @@ class FileManager {
             Values.unknownErr
         }
 
-        fun createExportFilePath(filename: String, extension: String): String {
-            // It's possible that the app does not have permission to write to the file
-            val defaultFile = File("$exportDir$filename$extension")
-            if (defaultFile.exists() || defaultFile.createNewFile()) {
-                return defaultFile.absolutePath
-            }
-            return "$exportDir$filename${Date().time}$extension"
-        }
-
         fun writeHtml(filename: String, data: String): String {
-            return write(createExportFilePath(filename, ".html"), data)
+            return writeDownload(downloadName(filename, ".html"), "text/html", data.toByteArray())
         }
 
+        fun newCacheFile(filename: String, extension: String): File {
+            val dir = File(appContext.cacheDir, "exports")
+            if (!dir.exists()) dir.mkdirs()
+            return File(dir, downloadName(filename, extension))
+        }
+
+        fun writeDownload(displayName: String, mimeType: String, bytes: ByteArray): String {
+            if (!::appContext.isInitialized) return Values.saveError
+            val safeName = displayName.replace(Regex("""[\\/:*?"<>|]"""), "_").trim()
+                .ifEmpty { "doremi" }
+            val resolver = appContext.contentResolver
+            val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            for (name in listOf(safeName, timestamped(safeName))) {
+                val uri = insertDownload(collection, name, mimeType) ?: continue
+                try {
+                    resolver.openOutputStream(uri)?.use { stream ->
+                        stream.write(bytes)
+                    } ?: throw IOException("Unable to open download")
+                    resolver.update(
+                        uri,
+                        ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) },
+                        null,
+                        null
+                    )
+                    return Values.saved
+                } catch (e: Exception) {
+                    resolver.delete(uri, null, null)
+                }
+            }
+            return Values.saveError
+        }
 
         fun getFileFromName(filename: String?) = when {
-            filename == null -> File(buildSolfaPath("doremi.drm"))
+            filename == null -> File(buildSolfaPath("doremi$SOLFA_EXTENSION"))
             filename.contains('/') -> File(filename)
-            filename.endsWith(".drm") -> File(buildSolfaPath(filename))
-            else -> File(buildSolfaPath("$filename.drm"))
+            else -> File(buildSolfaPath(solfaStem(filename) + extensionOf(filename)))
         }
 
 
         fun read(filename: String): FileContent {
             val file = getFileFromName(filename)
-            return if (file.exists()) {
-                return try {
-                    var content = ""
-                    Scanner(file).run {
-                        while (hasNextLine()) content += nextLine()
-                    }
-                    FileContent(content = content)
-
-                } catch (e: Exception) {
-                    FileContent(error = Values.fileOpenError)
-                }
-
-            } else {
-                FileContent(error = Values.notExisting)
+            if (!file.exists()) return FileContent(error = Values.notExisting)
+            return try {
+                FileContent(content = file.readText())
+            } catch (e: Exception) {
+                FileContent(error = Values.fileOpenError)
             }
-        }
-
-        fun redInstrumentName(): String {
-            val content = read(instrumentFilePath)
-            return if (content.content == "") "Piano" else content.content
-        }
-
-        fun saveInstrumentName(value: String) {
-            write(instrumentFilePath, value)
         }
 
         fun delete(filename: String) = getFileFromName(filename).let {
@@ -122,49 +155,70 @@ class FileManager {
 
         fun share(filename: String, ctx: Context): String? {
             val file = getFileFromName(filename)
-            return if (file.exists()) {
-                try {
-                    val uri = FileProvider.getUriForFile(ctx, authority, file)
-                    ctx.grantUriPermission(authority, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    return Intent().apply {
-                        action = Intent.ACTION_SEND
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_STREAM, uri)
-                    }.let {
-                        if (it.resolveActivity(ctx.packageManager) != null) {
-                            ctx.startActivity(Intent.createChooser(it, filename))
-                            null
-                        } else {
-                            Values.noSharingApp
-                        }
+            if (!file.exists()) return Values.notExisting
+            return try {
+                val uri = FileProvider.getUriForFile(ctx, authority, file)
+                val send = Intent(Intent.ACTION_SEND).apply {
+                    type = if (file.name.lowercase().endsWith(SOLFA_EXTENSION)) {
+                        "application/json"
+                    } else {
+                        "application/octet-stream"
                     }
-                } catch (e: Exception) {
-                    Values.shareErr
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    clipData = ClipData.newRawUri(file.name, uri)
                 }
-            } else {
-                Values.notExisting
+                ctx.startActivity(
+                    Intent.createChooser(send, filename)
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                )
+                null
+            } catch (e: android.content.ActivityNotFoundException) {
+                Values.noSharingApp
+            } catch (e: Exception) {
+                Values.shareErr
             }
         }
 
         fun moveIntoDoremiDir(file: File? = null, path: String? = null): String? {
             return try {
-                when {
+                val src = when {
                     file != null -> file
                     path != null -> File(path)
-                    else -> null
-                }?.let { src ->
-                    if (src.exists()) {
-                        if (src.parentFile.absolutePath == solfaDir.absolutePath) {
-                            src.name.replace(".drm", "")
-                        } else {
-                            val copy = getCopy(src.absolutePath)
-                            src.renameTo(copy)
-                            copy.name.replace(".drm", "")
-                        }
-                    } else {
-                        null
-                    }
+                    else -> return null
                 }
+                if (!src.exists()) return null
+                val placed = if (src.parentFile?.absolutePath == solfaDir.absolutePath) {
+                    src
+                } else {
+                    val dest = getCopy(src.absolutePath)
+                    if (!src.renameTo(dest)) return null
+                    dest
+                }
+                val result = if (placed.name.lowercase().endsWith(LEGACY_EXTENSION)) {
+                    migrateLegacyFile(solfaDir, placed) ?: return null
+                } else {
+                    placed
+                }
+                solfaStem(result.name)
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+        fun importContentUri(uri: Uri): String? {
+            return try {
+                val display = queryDisplayName(uri) ?: "imported$LEGACY_EXTENSION"
+                val dest = getCopy(display)
+                appContext.contentResolver.openInputStream(uri)?.use { input ->
+                    dest.outputStream().use { output -> input.copyTo(output) }
+                } ?: return null
+                val result = if (dest.name.lowercase().endsWith(LEGACY_EXTENSION)) {
+                    migrateLegacyFile(solfaDir, dest) ?: return null
+                } else {
+                    dest
+                }
+                solfaStem(result.name)
             } catch (e: Exception) {
                 null
             }
@@ -172,30 +226,27 @@ class FileManager {
 
 
         fun getCopy(name: String): File {
-            val destFile = getFileFromName(getFileFromName(name).name)
-
+            val source = if (name.contains('/')) File(name) else File(name)
+            val extension = extensionOf(source.name)
+            val stem = solfaStem(source.name).ifBlank { "imported" }
+            val destFile = File(solfaDir, stem + extension)
             if (!destFile.exists()) return destFile
 
-            var dirName = getFileFromName(name).parentFile.name
+            var dirName = source.parentFile?.name ?: ""
             if (dirName == "solfa") dirName = ""
 
-            val desFileName = destFile.name.replace(".drm", "")
-
             if (dirName != "") {
-                getFileFromName("$desFileName ($dirName)").also {
-                    if (!it.exists()) return it
-                }
+                val withDir = File(solfaDir, "$stem ($dirName)$extension")
+                if (!withDir.exists()) return withDir
             }
 
-            dirName = if (dirName == "") "" else "$dirName - "
+            val prefix = if (dirName == "") "" else "$dirName - "
             var i = 1
-            var copy = getFileFromName("$desFileName ($dirName$i)")
-
+            var copy = File(solfaDir, "$stem ($prefix$i)$extension")
             while (copy.exists()) {
                 i++
-                copy = getFileFromName("$desFileName ($dirName$i)")
+                copy = File(solfaDir, "$stem ($prefix$i)$extension")
             }
-
             return copy
         }
 
@@ -207,23 +258,144 @@ class FileManager {
                     assets.list("demo")?.forEach { name ->
                         assets.open("demo/$name").copyTo(FileOutputStream(getFileFromName(name)))
                     }
-                    attemptToCopyFromDoremiDir()
                 } catch (e: Exception) {
                     println("Unable to copy demo files $e")
                 }
             }
+            migrateLegacySolfa()
         }
 
-        fun attemptToCopyFromDoremiDir() {
+        fun migrateLegacySolfa() {
             try {
-                val dir = File("${Environment.getExternalStorageDirectory()}${sep}Doremi", "solfa")
-                val files = dir.listFiles()
-                files?.forEach {
-                    it.copyTo(getFileFromName(it.nameWithoutExtension))
-                }
-            } catch (e: Throwable) {
-                println("Unable to copy form Doremi external storage dir $e")
+                if (!::solfaDir.isInitialized || !solfaDir.exists()) return
+                migrateDirectory(solfaDir)
+            } catch (e: Exception) {
+                // A failed scan leaves the .drm files in place for the next launch.
             }
+        }
+
+        fun saveDownloadedSolfa(name: String, content: String): String? {
+            return try {
+                if (!::solfaDir.isInitialized) return null
+                if (!solfaDir.exists() && !solfaDir.mkdirs()) return null
+                if (content.trimStart().startsWith("{")) {
+                    PartitionData().fromJson(content)
+                    val stem = solfaStem(name).ifBlank { "imported" }
+                    val dest = getCopy(stem)
+                    if (!writeAtomically(dest, content)) return null
+                    solfaStem(dest.name)
+                } else {
+                    val stem = solfaStem(name).ifBlank { "imported" }
+                    val dest = getCopy(stem + LEGACY_EXTENSION)
+                    if (!writeAtomically(dest, content)) return null
+                    val json = migrateLegacyFile(solfaDir, dest) ?: return null
+                    solfaStem(json.name)
+                }
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+        internal fun migrateDirectory(dir: File) {
+            if (!dir.isDirectory) return
+            val legacy = dir.listFiles()?.filter {
+                it.isFile && it.name.lowercase().endsWith(LEGACY_EXTENSION)
+            } ?: return
+            legacy.forEach { migrateLegacyFile(dir, it) }
+        }
+
+        internal fun migrateLegacyFile(dir: File, file: File): File? {
+            if (!file.isFile) return null
+            val stem = solfaStem(file.name).ifBlank { "imported" }
+            val dest = uniqueFile(dir, stem, SOLFA_EXTENSION)
+            return try {
+                val data = PartitionData()
+                data.parseRawString(readJoinedLines(file))
+                if (!writeAtomically(dest, data.toJson())) return null
+                file.delete()
+                dest
+            } catch (e: Exception) {
+                File(dir, dest.name + ".tmp").delete()
+                null
+            }
+        }
+
+        internal fun uniqueFile(dir: File, stem: String, extension: String): File {
+            val first = File(dir, stem + extension)
+            if (!first.exists()) return first
+            var i = 1
+            while (true) {
+                val candidate = File(dir, "$stem ($i)$extension")
+                if (!candidate.exists()) return candidate
+                i++
+            }
+        }
+
+        private fun writeAtomically(dest: File, text: String): Boolean {
+            val parent = dest.parentFile ?: return false
+            val tmp = File(parent, dest.name + ".tmp")
+            return try {
+                tmp.writeText(text)
+                val moved = tmp.renameTo(dest)
+                if (!moved) tmp.delete()
+                moved
+            } catch (e: Exception) {
+                tmp.delete()
+                false
+            }
+        }
+
+        private fun readJoinedLines(file: File): String {
+            val content = StringBuilder()
+            Scanner(file).use { scanner ->
+                while (scanner.hasNextLine()) content.append(scanner.nextLine())
+            }
+            return content.toString()
+        }
+
+        private fun insertDownload(collection: Uri, name: String, mimeType: String): Uri? {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, name)
+                put(MediaStore.Downloads.MIME_TYPE, mimeType)
+                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                put(MediaStore.Downloads.IS_PENDING, 1)
+            }
+            return try {
+                appContext.contentResolver.insert(collection, values)
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+        private fun downloadName(name: String, extension: String): String {
+            val base = name.replace(Regex("""[\\/:*?"<>|]"""), "_").trim().ifEmpty { "doremi" }
+            return base + extension
+        }
+
+        private fun timestamped(displayName: String): String {
+            val dot = displayName.lastIndexOf('.')
+            val stamp = Date().time
+            return if (dot > 0) {
+                displayName.substring(0, dot) + "-$stamp" + displayName.substring(dot)
+            } else {
+                "$displayName-$stamp"
+            }
+        }
+
+        private fun queryDisplayName(uri: Uri): String? {
+            appContext.contentResolver.query(
+                uri,
+                arrayOf(OpenableColumns.DISPLAY_NAME),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (index >= 0) return cursor.getString(index)
+                }
+            }
+            return uri.lastPathSegment
         }
     }
 }

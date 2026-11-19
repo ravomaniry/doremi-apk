@@ -1,18 +1,23 @@
 package mg.maniry.doremii.editor.viewModels
 
 
-import android.arch.lifecycle.LiveData
-import android.arch.lifecycle.MutableLiveData
-import android.arch.lifecycle.ViewModel
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import mg.maniry.doremii.editor.partition.*
 import mg.maniry.doremii.commonUtils.FileManager
+import mg.maniry.doremii.commonUtils.PlaybackSettings
 import mg.maniry.doremii.commonUtils.Values
+import mg.maniry.doremii.DoremiApp
 import mg.maniry.doremii.editor.xlsxExport.ExcelExport
-import org.jetbrains.anko.doAsync
-import org.jetbrains.anko.uiThread
 import java.io.File
 
 
@@ -41,13 +46,14 @@ class EditorViewModel : ViewModel() {
     private var filename = ""
     private var history = EditionHistory()
     var player: Player? = null
+    private var launched = false
     val playerIsPlaying = MutableLiveData<Boolean>().apply { value = false }
+    val playbackLoading = MutableLiveData<Boolean>().apply { value = false }
     private var _selectMode = SelectMode.CURSOR
     val selectMode: SelectMode get() = _selectMode
+    private val _selectModeState = MutableLiveData(SelectMode.CURSOR)
+    val selectModeState: LiveData<SelectMode> = _selectModeState
     var clipBoard: ClipBoard? = null
-    val instrument = MutableLiveData<String>().apply {
-        value = FileManager.redInstrumentName()
-    }
 
 
     init {
@@ -60,13 +66,28 @@ class EditorViewModel : ViewModel() {
 
     fun start(preferences: SharedPreferences, intent: Intent?) {
         prefs = preferences
+        if (intent?.getBooleanExtra("createNew", false) == true) {
+            if (!launched) {
+                launched = true
+                createNew()
+            }
+            return
+        }
+        launched = true
         with(intent) {
             if (this != null) {
                 val fileToOpen = getStringExtra("fileToOpen")
                 if (fileToOpen != null) {
                     loadFile(fileToOpen)
-                } else if (action == Intent.ACTION_VIEW && data is Uri && data != null && data?.path != null) {
-                    val path = FileManager.moveIntoDoremiDir(path = data?.path) ?: ""
+                } else if (action == Intent.ACTION_VIEW && data is Uri) {
+                    val opened = data?.let { uri ->
+                        if (uri.scheme == "content") {
+                            FileManager.importContentUri(uri)
+                        } else {
+                            FileManager.moveIntoDoremiDir(path = uri.path)
+                        }
+                    } ?: ""
+                    val path = opened
 
                     if (path == "") {
                         loadRecentFile()
@@ -154,7 +175,7 @@ class EditorViewModel : ViewModel() {
         if (selectMode == SelectMode.COPY && clipBoard != null) {
             val result = updater.massDelete(clipBoard!!)
             history.handleBulkOps(result.changes)
-            _selectMode = SelectMode.CURSOR
+            setSelectMode(SelectMode.CURSOR)
         } else {
             history.anticipate(cursorPos, partitionData)
             updater.delete().also {
@@ -174,7 +195,7 @@ class EditorViewModel : ViewModel() {
             filename = partitionData.songInfo.filename
         }
         if (partitionData.getMaxLength() > 4) {
-            FileManager.write(filename, partitionData.toString())
+            FileManager.write(filename, partitionData.toJson())
                 .also { if (it != "") message.value = it }
         }
     }
@@ -189,11 +210,23 @@ class EditorViewModel : ViewModel() {
     }
 
 
+    private fun defaultTimbre(): VoiceTimbre {
+        return DoremiApp.instance?.soundFonts?.defaultTimbre() ?: VoiceTimbre.piano()
+    }
+
+    private fun voiceFallback(): VoiceTimbre {
+        val repository = DoremiApp.instance?.soundFonts ?: return defaultTimbre()
+        val current = partitionData.timbres.value?.firstOrNull()
+        val font = repository.resolveSongFont(current?.soundFontId) ?: return current ?: defaultTimbre()
+        val preset = font.presets.firstOrNull()
+        return VoiceTimbre(font.id, preset?.bank ?: 0, preset?.program ?: 0)
+    }
+
     fun updateVoicesNum(n: Int) {
         if (cursorPos.voice >= n) {
             moveCursor(0, 0)
         }
-        partitionData.updateVoicesNum(n)
+        partitionData.updateVoicesNum(n, voiceFallback())
         notifyListeners()
     }
 
@@ -210,9 +243,22 @@ class EditorViewModel : ViewModel() {
 
             with(FileManager.read(path)) {
                 if (error == null) {
-                    resetCursors()
-                    partitionData.parseRawString(content)
-                    this@EditorViewModel.filename = path
+                    try {
+                        if (FileManager.isJsonSolfa(path)) {
+                            partitionData.fromJson(content)
+                        } else {
+                            partitionData.parseRawString(content)
+                        }
+                        resetCursors()
+                        this@EditorViewModel.filename = path
+                    } catch (e: Exception) {
+                        message.value = "${Values.fileOpenError}: $path"
+                        if (onError == null) {
+                            loadRecentFile()
+                        } else {
+                            onError(Values.fileOpenError)
+                        }
+                    }
                 } else {
                     message.value = "${Values.fileOpenError}: $path"
                     if (onError == null) {
@@ -245,9 +291,9 @@ class EditorViewModel : ViewModel() {
         }
     }
 
-    fun onInstrumentChanged(newValue: String) {
-        instrument.value = newValue
-        FileManager.saveInstrumentName(newValue)
+    fun applyPlaybackSettings(context: Context) {
+        playerLoops = PlaybackSettings.loops(context)
+        enablePlayerVelocity.value = PlaybackSettings.velocity(context)
     }
 
 
@@ -255,7 +301,7 @@ class EditorViewModel : ViewModel() {
         save()
         resetCursors()
         history.reset()
-        partitionData.reset()
+        partitionData.reset(defaultTimbre())
         partitionData.signature.value = 4
         filename = partitionData.songInfo.filename
     }
@@ -282,7 +328,7 @@ class EditorViewModel : ViewModel() {
                 notes = notes,
                 tempo = partitionData.tempo,
                 outFile = file,
-                instruments = partitionData.instruments.value,
+                timbres = partitionData.timbres.value,
             )
         )
     }
@@ -307,28 +353,37 @@ class EditorViewModel : ViewModel() {
 
 
     fun exportMidiFile() {
-        doAsync {
-            createTmpMidFile(
-                File(FileManager.createExportFilePath(partitionData.songInfo.filename, ".mid")),
-                partitionData.voices.map { true }.toMutableList()
-            )
-
-            uiThread {
-                message.value = "${Values.done}:\nmidi/${partitionData.songInfo.filename}.mid"
+        viewModelScope.launch {
+            val name = partitionData.songInfo.filename
+            val result = withContext(Dispatchers.IO) {
+                val cache = FileManager.newCacheFile(name, ".mid")
+                createTmpMidFile(cache, partitionData.voices.map { true }.toMutableList())
+                if (!cache.exists() || cache.length() == 0L) {
+                    Values.saveError
+                } else {
+                    FileManager.writeDownload("$name.mid", "audio/midi", cache.readBytes()).also {
+                        cache.delete()
+                    }
+                }
+            }
+            message.value = if (result == Values.saved) {
+                "${Values.done}:\nDownloads/$name.mid"
+            } else {
+                result
             }
         }
     }
 
 
     fun print() {
-        printer.print {
-            message.value = when (it) {
-                Values.saved -> "${Values.done}:\nexport/${partitionData.songInfo.filename}.html"
-                else -> it
+        viewModelScope.launch {
+            val name = partitionData.songInfo.filename
+            val result = withContext(Dispatchers.IO) { printer.export() }
+            message.value = when (result) {
+                Values.saved -> "${Values.done}:\nDownloads/$name.html"
+                else -> result
             }
-            doAsync {
-                xlsExport.export(partitionData)
-            }
+            withContext(Dispatchers.IO) { xlsExport.export(partitionData) }
         }
     }
 
@@ -353,7 +408,7 @@ class EditorViewModel : ViewModel() {
             initClipBoard()
         } else {
             message.value = Values.clipboardSaved
-            _selectMode = SelectMode.CURSOR
+            setSelectMode(SelectMode.CURSOR)
         }
         notifyListeners()
     }
@@ -361,7 +416,13 @@ class EditorViewModel : ViewModel() {
 
     private fun initClipBoard() {
         clipBoard = ClipBoard(cursorPos, cursorPos)
-        _selectMode = SelectMode.COPY
+        setSelectMode(SelectMode.COPY)
+    }
+
+
+    private fun setSelectMode(mode: SelectMode) {
+        _selectMode = mode
+        _selectModeState.value = mode
     }
 
 

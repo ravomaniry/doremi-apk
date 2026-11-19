@@ -1,5 +1,6 @@
 package mg.maniry.doremii.editor.partition
 
+import com.google.gson.JsonObject
 import java.lang.Exception
 
 
@@ -10,7 +11,13 @@ data class ParserStructureEvent(
         var velocity: Int = -1)
 
 
-class ChangeEvent(val position: Int, val type: String, val value: String = "", var treated: Boolean = false) {
+class ChangeEvent(
+    val position: Int,
+    val type: String,
+    val value: String = "",
+    var treated: Boolean = false,
+    var extras: JsonObject = JsonObject(),
+) {
     companion object {
         const val MOD = "MD"
         const val TEMPO = "MV"

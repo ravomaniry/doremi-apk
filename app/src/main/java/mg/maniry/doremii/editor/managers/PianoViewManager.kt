@@ -1,9 +1,8 @@
 package mg.maniry.doremii.editor.managers
 
-import android.arch.lifecycle.Observer
+import androidx.lifecycle.Observer
 import android.content.Context
 import android.view.View
-import android.widget.Button
 import android.widget.ImageView
 import mg.maniry.doremii.R.id.*
 import mg.maniry.doremii.editor.EditorActivity
@@ -29,11 +28,11 @@ class PianoViewManager constructor(
             findViewById<ImageView>(reduce_octave_btn).setOnClickListener { editorVm.changeOctave(false) }
             findViewById<ImageView>(increment_octave_btn).setOnClickListener { editorVm.changeOctave(true) }
             findViewById<ImageView>(delete_notes_btn).setOnClickListener { editorVm.deleteNotes() }
-            findViewById<Button>(kb_dash).setOnClickListener { editorVm.addNote("-") }
-            findViewById<Button>(kb_dot).setOnClickListener { editorVm.addNote(".") }
-            findViewById<Button>(kb_comma).setOnClickListener { editorVm.addNote(",") }
-            findViewById<Button>(kb_semicolon).setOnClickListener { editorVm.addNote(".,") }
-            findViewById<Button>(kb_space).setOnClickListener { editorVm.addNote(" ") }
+            findViewById<View>(kb_dash).setOnClickListener { editorVm.addNote("-") }
+            findViewById<View>(kb_dot).setOnClickListener { editorVm.addNote(".") }
+            findViewById<View>(kb_comma).setOnClickListener { editorVm.addNote(",") }
+            findViewById<View>(kb_semicolon).setOnClickListener { editorVm.addNote(".,") }
+            findViewById<View>(kb_space).setOnClickListener { editorVm.addNote(" ") }
         }
 
         pianoView.onPressed = { editorVm.addNote(it ?: "") }

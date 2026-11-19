@@ -9,6 +9,7 @@
 app/release
 /captures
 .externalNativeBuild
+.cxx
 /.idea
 *doremi_key.jks
 /app/.attach_pid*

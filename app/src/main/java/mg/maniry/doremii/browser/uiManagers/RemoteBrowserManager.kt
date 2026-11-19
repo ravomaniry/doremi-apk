@@ -1,8 +1,8 @@
 package mg.maniry.doremii.browser.uiManagers
 
-import android.arch.lifecycle.Observer
-import android.support.v7.widget.LinearLayoutManager
-import android.support.v7.widget.RecyclerView
+import androidx.lifecycle.Observer
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import android.view.View
 import android.widget.*
 import mg.maniry.doremii.R
@@ -28,8 +28,6 @@ class RemoteBrowserManager(
     private val cancelDownloadBtn = downloadLoader.findViewById<Button>(R.id.cancel_solfa_dld_btn)
     private val downloadFilename = downloadLoader.findViewById<TextView>(R.id.downloading_filename)
 
-    private var searchView = mainView.findViewById<EditText>(R.id.remote_search_view)
-    private val searchBtn = mainView.findViewById<ImageView>(R.id.remote_search_btn)
     private val loader = remoteTab.findViewById<ProgressBar>(R.id.browser_loader)
     private val netStatusTv = remoteTab.findViewById<TextView>(R.id.browser_network_status)
 
@@ -77,7 +75,6 @@ class RemoteBrowserManager(
 
 
     private fun listenClicks() {
-        searchBtn.setOnClickListener { search() }
         cancelDownloadBtn.setOnClickListener { cancelDownload() }
         downloadLoader.setOnClickListener { }
     }
@@ -107,16 +104,10 @@ class RemoteBrowserManager(
 
 
     private fun search() {
-        val text = searchView.text.toString().trim()
         viewModel.isLoading.value = true
         viewModel.remoteFilesList.value = listOf()
         netStatusTv.visibility = View.GONE
-
-        if (text != "") {
-            net.searchSolfa(text, ::saveFilesList, ::saveError)
-        } else {
-            net.mostDownloaded(::saveFilesList, ::saveError)
-        }
+        net.mostDownloaded(::saveFilesList, ::saveError)
     }
 
 
@@ -164,7 +155,7 @@ class RemoteBrowserManager(
 
 
     private fun onDownloadSuccess(name: String, content: String) {
-        FileManager.run { write(getCopy(name).name, content) }
+        FileManager.saveDownloadedSolfa(name, content)
         viewModel.solfaDownloading.value = false
     }
 

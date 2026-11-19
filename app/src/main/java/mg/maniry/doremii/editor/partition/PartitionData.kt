@@ -1,6 +1,7 @@
 package mg.maniry.doremii.editor.partition
 
-import android.arch.lifecycle.MutableLiveData
+import androidx.lifecycle.MutableLiveData
+import com.google.gson.JsonObject
 import mg.maniry.doremii.commonUtils.Values
 import java.lang.Exception
 import java.util.*
@@ -20,12 +21,19 @@ class PartitionData {
     val lyrics = MutableLiveData<String>().apply { value = "" }
     val songInfo = SongInfo()
     var changeEvents = mutableListOf<ChangeEvent>()
-    val instruments =
-        MutableLiveData<MutableList<Int>>().apply { value = MutableList(voicesNum) { 0 } }
+    val timbres =
+        MutableLiveData<MutableList<VoiceTimbre>>().apply {
+            value = MutableList(voicesNum) { VoiceTimbre.piano() }
+        }
     lateinit var voices: MutableList<String>
     var version = Values.solfaVersion
+    var schema = SCHEMA
+    var documentExtras = JsonObject()
+    var scoreExtras = JsonObject()
+    val voiceExtras = mutableListOf<JsonObject>()
 
     companion object {
+        const val SCHEMA = 1
         val voiceIds = arrayListOf("S", "A", "T", "B")
     }
 
@@ -35,21 +43,27 @@ class PartitionData {
     }
 
 
-    fun reset() {
+    fun reset(fallback: VoiceTimbre = VoiceTimbre.piano()) {
         voices = mutableListOf()
         changeEvents = mutableListOf()
         voicesNum = 4
         notes = MutableList(voicesNum) { mutableListOf<String>() }
-        instruments.value = MutableList(voicesNum) { 0 }
+        timbres.value = MutableList(voicesNum) { fallback }
         completeVoiceIds()
 
         lyrics.value = ""
+        version = Values.solfaVersion
+        schema = SCHEMA
+        documentExtras = JsonObject()
+        scoreExtras = JsonObject()
+        voiceExtras.clear()
         songInfo.apply {
             title.value = "doremi_${Date().time}"
             author.value = ""
             compositor.value = ""
             releaseDate.value = ""
             singer.value = ""
+            extras = JsonObject()
         }
     }
 
@@ -91,19 +105,19 @@ class PartitionData {
     }
 
 
-    fun updateVoicesNum(n: Int) {
+    fun updateVoicesNum(n: Int, fallback: VoiceTimbre = VoiceTimbre.piano()) {
         voicesNum = n
         completeVoiceIds()
         createMissingCells(n - 1, 0)
 
-        instruments.value?.run {
-            while (size > n) {
-                removeAt(size - 1)
-            }
-            while (size < n) {
-                add(0)
-            }
+        val next = timbres.value?.toMutableList() ?: mutableListOf()
+        while (next.size > n) {
+            next.removeAt(next.size - 1)
         }
+        while (next.size < n) {
+            next.add(fallback)
+        }
+        timbres.value = next
         signature.value = signature.value
     }
 
@@ -146,14 +160,17 @@ class PartitionData {
     }
 
 
-    fun setVoiceInstrument(voice: Int, instr: Int) {
-        instruments.value?.run {
-            while (size <= voice) {
-                add(0)
-            }
-            set(voice, instr)
+    fun setVoiceTimbre(voice: Int, timbre: VoiceTimbre) {
+        val next = timbres.value?.toMutableList() ?: mutableListOf()
+        while (next.size <= voice) {
+            next.add(VoiceTimbre.piano())
         }
-        instruments.value = instruments.value?.map { it }?.toMutableList()
+        next[voice] = timbre
+        timbres.value = next
+    }
+
+    fun replaceTimbres(next: List<VoiceTimbre>) {
+        timbres.value = next.toMutableList()
     }
 
 
@@ -185,11 +202,7 @@ class PartitionData {
                     }
 
                     Labels.INSTR -> mValue.split(",").forEachIndexed { i, instr ->
-                        try {
-                            setVoiceInstrument(i, instr.trim().toInt())
-                        } catch (e: Exception) {
-                            setVoiceInstrument(i, 0)
-                        }
+                        setVoiceTimbre(i, VoiceTimbre.parseToken(instr))
                     }
                 }
             }
@@ -205,6 +218,11 @@ class PartitionData {
         if (mainParts.size > voicesNum + 1) {
             lyrics.value = mainParts[voicesNum + 1].replace(';', '\n')
         }
+
+        val loadedTimbres = timbres.value?.toMutableList() ?: mutableListOf()
+        while (loadedTimbres.size < voicesNum) loadedTimbres.add(VoiceTimbre.piano())
+        while (loadedTimbres.size > voicesNum) loadedTimbres.removeAt(loadedTimbres.size - 1)
+        timbres.value = loadedTimbres
 
         // ReRender
         info.forEach {
@@ -228,7 +246,7 @@ class PartitionData {
         output += "${Labels.VERSION}:$version; "
         output += "${Labels.SWING}:${if (swing.value == true) 1 else 0}; "
         output += "${Labels.CHANGES}:${changeEvents.joinToString(",")}; "
-        output += "${Labels.INSTR}:${instruments.value?.joinToString { it.toString() }}; "
+        output += "${Labels.INSTR}:${timbres.value?.joinToString(",") { it.serialize() }}; "
         output += "${Labels.VOICES}:${voices.joinToString(",")}; "
 
         with(songInfo) {
@@ -252,6 +270,24 @@ class PartitionData {
         output += separator + lyrics.value?.replace(';', ',')?.replace('\n', ';')
 
         return output
+    }
+
+
+    fun toJson(): String {
+        trim()
+        alignVoiceExtras()
+        return SolfaJson.write(this)
+    }
+
+
+    fun fromJson(raw: String) {
+        SolfaJson.readInto(this, raw)
+    }
+
+
+    private fun alignVoiceExtras() {
+        while (voiceExtras.size < voices.size) voiceExtras.add(JsonObject())
+        while (voiceExtras.size > voices.size) voiceExtras.removeAt(voiceExtras.lastIndex)
     }
 
 

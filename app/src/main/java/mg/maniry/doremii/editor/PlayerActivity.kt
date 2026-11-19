@@ -1,18 +1,18 @@
 package mg.maniry.doremii.editor
 
 import android.os.Bundle
-import android.support.v7.app.AppCompatActivity
-import android.widget.ImageView
+import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.appbar.MaterialToolbar
 import mg.maniry.doremii.R
+import mg.maniry.doremii.commonUtils.navigateBack
 
 class PlayerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.help_activity)
-
-        findViewById<ImageView>(R.id.help_close_btn).setOnClickListener {
-            finish()
-        }
+        findViewById<MaterialToolbar>(R.id.screen_toolbar).navigateBack(this)
     }
 }

@@ -1,10 +1,27 @@
 package mg.maniry.doremii.editor.partition
 
 
+import kotlinx.html.DIV
+import kotlinx.html.FlowContent
+import kotlinx.html.TR
+import kotlinx.html.b
+import kotlinx.html.body
+import kotlinx.html.div
+import kotlinx.html.head
+import kotlinx.html.html
+import kotlinx.html.pre
+import kotlinx.html.span
+import kotlinx.html.stream.createHTML
+import kotlinx.html.style
+import kotlinx.html.sub
+import kotlinx.html.sup
+import kotlinx.html.table
+import kotlinx.html.tbody
+import kotlinx.html.td
+import kotlinx.html.title
+import kotlinx.html.tr
 import mg.maniry.doremii.commonUtils.FileManager
 import mg.maniry.doremii.editor.views.NotesToSpan
-import org.jetbrains.anko.doAsync
-import org.jetbrains.anko.uiThread
 
 
 class HtmlExport(
@@ -15,9 +32,6 @@ class HtmlExport(
         val notes = listOf("C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B")
     }
 
-    data class MeasureResult(val table: String, val finished: Boolean)
-
-    private val suffix = "</body></html>"
     private val bold = "font-weight:bold;"
     private val center = "text-align:center;"
     private val right = "text-align:right;"
@@ -41,246 +55,247 @@ class HtmlExport(
     private val collapse = "border-collapse:collapse;"
 
 
-    fun print(callback: (msg: String) -> Unit) {
-        doAsync {
-            val html = prefix() + header() + solfa() + lyrics() + footer() + suffix
-            val msg = FileManager.writeHtml(partitionData.songInfo.filename, html)
-            uiThread { callback(msg) }
+    fun export(): String {
+        return FileManager.writeHtml(partitionData.songInfo.filename, render())
+    }
+
+
+    fun render(): String = createHTML(prettyPrint = false).html {
+        head {
+            title { +(partitionData.songInfo.title.value ?: "") }
+        }
+        body {
+            style = fontFamily
+            header()
+            solfa()
+            lyrics()
+            footer()
         }
     }
 
 
-    private fun prefix() = with(partitionData.songInfo) {
-        "<html><head><title>${title.value}</title></head><body style=\"$fontFamily\">"
+    private fun FlowContent.header() {
+        div {
+            style = "$center$big$bold"
+            +(partitionData.songInfo.title.value ?: "")
+        }
+        div {
+            style = "$spaceBetween$flex$headerMargin"
+            structure()
+            singer()
+        }
     }
 
 
-    private fun header(): String {
-        return title() +
-                "<div style=\"$spaceBetween$flex$headerMargin\">" +
-                structure() +
-                singer() +
-                "</div>"
-    }
-
-    private fun title() = with(partitionData.songInfo.title) {
-        "<div style=\"$center$big$bold\">${value ?: ""}</div>"
-    }
-
-
-    private fun structure(): String {
-        with(partitionData) {
-            var str = "<div>" +
-                    "<div style=\"$bold\">${signature.value}/4</div>" +
-                    "<div style=\"$bold\">Do dia ${HtmlExport.notes[key.value!!]}</div>" +
-                    "<div style=\"$bold\">Tempo: $tempo bpm</div>"
-
-            if (swing.value == true) {
-                str += "<div style=\"$italic\"><span style=\"$bold\">Swing</span>" +
-                        "<span style=\"$small\">" +
-                        "(vakiana hoe \"d.-.d\" ny \"d.d\" sy ny \"d.,d\")" +
-                        "</span></div>"
+    private fun FlowContent.structure() {
+        div {
+            div {
+                style = bold
+                +"${partitionData.signature.value}/4"
             }
-
-            str += "</div>"
-
-            return str
-        }
-    }
-
-
-    private fun singer() = with(partitionData.songInfo.singer) {
-        "<div style=\"$right\">${value ?: ""}</div>"
-    }
-
-
-    private fun footer() = with(partitionData.songInfo) {
-        var str = "<div style=\"$right$italic\">" +
-                "<div style=\"$inlineBlock$left\">"
-
-        if (author.value != "")
-            str += "<div>Tonony: ${author.value ?: ""}</div>"
-
-        if (compositor.value != "")
-            str += "<div>Feony: ${compositor.value ?: ""}</div>"
-
-        if (releaseDate.value != "")
-            str += "<div>${releaseDate.value ?: ""}</div>"
-
-        return@with "$str</div></div>"
-    }
-
-
-    private fun solfa(): String {
-        var html = "<div style=\"$flex\">"
-        var finished = false
-        var i = 0
-
-        while (!finished) {
-            with(measure(i)) {
-                finished = this.finished
-                html += table
+            div {
+                style = bold
+                +"Do dia ${notes[partitionData.key.value!!]}"
             }
-            i++
+            div {
+                style = bold
+                +"Tempo: ${partitionData.tempo} bpm"
+            }
+            if (partitionData.swing.value == true) {
+                div {
+                    style = italic
+                    span {
+                        style = bold
+                        +"Swing"
+                    }
+                    span {
+                        style = small
+                        +"(vakiana hoe \"d.-.d\" ny \"d.d\" sy ny \"d.,d\")"
+                    }
+                }
+            }
         }
-
-        html += "</div>"
-
-        return html
     }
 
 
-    private fun measure(measureIndex: Int): MeasureResult {
+    private fun FlowContent.singer() {
+        div {
+            style = right
+            +(partitionData.songInfo.singer.value ?: "")
+        }
+    }
+
+
+    private fun FlowContent.footer() {
+        with(partitionData.songInfo) {
+            div {
+                style = "$right$italic"
+                div {
+                    style = "$inlineBlock$left"
+                    if (author.value != "") {
+                        div { +"Tonony: ${author.value ?: ""}" }
+                    }
+                    if (compositor.value != "") {
+                        div { +"Feony: ${compositor.value ?: ""}" }
+                    }
+                    if (releaseDate.value != "") {
+                        div { +(releaseDate.value ?: "") }
+                    }
+                }
+            }
+        }
+    }
+
+
+    private fun FlowContent.solfa() {
+        div {
+            style = flex
+            var measureIndex = 0
+            while (measureHasNotes(measureIndex)) {
+                measureTable(measureIndex)
+                measureIndex++
+            }
+        }
+    }
+
+
+    private fun measureHasNotes(measureIndex: Int): Boolean {
         val signature = partitionData.signature.value ?: 4
-        var finished = true
-        var index: Int
-        var table = "<table style=\"$collapse$measureMargins\"><tbody>"
-        val rows = Array(4) { "" }
-
-
-        // Changes + signs
-        var headerIndex: Int
-        val events = mutableListOf<List<List<ChangeEvent?>>>()
-        for (h in 0 until (signature)) {
-            headerIndex = measureIndex * signature + h
-            events.add(with(ChangeEvent) {
-                listOf(
-                    listOf(VELOCITY, SIGN, DAL),
-                    listOf(MOD),
-                    listOf(TEMPO)
-                )
+        for (voice in 0 until 4) {
+            for (beat in 0 until signature) {
+                val index = measureIndex * signature + beat
+                if (partitionData.notes[voice].size > index) {
+                    return true
+                }
             }
-                .asSequence()
-                .map { group ->
-                    group.asSequence()
-                        .map { type -> partitionData.changeEvents.find { it.type == type && it.position == headerIndex } }
-                        .filter { it != null }
-                        .toList()
-                }.toList())
         }
+        return false
+    }
 
-        var headerHtml = "<tr>"
-        events.forEachIndexed { i, timeEvent ->
-            if (timeEvent.isNotEmpty()) {
-                headerHtml += "<td style=\"$italic$small\">"
-                timeEvent.forEach { group ->
-                    if (group.isNotEmpty()) {
-                        headerHtml += "<div style=\"$center\">"
-                        group.forEach { e ->
-                            e?.value?.run {
-                                headerHtml += " " + when (e.type) {
-                                    ChangeEvent.MOD -> "<b>Do=${e.value}</b>"
-                                    ChangeEvent.TEMPO -> "T=${e.value}"
-                                    else -> e.value
+
+    private fun DIV.measureTable(measureIndex: Int) {
+        val signature = partitionData.signature.value ?: 4
+        table {
+            style = "$collapse$measureMargins"
+            tbody {
+                tr {
+                    for (beat in 0 until signature) {
+                        headerCell(measureIndex * signature + beat)
+                        if (beat < signature - 1) {
+                            td()
+                        }
+                    }
+                }
+                for (voice in 0 until 4) {
+                    tr {
+                        style = borders
+                        for (beat in 0 until signature) {
+                            val index = measureIndex * signature + beat
+                            td {
+                                style = "$tdMinWidth$center"
+                                if (partitionData.notes[voice].size > index) {
+                                    solfaNotes(partitionData.notes[voice][index])
+                                }
+                            }
+                            if (beat != signature - 1) {
+                                td {
+                                    style = "$center$tdMinWidth"
+                                    +if (signature % 2 == 0 && beat % signature == 1) "|" else ":"
                                 }
                             }
                         }
-
-                        headerHtml += "</div>"
                     }
                 }
-                headerHtml += "</td>"
-            } else {
-                headerHtml += "<td/>"
-            }
-            if (i < signature - 1) {
-                headerHtml += "<td/>"
             }
         }
-
-        headerHtml += "</tr>"
-        table += headerHtml
-
-        for (voice in 0 until 4) {
-            rows[voice] += "<tr style=\"$borders\">"
-
-            for (i in 0 until (signature)) {
-                index = measureIndex * signature + i
-                rows[voice] += "<td style=\"$tdMinWidth$center\">"
-
-                if (partitionData.notes[voice].size > index) {
-                    finished = false
-                    rows[voice] += supSubOctave(partitionData.notes[voice][index])
-                }
-
-                rows[voice] += "</td>"
-
-                if (i != signature - 1) {
-                    rows[voice] += "<td style=\"$center$tdMinWidth\">"
-                    rows[voice] += if (signature % 2 == 0 && i % signature == 1) "|" else ":"
-                    rows[voice] += "</td>"
-                }
-            }
-
-            rows[voice] += "</tr>"
-        }
-
-        table += rows.joinToString("") + "</tbody></table>"
-
-        if (finished)
-            table = ""
-
-        return MeasureResult(table, finished)
     }
 
 
-    private fun supSubOctave(strNotes: String): String {
-        return if (strNotes.length <= 1) {
-            strNotes
+    private fun kotlinx.html.TR.headerCell(position: Int) {
+        val groups = with(ChangeEvent) {
+            listOf(
+                listOf(VELOCITY, SIGN, DAL),
+                listOf(MOD),
+                listOf(TEMPO)
+            )
+        }.map { group ->
+            group.mapNotNull { type ->
+                partitionData.changeEvents.find { it.type == type && it.position == position }
+            }
+        }
 
-        } else {
-            var htmlNotes = ""
-            var index = 0
-            var skipNext = false
-
-            for (i in 0 until strNotes.length) {
-                if (!skipNext) {
-                    if (NotesToSpan.symbols.contains(strNotes[i])) {
-                        if (strNotes[i] == '-') {
-                            if (i < strNotes.length - 1 && NotesToSpan.symbols.contains(strNotes[i + 1])) {
-                                htmlNotes += "<sub style=\"$octaveStyles\">${strNotes[i + 1]}</sub>"
-                                skipNext = true
-                                index++
-                            } else {
-                                htmlNotes += strNotes[i]
-                                index++
+        td {
+            style = "$italic$small"
+            groups.forEach { group ->
+                if (group.isNotEmpty()) {
+                    div {
+                        style = center
+                        group.forEach { event ->
+                            event.value.let {
+                                +" "
+                                when (event.type) {
+                                    ChangeEvent.MOD -> b { +"Do=${event.value}" }
+                                    ChangeEvent.TEMPO -> +"T=${event.value}"
+                                    else -> +event.value
+                                }
                             }
-
-                        } else {
-                            htmlNotes += "<sup style=\"$octaveStyles\">${strNotes[i]}</sup>"
-                            index++
                         }
-
-                    } else {
-                        htmlNotes += strNotes[i]
-                        index++
                     }
-
-                } else {
-                    skipNext = false
                 }
             }
-
-            return htmlNotes
         }
     }
 
 
-    private fun lyrics(): String {
-        var html = "<div style=\"$lyricsMargins$flex$spaceAround\">"
+    private fun FlowContent.solfaNotes(strNotes: String) {
+        if (strNotes.length <= 1) {
+            +strNotes
+            return
+        }
 
-        html += partitionData.lyrics.value
-            ?.replace(linebreakRegex, "\n\n")
-            ?.split("\n\n")
-            ?.asSequence()
-            ?.map {
-                "<div><pre style=\"$fontFamily$verseMargin\">${
-                    it.replace(">", "").replace("<", "")
-                }</pre></div>"
-            }?.joinToString("")
+        var skipNext = false
+        for (i in strNotes.indices) {
+            if (skipNext) {
+                skipNext = false
+                continue
+            }
+            val symbol = strNotes[i]
+            if (symbol in NotesToSpan.symbols) {
+                if (symbol == '-' && i < strNotes.lastIndex && strNotes[i + 1] in NotesToSpan.symbols) {
+                    sub {
+                        style = octaveStyles
+                        +strNotes[i + 1].toString()
+                    }
+                    skipNext = true
+                } else if (symbol == '-') {
+                    +symbol.toString()
+                } else {
+                    sup {
+                        style = octaveStyles
+                        +symbol.toString()
+                    }
+                }
+            } else {
+                +symbol.toString()
+            }
+        }
+    }
 
-        html += "</div>"
 
-        return html
+    private fun FlowContent.lyrics() {
+        div {
+            style = "$lyricsMargins$flex$spaceAround"
+            partitionData.lyrics.value
+                ?.replace(linebreakRegex, "\n\n")
+                ?.split("\n\n")
+                ?.forEach { verse ->
+                    div {
+                        pre {
+                            style = "$fontFamily$verseMargin"
+                            +verse.replace(">", "").replace("<", "")
+                        }
+                    }
+                }
+        }
     }
 }

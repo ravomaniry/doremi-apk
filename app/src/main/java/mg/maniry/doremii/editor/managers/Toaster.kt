@@ -1,6 +1,6 @@
 package mg.maniry.doremii.editor.managers
 
-import android.arch.lifecycle.Observer
+import androidx.lifecycle.Observer
 import android.content.Context
 import android.widget.Toast
 import mg.maniry.doremii.editor.EditorActivity

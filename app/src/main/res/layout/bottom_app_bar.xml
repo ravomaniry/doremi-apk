@@ -2,99 +2,257 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:baselineAligned="false"
+    android:background="@color/surface"
     android:orientation="vertical">
 
-    <HorizontalScrollView
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@drawable/bottom_app_bar_background">
+        android:layout_height="wrap_content">
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:id="@+id/tray_file"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:background="@drawable/tool_tray_background"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingVertical="@dimen/spacing1"
+            android:visibility="gone">
 
-            <ImageButton
-                android:id="@+id/help_btn"
-                style="@style/AppTheme.AppBarSecondaryButton"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:contentDescription="@string/appbar_content_descr"
-                android:src="@drawable/ic_help" />
-
-            <ImageButton
+            <LinearLayout
                 android:id="@+id/new_btn"
-                style="@style/AppTheme.AppBarSecondaryButton"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:contentDescription="@string/appbar_content_descr"
-                android:src="@drawable/ic_new" />
+                style="@style/AppTheme.ToolAction"
+                android:contentDescription="@string/action_new">
 
-            <ImageButton
+                <ImageView
+                    style="@style/AppTheme.ToolIcon"
+                    android:src="@drawable/ic_new" />
+
+                <TextView
+                    style="@style/AppTheme.ToolLabel"
+                    android:text="@string/action_new" />
+            </LinearLayout>
+
+            <LinearLayout
                 android:id="@+id/browse_btn"
-                style="@style/AppTheme.AppBarSecondaryButton"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:contentDescription="@string/appbar_content_descr"
-                android:src="@drawable/ic_open_solfa" />
+                style="@style/AppTheme.ToolAction"
+                android:contentDescription="@string/action_open">
 
-            <ImageButton
+                <ImageView
+                    style="@style/AppTheme.ToolIcon"
+                    android:src="@drawable/ic_open_solfa" />
+
+                <TextView
+                    style="@style/AppTheme.ToolLabel"
+                    android:text="@string/action_open" />
+            </LinearLayout>
+
+            <LinearLayout
                 android:id="@+id/save_btn"
-                style="@style/AppTheme.AppBarSecondaryButton"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:contentDescription="@string/appbar_content_descr"
-                android:src="@drawable/ic_save" />
+                style="@style/AppTheme.ToolAction"
+                android:contentDescription="@string/action_save">
 
-            <ImageButton
-                android:id="@+id/copy_btn"
-                style="@style/AppTheme.AppBarSecondaryButton"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:contentDescription="@string/appbar_content_descr"
-                android:src="@drawable/ic_content_copy" />
+                <ImageView
+                    style="@style/AppTheme.ToolIcon"
+                    android:src="@drawable/ic_save" />
 
-            <ImageButton
-                android:id="@+id/paste_btn"
-                style="@style/AppTheme.AppBarSecondaryButton"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:contentDescription="@string/appbar_content_descr"
-                android:src="@drawable/ic_content_paste" />
-
-            <ImageButton
-                android:id="@+id/print_btn"
-                style="@style/AppTheme.AppBarSecondaryButton"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:contentDescription="@string/appbar_content_descr"
-                android:src="@drawable/ic_print" />
-
-            <ImageButton
-                android:id="@+id/save_mid_btn"
-                style="@style/AppTheme.AppBarSecondaryButton"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:contentDescription="@string/appbar_content_descr"
-                android:src="@drawable/ic_save_mid" />
-
-            <ImageButton
-                android:id="@+id/about_btn"
-                style="@style/AppTheme.AppBarSecondaryButton"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:contentDescription="@string/appbar_content_descr"
-                android:src="@drawable/ic_about" />
-
+                <TextView
+                    style="@style/AppTheme.ToolLabel"
+                    android:text="@string/action_save" />
+            </LinearLayout>
         </LinearLayout>
-    </HorizontalScrollView>
+
+        <LinearLayout
+            android:id="@+id/tray_edit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/tool_tray_background"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingVertical="@dimen/spacing1"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/copy_btn"
+                style="@style/AppTheme.ToolAction"
+                android:contentDescription="@string/action_copy">
+
+                <ImageView
+                    style="@style/AppTheme.ToolIcon"
+                    android:src="@drawable/ic_content_copy" />
+
+                <TextView
+                    style="@style/AppTheme.ToolLabel"
+                    android:text="@string/action_copy" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/paste_btn"
+                style="@style/AppTheme.ToolAction"
+                android:contentDescription="@string/action_paste">
+
+                <ImageView
+                    style="@style/AppTheme.ToolIcon"
+                    android:src="@drawable/ic_content_paste" />
+
+                <TextView
+                    style="@style/AppTheme.ToolLabel"
+                    android:text="@string/action_paste" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/tray_export"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/tool_tray_background"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingVertical="@dimen/spacing1"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/print_btn"
+                style="@style/AppTheme.ToolAction"
+                android:contentDescription="@string/action_print">
+
+                <ImageView
+                    style="@style/AppTheme.ToolIcon"
+                    android:src="@drawable/ic_print" />
+
+                <TextView
+                    style="@style/AppTheme.ToolLabel"
+                    android:text="@string/action_print" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/save_mid_btn"
+                style="@style/AppTheme.ToolAction"
+                android:contentDescription="@string/action_midi">
+
+                <ImageView
+                    style="@style/AppTheme.ToolIcon"
+                    android:src="@drawable/ic_save_mid" />
+
+                <TextView
+                    style="@style/AppTheme.ToolLabel"
+                    android:text="@string/action_midi" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/tray_more"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/tool_tray_background"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingVertical="@dimen/spacing1"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/help_btn"
+                style="@style/AppTheme.ToolAction"
+                android:contentDescription="@string/text_help">
+
+                <ImageView
+                    style="@style/AppTheme.ToolIcon"
+                    android:src="@drawable/ic_help" />
+
+                <TextView
+                    style="@style/AppTheme.ToolLabel"
+                    android:text="@string/text_help" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/about_btn"
+                style="@style/AppTheme.ToolAction"
+                android:contentDescription="@string/text_about">
+
+                <ImageView
+                    style="@style/AppTheme.ToolIcon"
+                    android:src="@drawable/ic_about" />
+
+                <TextView
+                    style="@style/AppTheme.ToolLabel"
+                    android:text="@string/text_about" />
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
 
     <LinearLayout
-
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/bottom_app_bar_background"
+        android:orientation="horizontal"
+        android:paddingHorizontal="@dimen/spacing2"
+        android:paddingTop="@dimen/spacing1">
+
+        <LinearLayout
+            android:id="@+id/group_file_btn"
+            style="@style/AppTheme.ToolChip"
+            android:contentDescription="@string/group_file">
+
+            <ImageView
+                style="@style/AppTheme.ToolIcon"
+                android:src="@drawable/ic_folder_open_black_24dp" />
+
+            <TextView
+                style="@style/AppTheme.ToolLabel"
+                android:text="@string/group_file" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/group_edit_btn"
+            style="@style/AppTheme.ToolChip"
+            android:contentDescription="@string/group_edit">
+
+            <ImageView
+                style="@style/AppTheme.ToolIcon"
+                android:src="@drawable/ic_edit" />
+
+            <TextView
+                style="@style/AppTheme.ToolLabel"
+                android:text="@string/group_edit" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/group_export_btn"
+            style="@style/AppTheme.ToolChip"
+            android:contentDescription="@string/group_export">
+
+            <ImageView
+                style="@style/AppTheme.ToolIcon"
+                android:src="@drawable/ic_share" />
+
+            <TextView
+                style="@style/AppTheme.ToolLabel"
+                android:text="@string/group_export" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/group_more_btn"
+            style="@style/AppTheme.ToolChip"
+            android:contentDescription="@string/group_more">
+
+            <ImageView
+                style="@style/AppTheme.ToolIcon"
+                android:src="@drawable/ic_more" />
+
+            <TextView
+                style="@style/AppTheme.ToolLabel"
+                android:text="@string/group_more" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="@dimen/spacing1"
+        android:background="@color/gray" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
         android:gravity="center"
         android:orientation="horizontal"
         android:paddingVertical="@dimen/spacing2"
@@ -128,14 +286,14 @@
             <ImageButton
                 android:id="@+id/play_btn"
                 style="@style/AppTheme.PlayButton"
-                android:contentDescription="@string/appbar_content_descr"
+                android:contentDescription="@string/help_play"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_play" />
 
             <ImageButton
                 android:id="@+id/stop_btn"
                 style="@style/AppTheme.StopButton"
-                android:contentDescription="@string/appbar_content_descr"
+                android:contentDescription="@string/hep_stop"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_stop_circle" />
         </LinearLayout>

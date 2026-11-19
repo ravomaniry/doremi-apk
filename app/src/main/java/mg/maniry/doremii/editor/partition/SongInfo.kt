@@ -1,6 +1,7 @@
 package mg.maniry.doremii.editor.partition
 
-import android.arch.lifecycle.MutableLiveData
+import androidx.lifecycle.MutableLiveData
+import com.google.gson.JsonObject
 
 
 data class SongInfo(
@@ -8,7 +9,8 @@ data class SongInfo(
     val author: MutableLiveData<String> = MutableLiveData(),
     val compositor: MutableLiveData<String> = MutableLiveData(),
     val releaseDate: MutableLiveData<String> = MutableLiveData(),
-    val singer: MutableLiveData<String> = MutableLiveData()
+    val singer: MutableLiveData<String> = MutableLiveData(),
+    var extras: JsonObject = JsonObject(),
 ) {
 
     val filename: String
@@ -44,6 +46,7 @@ data class SongInfo(
         compositor.value = ""
         releaseDate.value = ""
         singer.value = ""
+        extras = JsonObject()
     }
 
 

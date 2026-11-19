@@ -201,10 +201,15 @@ class ChangesDialogManager(
 
 
     private fun handleChange(updatedType: String, value: String) {
+        val previous = changesInScope.find { it.type == updatedType }
         changesInScope =
             changesInScope.asSequence().filter { it.type != updatedType }.toMutableList()
 
-        if (value != "") changesInScope.add(ChangeEvent(position, updatedType, value))
+        if (value != "") {
+            changesInScope.add(ChangeEvent(position, updatedType, value).also {
+                if (previous != null) it.extras = previous.extras
+            })
+        }
     }
 
 

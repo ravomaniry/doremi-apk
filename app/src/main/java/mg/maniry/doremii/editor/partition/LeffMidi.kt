@@ -10,14 +10,13 @@ data class CreateMidiParams(
     val notes: List<Note>,
     val tempo: Int,
     val outFile: File,
-    val instruments: MutableList<Int>? = mutableListOf(),
-//    val voiceIds: MutableList<String>
+    val timbres: MutableList<VoiceTimbre>? = mutableListOf(),
 )
 
 
 fun createMidiFile(params: CreateMidiParams) {
     val noteTracks = mutableListOf(MidiTrack())
-    val (notes, tempo, outFile, instruments) = params
+    val (notes, tempo, outFile, timbres) = params
 
     // Add notes
     notes.forEach {
@@ -44,16 +43,13 @@ fun createMidiFile(params: CreateMidiParams) {
         insertEvent(tempoEvent)
     })
 
-    val programsIndexes = notes.mapIndexed { index, _ ->
-        if (instruments != null && instruments.size > index) {
-            instruments[index]
-        } else {
-            0
+    noteTracks.forEachIndexed { channel, track ->
+        val (bank, program) = timbres?.getOrNull(channel)?.midiBankAndProgram() ?: (0 to 0)
+        if (bank != 0) {
+            track.insertEvent(Controller(0, channel, 0, (bank shr 7) and 0x7f))
+            track.insertEvent(Controller(0, channel, 32, bank and 0x7f))
         }
-    }
-
-    noteTracks.forEachIndexed { v, track ->
-        track.insertEvent(ProgramChange(1, v, InstrumentsList.list[programsIndexes[v]].program))
+        track.insertEvent(ProgramChange(0, channel, program))
         tracks.add(track)
     }
 

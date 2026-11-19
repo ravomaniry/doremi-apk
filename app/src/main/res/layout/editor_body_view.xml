@@ -93,14 +93,6 @@
                             android:drawableStart="@drawable/ic_done"
                             android:text="@string/text_done" />
 
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="@dimen/spacing2"
-                            android:autoLink="web"
-                            android:gravity="center"
-                            android:text="@string/text_website_value" />
-
                     </LinearLayout>
 
                 </LinearLayout>
@@ -130,7 +122,7 @@
                     android:layout_weight="1"
                     android:background="@drawable/black_btn"
                     android:clickable="true"
-                    android:contentDescription="@string/piano_btns_descr"
+                    android:contentDescription="@string/help_octave_left"
                     android:focusable="true"
                     android:src="@drawable/to_left" />
 
@@ -146,7 +138,7 @@
                     android:layout_weight="1"
                     android:background="@drawable/black_btn"
                     android:clickable="true"
-                    android:contentDescription="@string/piano_btns_descr"
+                    android:contentDescription="@string/help_delete_note"
                     android:focusable="true"
                     android:padding="3dp"
                     android:src="@drawable/ic_backspace" />
@@ -163,7 +155,7 @@
                     android:layout_weight="1"
                     android:background="@drawable/black_btn"
                     android:clickable="true"
-                    android:contentDescription="@string/piano_btns_descr"
+                    android:contentDescription="@string/help_octave_right"
                     android:focusable="true"
                     android:src="@drawable/to_right" />
             </LinearLayout>
@@ -176,45 +168,61 @@
                 android:gravity="center_horizontal"
                 android:weightSum="8">
 
-                <Button
+                <ImageView
                     android:id="@+id/kb_dash"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
-                    android:background="@drawable/dash_btn" />
+                    android:background="@drawable/dash_btn"
+                    android:clickable="true"
+                    android:contentDescription="@string/piano_btns_descr"
+                    android:focusable="true" />
 
-                <Button
+                <ImageView
                     android:id="@+id/kb_dot"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="match_parent"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
-                    android:background="@drawable/dot_btn" />
+                    android:background="@drawable/dot_btn"
+                    android:clickable="true"
+                    android:contentDescription="@string/piano_btns_descr"
+                    android:focusable="true" />
 
-                <Button
+                <ImageView
                     android:id="@+id/kb_comma"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="match_parent"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
-                    android:background="@drawable/comma_btn" />
+                    android:background="@drawable/comma_btn"
+                    android:clickable="true"
+                    android:contentDescription="@string/piano_btns_descr"
+                    android:focusable="true" />
 
-                <Button
+                <ImageView
                     android:id="@+id/kb_semicolon"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="match_parent"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
-                    android:background="@drawable/semicolon_btn" />
+                    android:background="@drawable/semicolon_btn"
+                    android:clickable="true"
+                    android:contentDescription="@string/piano_btns_descr"
+                    android:focusable="true" />
 
-                <Button
+                <TextView
                     android:id="@+id/kb_space"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="match_parent"
                     android:layout_margin="4dp"
                     android:layout_weight="1"
                     android:background="@drawable/black_btn"
+                    android:clickable="true"
+                    android:contentDescription="@string/piano_btns_descr"
+                    android:focusable="true"
+                    android:gravity="center"
                     android:text="_"
                     android:textColor="#FFF"
                     android:textScaleX="3" />
@@ -246,5 +254,44 @@
         android:gravity="bottom"
         android:minHeight="24dp"
         android:orientation="vertical" />
+
+    <FrameLayout
+        android:id="@+id/playback_loading"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#BB000000"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <ProgressBar
+                style="?android:attr/progressBarStyleLarge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/playback_loading"
+                android:indeterminate="true" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/playback_loading"
+                android:textColor="@color/white" />
+
+            <Button
+                android:id="@+id/cancel_playback_loading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/text_cancel" />
+        </LinearLayout>
+    </FrameLayout>
 
 </RelativeLayout>
