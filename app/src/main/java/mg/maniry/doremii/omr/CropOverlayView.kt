@@ -8,6 +8,8 @@ import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
+import androidx.core.content.ContextCompat
+import mg.maniry.doremii.R
 import kotlin.math.min
 
 class CropOverlayView @JvmOverloads constructor(
@@ -22,7 +24,7 @@ class CropOverlayView @JvmOverloads constructor(
     private val frame = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 2f * density
-        color = Color.WHITE
+        color = ContextCompat.getColor(context, R.color.colorPrimary)
     }
     private val shade = Color.parseColor("#99000000")
     private var mode = Mode.NONE

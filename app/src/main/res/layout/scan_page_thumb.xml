@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="64dp"
+    android:layout_height="64dp"
+    android:layout_marginEnd="@dimen/spacing2">
+
+    <ImageView
+        android:id="@+id/scan_page_thumb"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@string/scan_pages"
+        android:scaleType="centerCrop" />
+
+    <ImageButton
+        android:id="@+id/scan_page_remove"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_gravity="top|end"
+        android:background="#CCFFFFFF"
+        android:contentDescription="@string/scan_remove_page"
+        android:src="@android:drawable/ic_menu_close_clear_cancel" />
+</FrameLayout>

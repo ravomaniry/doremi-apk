@@ -73,6 +73,12 @@
     <string name="scan_crop_small">Alefaso lehibe kokoa ny faritra voafantina.</string>
     <string name="scan_inferred">Ny soratra miloko dia vinavina.</string>
     <string name="scan_crop">Faritra hovakiana</string>
+    <string name="scan_add_page">Ampiana pejy</string>
+    <string name="scan_remove_page">Esorina ity pejy ity</string>
+    <string name="scan_pages">Pejy voaangona</string>
+    <string name="scan_play">Henoy</string>
+    <string name="scan_stop">Ajanony</string>
+    <string name="scan_tempo_invalid">Ny tempo dia tokony ho eo anelanelan\'ny 31 sy 399.</string>
     <string name="home_empty">Tsy mbola misy hira. Tsindrio + hanomboka.</string>
     <string name="home_empty_search">Tsy misy hira mitovy amin\'izay nosoratana.</string>
     <string name="home_untitled">Tsy misy lohateny</string>

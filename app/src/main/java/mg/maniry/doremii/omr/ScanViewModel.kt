@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import mg.maniry.doremii.editor.partition.PartitionData
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -24,31 +25,37 @@ data class ReviewState(
     val keyIndex: Int,
     val voices: List<ReviewVoice>,
     val empty: Boolean,
+    val detected: Boolean,
 )
 
+class ScanPage(val image: Bitmap, val thumb: Bitmap)
+
 class ScanViewModel(application: Application) : AndroidViewModel(application) {
-    enum class Phase { CAMERA, ADJUST, REVIEW }
+    enum class Phase { CAMERA, ADJUST, PREVIEW }
 
     val phase = MutableLiveData(Phase.CAMERA)
     val busy = MutableLiveData(false)
     val progress = MutableLiveData(0)
     val captureMessage = MutableLiveData<String?>(null)
     val review = MutableLiveData<ReviewState?>(null)
-    val preview = MutableLiveData<Bitmap?>(null)
+    val pages = MutableLiveData<List<ScanPage>>(emptyList())
 
     var still: Bitmap? = null
         private set
-    var crop: Bitmap? = null
-        private set
 
-    private var draft: ScanDraft? = null
+    private val pageItems = mutableListOf<ScanPage>()
+    private var crop: Bitmap? = null
     private var parsed: SolfaParse? = null
     private var parsedSignature = 4
     private var generation = 0
-    private var quarterTurn = false
-    private var annotated: Bitmap? = null
     private var ocrEngine: GoogleVisionOcr? = null
     private val shapes = SolfaGlyphReader()
+
+    @Volatile
+    private var progressOffset = 0
+
+    @Volatile
+    private var progressSpan = 100
 
     fun setStill(bitmap: Bitmap) {
         if (still != null && still !== bitmap && still?.isRecycled == false) still?.recycle()
@@ -56,39 +63,61 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         phase.value = Phase.ADJUST
     }
 
-    fun retake() {
-        recycle(still)
-        recycle(crop)
-        still = null
-        crop = null
-        draft = null
-        parsed = null
-        review.value = null
-        quarterTurn = false
-        phase.value = Phase.CAMERA
-        preview.value = null
-        recycle(annotated)
-        annotated = null
+    fun discardStill() {
+        releaseStill()
     }
 
-    fun recognize(cropped: Bitmap, signature: Int) {
+    fun addPage(cropped: Bitmap) {
+        pageItems += ScanPage(cropped, thumbnail(cropped))
+        publishPages()
+        discardStill()
+    }
+
+    fun removePage(index: Int) {
+        if (index !in pageItems.indices) return
+        val removed = pageItems.removeAt(index)
+        publishPages()
+        recycle(removed.image)
+        if (removed.thumb !== removed.image) recycle(removed.thumb)
+    }
+
+    fun recognize(extra: Bitmap?) {
+        if (extra != null) {
+            pageItems += ScanPage(extra, thumbnail(extra))
+            publishPages()
+            releaseStill()
+        }
+        val batch = pageItems.toList()
+        if (batch.isEmpty()) return
         viewModelScope.launch {
             progress.value = 0
             busy.value = true
             captureMessage.value = null
             try {
-                if (crop != null && crop !== cropped) recycle(crop)
-                crop = cropped
-                val result = read(cropped, signature)
-                draft = result.draft
-                parsed = result.parse
-                parsedSignature = result.signature
-                publishPreview(result.parse.debug)
-                review.value = toState(result.parse, result.signature)
-                phase.value = Phase.REVIEW
+                val parses = mutableListOf<SolfaParse>()
+                val signatures = mutableListOf<Int>()
+                batch.forEachIndexed { index, page ->
+                    val start = index * 100 / batch.size
+                    val end = (index + 1) * 100 / batch.size
+                    progressOffset = start
+                    progressSpan = (end - start).coerceAtLeast(1)
+                    val result = read(page.image, 4)
+                    parses += result.parse
+                    signatures += result.signature
+                    releaseWorkingImage()
+                }
+                val merged = ScanPageMerger.merge(parses, signatures, 4)
+                parsed = merged
+                parsedSignature = (signatures.firstOrNull() ?: 4).coerceIn(2, 6)
+                review.value = toState(merged, parsedSignature, detected = true)
+                phase.value = Phase.PREVIEW
             } catch (error: Exception) {
                 captureMessage.value = error.message
+                phase.value = Phase.CAMERA
             } finally {
+                releaseWorkingImage()
+                progressOffset = 0
+                progressSpan = 100
                 busy.value = false
             }
         }
@@ -99,7 +128,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         val sig = signature.coerceIn(2, 6)
         if (sig == parsedSignature) return
         parsedSignature = sig
-        review.value = toState(current, sig)
+        review.value = toState(current, sig, detected = false)
     }
 
     fun scoreVoices(signature: Int, edited: List<ParsedVoice>?): List<ParsedVoice> {
@@ -113,8 +142,12 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         ocrEngine?.close()
         ocrEngine = null
         recycle(still)
-        recycle(crop)
-        recycle(annotated)
+        releaseWorkingImage()
+        pageItems.forEach { page ->
+            recycle(page.image)
+            if (page.thumb !== page.image) recycle(page.thumb)
+        }
+        pageItems.clear()
         super.onCleared()
     }
 
@@ -143,7 +176,41 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun report(percent: Int) {
-        progress.postValue(percent.coerceIn(0, 100))
+        val mapped = progressOffset + percent.coerceIn(0, 100) * progressSpan / 100
+        progress.postValue(mapped.coerceIn(0, 100))
+    }
+
+    private fun publishPages() {
+        pages.value = pageItems.toList()
+    }
+
+    private fun thumbnail(source: Bitmap): Bitmap {
+        val maxSide = 160
+        val longest = max(source.width, source.height)
+        if (longest <= maxSide) return source.copy(Bitmap.Config.ARGB_8888, false) ?: source
+        val scale = maxSide.toFloat() / longest
+        val width = max(1, (source.width * scale).roundToInt())
+        val height = max(1, (source.height * scale).roundToInt())
+        return Bitmap.createScaledBitmap(source, width, height, true)
+    }
+
+    private fun retained(bitmap: Bitmap?): Boolean {
+        if (bitmap == null) return false
+        if (bitmap === still) return true
+        return pageItems.any { it.image === bitmap || it.thumb === bitmap }
+    }
+
+    private fun releaseWorkingImage() {
+        val active = crop ?: return
+        crop = null
+        if (!retained(active)) recycle(active)
+    }
+
+    private fun releaseStill() {
+        val leaving = still
+        still = null
+        phase.value = Phase.CAMERA
+        recycle(leaving)
     }
 
     private fun readCellText(
@@ -225,8 +292,6 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun read(cropped: Bitmap, signature: Int): ScanResult {
-        quarterTurn = false
-        draft = null
         val prepared = withContext(Dispatchers.Default) { ImagePreprocessor.prepare(cropped) }
         report(5)
         val plan = withContext(Dispatchers.Default) { PageRectifier.plan(prepared.ink) }
@@ -320,25 +385,11 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         }
         val previous = crop
         crop = active
-        if (previous != null && previous !== active && previous !== still) recycle(previous)
-        quarterTurn = false
+        if (previous != null && previous !== active && !retained(previous)) recycle(previous)
         return result
     }
 
-    private suspend fun publishPreview(debug: ScanDebug) {
-        val source = crop ?: return
-        if (source.isRecycled) return
-        val turn = quarterTurn
-        val next = withContext(Dispatchers.Default) {
-            if (source.isRecycled) source else ScanDebugPainter.paint(source, debug, turn)
-        }
-        val previous = annotated
-        annotated = if (next === source) null else next
-        preview.value = next
-        if (previous != null && previous !== next && previous !== source) recycle(previous)
-    }
-
-    private fun toState(parse: SolfaParse, signature: Int): ReviewState {
+    private fun toState(parse: SolfaParse, signature: Int, detected: Boolean): ReviewState {
         generation += 1
         val empty = parse.empty || parse.voices.isEmpty()
         val voices = if (empty) {
@@ -360,6 +411,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
             keyIndex = parse.keyIndex ?: 0,
             voices = voices,
             empty = empty,
+            detected = detected,
         )
     }
 
