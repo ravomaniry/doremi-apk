@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch Doremi",
+      "type": "node-terminal",
+      "request": "launch",
+      "preLaunchTask": "Start Doremi",
+      "command": "echo Doremi launched on the connected device."
+    }
+  ]
+}
