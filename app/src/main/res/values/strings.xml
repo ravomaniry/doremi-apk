@@ -16,6 +16,7 @@
     <string name="instrument">Zava-maneno</string>
     <string name="soundfonts_title">SoundFonts</string>
     <string name="soundfonts_open">SoundFonts</string>
+    <string name="soundfonts_download">Alaina</string>
     <string name="soundfonts_delete">Fafana</string>
     <string name="soundfonts_use_default">Hampiasa</string>
     <string name="soundfonts_default">Ampiasaina</string>
@@ -24,6 +25,8 @@
     <string name="soundfonts_browse">Hijery SoundFonts hafa</string>
     <string name="soundfonts_browse_artifacts">Musical Artifacts (musical-artifacts.com)</string>
     <string name="soundfonts_browse_general_user">GeneralUser (schristiancollins.com)</string>
+    <string name="soundfonts_invalid_url">Ampidiro lien http na https mankany amin\'ny rakitra .sf2 na .sf3.</string>
+    <string name="soundfonts_download_failed">Tsy voaalaina ilay SoundFont.</string>
     <string name="soundfonts_invalid_file">Tsy SoundFont azo vakiana ilay rakitra.</string>
     <string name="soundfonts_import_failed">Tsy voampiditra ilay rakitra.</string>
     <string name="soundfont_label">SoundFont</string>

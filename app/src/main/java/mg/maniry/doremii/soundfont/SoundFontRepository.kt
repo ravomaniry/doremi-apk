@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
@@ -22,11 +23,17 @@ import mg.maniry.doremii.editor.sfplayer.VoicePatch
 import mg.maniry.doremii.soundfont.db.DoremiDatabase
 import mg.maniry.doremii.soundfont.db.PresetEntity
 import mg.maniry.doremii.soundfont.db.SoundFontEntity
+import okhttp3.Call
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.io.File
 import java.io.IOException
+import java.net.URLDecoder
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.coroutines.coroutineContext
 
 data class InstalledSoundFont(
     val id: String,
@@ -50,6 +57,18 @@ data class ImportProgress(
     val checking: Boolean,
 )
 
+data class DownloadFailure(
+    val key: String,
+    val label: String,
+    val message: String,
+)
+
+data class CuratedSoundFont(
+    val name: String,
+    val detail: String,
+    val url: String,
+)
+
 data class SoundFontMessage(
     val id: Long,
     val text: String,
@@ -68,11 +87,23 @@ class SoundFontRepository(context: Context) {
     private val gate = Mutex()
     private val ready = CompletableDeferred<Unit>()
     private val jobs = ConcurrentHashMap<String, Job>()
+    private val calls = ConcurrentHashMap<String, Call>()
+    private val client = OkHttpClient.Builder()
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.MINUTES)
+        .callTimeout(10, TimeUnit.MINUTES)
+        .build()
 
     private val catalogData = MutableLiveData<List<InstalledSoundFont>>(emptyList())
     val catalog: LiveData<List<InstalledSoundFont>> = catalogData
     private val importsData = MutableLiveData<List<ImportProgress>>(emptyList())
     val imports: LiveData<List<ImportProgress>> = importsData
+    private val failuresData = MutableLiveData<List<DownloadFailure>>(emptyList())
+    val failures: LiveData<List<DownloadFailure>> = failuresData
+    private val failureLock = Any()
+    private var failureSnapshot = emptyList<DownloadFailure>()
     private val messagesData = MutableLiveData<SoundFontMessage>()
     val messages: LiveData<SoundFontMessage> = messagesData
     private val messageIds = AtomicLong()
@@ -143,7 +174,94 @@ class SoundFontRepository(context: Context) {
         }
     }
 
+    fun download(url: String, displayName: String) {
+        start()
+        val key = url.trim()
+        val scheme = Uri.parse(key).scheme
+        if (scheme != "http" && scheme != "https") {
+            postMessage(appContext.getString(R.string.soundfonts_invalid_url))
+            return
+        }
+        if (cache.any { it.sourceUrl == key } || jobs[key]?.isActive == true) return
+        clearFailure(key)
+        val call = client.newCall(Request.Builder().url(key).build())
+        calls[key] = call
+        val job = scope.launch {
+            val partial = File(partialDirectory, "${UUID.randomUUID()}.part")
+            try {
+                call.execute().use { response ->
+                    if (!response.isSuccessful) throw IOException("HTTP ${response.code}")
+                    val body = response.body ?: throw IOException("empty body")
+                    val fileName = soundFontName(response.request.url.encodedPath, response.header("Content-Disposition"))
+                        ?: throw IOException("not a soundfont")
+                    publish(key, displayName, 0, body.contentLength(), false)
+                    body.byteStream().use { input ->
+                        partial.outputStream().use { output ->
+                            val buffer = ByteArray(16 * 1024)
+                            var received = 0L
+                            val total = body.contentLength()
+                            while (true) {
+                                coroutineContext.ensureActive()
+                                val count = input.read(buffer)
+                                if (count < 0) break
+                                output.write(buffer, 0, count)
+                                received += count
+                                if (received == total || received % (256 * 1024) < count) {
+                                    publish(key, displayName, received, total, false)
+                                }
+                            }
+                        }
+                    }
+                    publish(key, displayName, partial.length(), partial.length(), true)
+                    val presets = SfPlayer.probe(partial.absolutePath) ?: throw IOException("probe failed")
+                    gate.withLock {
+                        val destination = uniqueFile(directory, fileName)
+                        if (!partial.renameTo(destination)) {
+                            partial.copyTo(destination, overwrite = true)
+                            partial.delete()
+                        }
+                        val id = newId()
+                        dao.insert(
+                            SoundFontEntity(
+                                id = id,
+                                displayName = displayName.ifBlank { displayNameFromFile(destination.name) },
+                                fileName = destination.name,
+                                sizeBytes = destination.length(),
+                                sourceUrl = key,
+                                bundled = false,
+                                active = dao.active() == null,
+                            )
+                        )
+                        dao.replacePresets(id, presets.map { it.toEntity(id) })
+                        reload()
+                    }
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                partial.delete()
+                throw cancelled
+            } catch (error: Exception) {
+                partial.delete()
+                if (coroutineContext[Job]?.isActive == false) return@launch
+                fail(
+                    key,
+                    displayName,
+                    when (error.message) {
+                        "probe failed" -> R.string.soundfonts_invalid_file
+                        "not a soundfont" -> R.string.soundfonts_invalid_url
+                        else -> R.string.soundfonts_download_failed
+                    },
+                )
+            } finally {
+                calls.remove(key)
+                clearProgress(key)
+            }
+        }
+        jobs[key] = job
+        job.invokeOnCompletion { jobs.remove(key, job) }
+    }
+
     fun cancel(key: String) {
+        calls[key]?.cancel()
         jobs[key]?.cancel()
     }
 
@@ -287,6 +405,26 @@ class SoundFontRepository(context: Context) {
         messagesData.postValue(SoundFontMessage(messageIds.incrementAndGet(), text))
     }
 
+    private fun fail(key: String, label: String, resId: Int) {
+        val text = appContext.getString(resId)
+        val next = synchronized(failureLock) {
+            failureSnapshot = failureSnapshot.filterNot { it.key == key } +
+                DownloadFailure(key, label.ifBlank { "SoundFont" }, text)
+            failureSnapshot
+        }
+        failuresData.postValue(next)
+        postMessage(text)
+    }
+
+    private fun clearFailure(key: String) {
+        val next = synchronized(failureLock) {
+            if (failureSnapshot.none { it.key == key }) return
+            failureSnapshot = failureSnapshot.filterNot { it.key == key }
+            failureSnapshot
+        }
+        failuresData.postValue(next)
+    }
+
     private fun ensureReady() {
         start()
         if (!ready.isCompleted) {
@@ -307,6 +445,54 @@ class SoundFontRepository(context: Context) {
 
     companion object {
         const val PIANO_FILE = "Piano.sf2"
+
+        val curated = listOf(
+            CuratedSoundFont(
+                name = "Florestan Piano",
+                detail = "Piano, .sf2, ~7.5 MB",
+                url = "https://raw.githubusercontent.com/ZmeyKolbasnik/Instruments/master/000_Florestan_Piano.sf2",
+            ),
+            CuratedSoundFont(
+                name = "Jeux d'orgues",
+                detail = "Orgue, .sf2, ~3.8 MB",
+                url = "https://raw.githubusercontent.com/nickbailey/smrg-live/master/config/includes.chroot/usr/local/share/soundfonts/jeux14.sf2",
+            ),
+            CuratedSoundFont(
+                name = "Florestan Strings",
+                detail = "Strings, .sf2, ~3 MB",
+                url = "https://raw.githubusercontent.com/ZmeyKolbasnik/Instruments/master/040_Florestan_String_Quartet.sf2",
+            ),
+            CuratedSoundFont(
+                name = "MuseScore General",
+                detail = "GM feno, .sf3, ~40 MB",
+                url = "https://huggingface.co/MuScriptor/assets/resolve/main/MuseScore_General.sf3",
+            ),
+            CuratedSoundFont(
+                name = "FluidR3 GM",
+                detail = "GM klasika, .sf3, ~23 MB",
+                url = "https://raw.githubusercontent.com/Jacalz/fluid-soundfont/master/SF3/FluidR3.sf3",
+            ),
+        )
+
+        private fun soundFontName(path: String, disposition: String?): String? {
+            val fromHeader = disposition?.let { header ->
+                Regex("""filename\*?=(?:UTF-8''|"|)?([^\";]+)""", RegexOption.IGNORE_CASE)
+                    .find(header)
+                    ?.groupValues
+                    ?.getOrNull(1)
+                    ?.trim()
+                    ?.trim('"')
+            }
+            val raw = URLDecoder.decode(fromHeader ?: path.substringAfterLast('/'), "UTF-8")
+            if (!raw.substringBefore('?').substringBefore('#').let {
+                    it.endsWith(".sf2", true) || it.endsWith(".sf3", true)
+                }
+            ) {
+                return null
+            }
+            val cleaned = raw.replace(Regex("""[^A-Za-z0-9._-]"""), "_")
+            return cleaned.ifBlank { null }
+        }
 
         private fun soundFontFileName(displayName: String): String? {
             val base = displayName.substringAfterLast('/').substringBefore('?').substringBefore('#')

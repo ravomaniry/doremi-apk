@@ -40,6 +40,21 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical" />
 
+            <View
+                android:id="@+id/lists_divider"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="@dimen/spacing3"
+                android:layout_marginBottom="@dimen/spacing3"
+                android:background="@color/gray"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/curated_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
             <LinearLayout
                 android:id="@+id/import_progress"
                 android:layout_width="match_parent"
