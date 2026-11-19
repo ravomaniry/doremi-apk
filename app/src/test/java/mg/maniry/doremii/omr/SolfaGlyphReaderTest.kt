@@ -44,12 +44,12 @@ class SolfaGlyphReaderTest {
     fun trailingCommaLowersTheOctave() {
         val single = CellInk(260, 180)
         val letter = stamp(single, glyph('d'), 40, 40)
-        block(single, letter.right + 3, letter.bottom - 6, 4, 7)
+        block(single, letter.right + 3, letter.bottom + 2, 4, 7)
         assertCell(single, whole(single), "d,", "d-1", "octave comma")
 
         val joined = pair("di")
         val box = union(joined)
-        block(joined, box.right + 3, box.bottom - 6, 4, 7)
+        block(joined, box.right + 3, box.bottom + 2, 4, 7)
         assertCell(joined, whole(joined), "di,", "di-1", "two-letter octave comma")
     }
 
@@ -65,8 +65,20 @@ class SolfaGlyphReaderTest {
         val joined = CellInk(320, 180)
         val first = stamp(joined, glyph('d'), 30, 40)
         stamp(joined, glyph('r'), first.right + 24, 40 + glyph('d').height - glyph('r').height)
-        block(joined, first.right + 9, first.bottom - 7, 4, 6)
-        assertCell(joined, whole(joined), "d,r", "d,r", "join comma")
+        block(joined, first.right + 9, first.bottom + 2, 4, 6)
+        assertCell(joined, whole(joined), "d,r", "d-1.r", "join comma")
+
+        val bare = CellInk(320, 180)
+        val head = stamp(bare, glyph('d'), 30, 40)
+        stamp(bare, glyph('r'), head.right + 24, 40 + glyph('d').height - glyph('r').height)
+        assertCell(bare, whole(bare), "dr", "d.r", "no mark")
+
+        val dottedComma = CellInk(340, 180)
+        val lead = stamp(dottedComma, glyph('d'), 24, 36)
+        stamp(dottedComma, glyph('r'), lead.right + 36, 36 + glyph('d').height - glyph('r').height)
+        block(dottedComma, lead.right + 8, (lead.top + lead.bottom) / 2 - 2, 4, 4)
+        block(dottedComma, lead.right + 16, lead.bottom + 2, 4, 6)
+        assertCell(dottedComma, whole(dottedComma), "d.,r", "d.,r", "dot comma")
     }
 
     @Test

@@ -1,9 +1,9 @@
 s:s:s:l:l:s:-::m:f:m:r:m:r:-:d.:
 d:t,:d:d:d:d:-::d:d:d:d:d:d:t,:s,.:
 m:r:m:f:f:m:-::s:f:s:l:s:f:-:m.:
-d:s,:d:f,:l,:d:-::d:l,s,:f,:m,f.,:s,:-:d,.:
+d:s,:d:f,:l,:d:-::d:l,:s,:f,:m,.f,:s,:-:d,.:
 
 s:s:s:l:l:s:-::m:f:m:r:m:r:-:d.:
-r:r:d:d:t,:d:-::ta:l,.t,:d:d:d:d:t,:s,.:
+r:r:d:d:t,:d:-::ta,:l,.t,:d:d:d:d:t,:s,.:
 r:m:s:f:f:s:-::s:f:s:f:s.l:f:-:m.:
 t,:d:m:f:r:m:-::d:r:d:l,:s,.f,:s,:-:d.:

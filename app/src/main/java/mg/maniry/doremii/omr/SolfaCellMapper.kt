@@ -41,30 +41,77 @@ object SolfaCellMapper {
         }
         if (compact.isEmpty()) return ""
         if (compact.all { it == '-' }) return "-"
-        val notes = mutableListOf<MappedNote>()
-        val joins = mutableListOf<Char>()
-        var index = 0
-        val first = readNote(compact) { index } ?: return ""
-        index = first.second
-        notes.add(first.first)
-        while (index < compact.length) {
-            val join = when (compact[index]) {
-                '.', ';' -> '.'
-                ',' -> ','
-                else -> return ""
-            }
-            index++
-            val next = readNote(compact) { index } ?: return ""
-            index = next.second
-            joins.add(join)
-            notes.add(next.first)
-        }
-        return toCell(notes, joins)
+        val pieces = tokenize(compact) ?: return ""
+        return spell(pieces)
     }
 
-    private fun readNote(text: String, cursor: () -> Int): Pair<MappedNote, Int>? {
-        var index = cursor()
-        if (index >= text.length || text[index] !in "drmfslt") return null
+    private fun tokenize(text: String): List<Piece>? {
+        val pieces = mutableListOf<Piece>()
+        var index = 0
+        while (index < text.length) {
+            val char = text[index]
+            if (char == '.' || char == ';') {
+                if (char == '.' && text.getOrNull(index + 1) == ',') {
+                    pieces += Piece.Mark(".,")
+                    index += 2
+                } else if (char == ';') {
+                    pieces += Piece.Mark(".,")
+                    index++
+                } else {
+                    pieces += Piece.Mark(".")
+                    index++
+                }
+                continue
+            }
+            val read = readNote(text, index) ?: return null
+            pieces += Piece.Note(read.first)
+            index = read.second
+        }
+        return pieces
+    }
+
+    private fun spell(pieces: List<Piece>): String {
+        val notes = pieces.mapNotNull { (it as? Piece.Note)?.note }
+        if (notes.isEmpty()) return ""
+        val hasTime = pieces.any { it is Piece.Mark }
+        if (!hasTime) {
+            if (notes.all { it.syllable == "-" }) return "-"
+            return equalBar(notes)
+        }
+        val written = StringBuilder()
+        val group = mutableListOf<MappedNote>()
+        fun flush() {
+            if (group.isEmpty()) return
+            written.append(group.joinToString(",") { token(it) })
+            group.clear()
+        }
+        for (piece in pieces) {
+            when (piece) {
+                is Piece.Note -> group += piece.note
+                is Piece.Mark -> {
+                    flush()
+                    written.append(piece.text)
+                }
+            }
+        }
+        flush()
+        return written.toString()
+    }
+
+    private fun equalBar(notes: List<MappedNote>): String {
+        val tokens = notes.map { token(it) }
+        return when {
+            tokens.size <= 1 -> tokens.firstOrNull().orEmpty()
+            tokens.size % 2 == 1 || tokens.size == 2 -> tokens.joinToString(".")
+            else -> tokens.chunked(2).joinToString(".") { pair -> pair.joinToString(",") }
+        }
+    }
+
+    private fun readNote(text: String, start: Int): Pair<MappedNote, Int>? {
+        var index = start
+        if (index >= text.length) return null
+        if (text[index] == '-') return MappedNote("-") to index + 1
+        if (text[index] !in "drmfslt") return null
         var syllable = text[index].toString()
         index++
         if (index < text.length) {
@@ -82,14 +129,16 @@ object SolfaCellMapper {
         if (octave == 0 && index < text.length && text[index] in "123") {
             octave = text[index].digitToInt().coerceIn(1, 3)
             index++
-        } else if (index < text.length && text[index] == ',') {
-            val next = text.getOrNull(index + 1)
-            if (next == null || next !in "drmfslt") {
-                octave = -1
-                index++
-            }
+        } else if (octave == 0 && index < text.length && text[index] == ',') {
+            octave = -1
+            index++
         }
         return MappedNote(syllable, octave) to index
+    }
+
+    private sealed class Piece {
+        class Note(val note: MappedNote) : Piece()
+        class Mark(val text: String) : Piece()
     }
 
     fun toCell(notes: List<MappedNote>, joins: List<Char> = emptyList()): String {

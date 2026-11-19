@@ -257,6 +257,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
             withContext(Dispatchers.Default) {
                 val symbols = recognizeSymbols(activePrepared.ocr)
                 report(25)
+                val glyphs = activePrepared.ink.copy()
                 val ink = HorizontalRules.strip(activePrepared.ink, symbols)
                 report(30)
                 val lines = TextLineDetector.detect(ink, symbols)
@@ -292,7 +293,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                 val recognized = mutableListOf<String>()
                 var done = 0
                 val voices = NoteCells.read(systems) { cell ->
-                    val text = readCellText(ink, activePrepared.ocr, cell)
+                    val text = readCellText(glyphs, activePrepared.ocr, cell)
                     recognized += text
                     done += 1
                     report(if (total == 0) 100 else 60 + done * 40 / total)

@@ -11,7 +11,7 @@ data class NoteCell(
 )
 
 object NoteCells {
-    private const val trailingFraction = 0.6f
+    private const val trailingFraction = 0.45f
 
     fun grid(
         lines: List<DebugLine>,
@@ -75,7 +75,7 @@ object NoteCells {
 
     private fun gaps(left: Float, right: Float, columns: List<Float>): List<Pair<Float, Float>> {
         if (right - left < 2f) return emptyList()
-        val xs = columns.filter { it > left + 1.5f && it < right - 1.5f }
+        val xs = columns.filter { it > left + 12f && it < right - 1.5f }
         if (xs.isEmpty()) return listOf(left to right)
         val gaps = mutableListOf<Pair<Float, Float>>()
         var cursor = left
