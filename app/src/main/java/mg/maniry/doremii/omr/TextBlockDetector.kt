@@ -1,5 +1,6 @@
 package mg.maniry.doremii.omr
 
+import org.opencv.core.Core
 import org.opencv.core.CvType
 import org.opencv.core.Mat
 import org.opencv.core.Size
@@ -20,7 +21,7 @@ object TextBlockDetector {
         val mask = OpenCvImages.inkOf(ink)
         try {
             val found = strokes(mask.mat, lineHeight)
-            return group(ordered, found, ink.width, lineHeight * 0.45f)
+            return group(ordered, found, ink.width, lineHeight * 0.45f, mask.mat)
         } finally {
             mask.close()
         }
@@ -84,6 +85,7 @@ object TextBlockDetector {
         strokes: List<Stroke>,
         pageWidth: Int,
         slack: Float,
+        ink: Mat,
     ): List<DebugBlock> {
         val blocks = mutableListOf<DebugBlock>()
         var start = 0
@@ -99,7 +101,7 @@ object TextBlockDetector {
                 start++
                 continue
             }
-            blocks.add(bounds(lines.subList(start, end + 1), strokes, slack))
+            blocks.add(bounds(lines.subList(start, end + 1), strokes, slack, ink))
             start = end + 1
         }
         return blocks
@@ -130,17 +132,69 @@ object TextBlockDetector {
         return left >= 1 || middle >= 2 || right >= 1
     }
 
-    private fun bounds(group: List<DebugLine>, strokes: List<Stroke>, slack: Float): DebugBlock {
+    private fun bounds(group: List<DebugLine>, strokes: List<Stroke>, slack: Float, ink: Mat): DebugBlock {
         val top = group.first().top
         val bottom = group.last().bottom
         var left = group.minOf { it.left }
         var right = group.maxOf { it.right }
-        for (stroke in strokes) {
-            if (stroke.top > top + slack || stroke.bottom < bottom - slack) continue
+        val spanning = strokes.filter { stroke ->
+            stroke.top <= top + slack && stroke.bottom >= bottom - slack
+        }
+        if (spanning.size >= 2) {
+            val xs = spanning.map { it.x }.sorted()
+            val barLeft = xs.first()
+            val barRight = xs.last()
+            val textSpan = (right - left).coerceAtLeast(1f)
+            val span = barRight - barLeft
+            if (span >= textSpan * 0.35f && span < textSpan * 0.92f) {
+                val margin = max(80f, span * 0.28f)
+                val trimLeft = left < barLeft - margin && separated(ink, top, bottom, left, barLeft)
+                val trimRight = right > barRight + margin && separated(ink, top, bottom, barRight, right)
+                if (trimLeft || trimRight) {
+                    return DebugBlock(
+                        if (trimLeft) barLeft - 1f else left,
+                        top,
+                        if (trimRight) barRight + 1f else right,
+                        bottom,
+                    )
+                }
+            }
+        }
+        for (stroke in spanning) {
             left = min(left, stroke.x - 1f)
             right = max(right, stroke.x + 1f)
         }
         return DebugBlock(left, top, right, bottom)
+    }
+
+    private fun separated(ink: Mat, top: Float, bottom: Float, from: Float, to: Float): Boolean {
+        val y0 = top.toInt().coerceIn(0, ink.rows() - 1)
+        val y1 = bottom.toInt().coerceIn(y0 + 1, ink.rows())
+        val x0 = min(from, to).toInt().coerceIn(0, ink.cols())
+        val x1 = max(from, to).toInt().coerceIn(x0, ink.cols())
+        if (x1 - x0 < 16) return false
+        val sums = Mat()
+        val values = IntArray(x1 - x0)
+        val roi = ink.submat(y0, y1, x0, x1)
+        try {
+            Core.reduce(roi, sums, 0, Core.REDUCE_SUM, CvType.CV_32S)
+            sums.get(0, 0, values)
+        } finally {
+            roi.release()
+            sums.release()
+        }
+        val quiet = (y1 - y0) * 40
+        var run = 0
+        var best = 0
+        for (value in values) {
+            if (value <= quiet) {
+                run++
+                if (run > best) best = run
+            } else {
+                run = 0
+            }
+        }
+        return best >= 72
     }
 
     private data class Stroke(val x: Float, val top: Int, val bottom: Int)

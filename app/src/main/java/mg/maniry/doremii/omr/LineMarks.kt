@@ -33,7 +33,7 @@ object LineMarks {
         if (x1 - x0 < 2) return emptyList()
         val maxWidth = max(5, (band * 0.45f).roundToInt())
         val thickLimit = max(5, (band * 0.38f).roundToInt())
-        val hairline = max(3, (band * 0.12f).roundToInt())
+        val hairline = max(6, (band * 0.22f).roundToInt()).coerceAtMost(thickLimit)
         val textLeft = line.left - 3f
         val textRight = line.right + 3f
         suppressUnderlines(bytes, width, top, bottom, band)

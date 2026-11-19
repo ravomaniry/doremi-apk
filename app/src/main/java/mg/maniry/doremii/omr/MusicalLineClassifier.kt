@@ -24,7 +24,15 @@ object MusicalLineClassifier {
             val tolerance = max(4f, typical * 0.35f)
             val colonSets = members.map { index -> colonsOn(lines[index], colons) }
             val counts = alignedCounts(colonSets, tolerance)
-            val chosen = members.filterIndexed { offset, _ -> counts[offset] >= 2 }
+            val minHeight = typical * 0.5f
+            var chosen = members.filterIndexed { offset, index ->
+                counts[offset] >= 2 && lines[index].bottom - lines[index].top >= minHeight
+            }
+            if (chosen.size >= 5) {
+                val tally = chosen.map { index -> counts[members.indexOf(index)] }.sorted()
+                val mid = tally[tally.size / 2].toFloat()
+                chosen = chosen.filter { index -> counts[members.indexOf(index)] >= mid * 0.6f }
+            }
             if (chosen.isEmpty()) continue
             kept.add(block)
             for (index in chosen) musical[index] = true

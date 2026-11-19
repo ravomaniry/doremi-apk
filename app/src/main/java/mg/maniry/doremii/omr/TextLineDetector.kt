@@ -38,6 +38,7 @@ object TextLineDetector {
             bridge(rows, max(1, glyph / 6))
             var bands = runs(rows).flatMap { splitTall(it, counts, glyph, minInk) }
             bands = mergeMarks(bands, glyph)
+            bands = joinHalves(bands, glyph)
             if (tall != null) {
                 bands = mergeFragments(bands, glyph, counts, minInk)
                 bands = solidRows(bands, characterRows(symbols, glyph), glyph, counts)
@@ -334,7 +335,7 @@ object TextLineDetector {
         val centroids = Mat()
         try {
             val count = Imgproc.connectedComponentsWithStats(ink, labels, stats, centroids, 8, CvType.CV_32S)
-            val heights = ArrayList<Int>(max(0, count - 1))
+            val samples = ArrayList<Pair<Int, Int>>(max(0, count - 1))
             for (index in 1 until count) {
                 val width = stats.get(index, Imgproc.CC_STAT_WIDTH)[0].toInt()
                 val height = stats.get(index, Imgproc.CC_STAT_HEIGHT)[0].toInt()
@@ -342,19 +343,31 @@ object TextLineDetector {
                 if (area < 6 || height < 3 || width < 2) continue
                 if (height > width * 5) continue
                 if (width > height * 8 && height <= 3) continue
-                heights.add(height)
+                samples.add(height to area)
             }
-            if (heights.isEmpty()) return max(8, ink.rows() / 30)
-            heights.sort()
-            val median = heights[heights.size / 2]
-            val typical = heights.filter { it in (median * 0.45f).toInt()..(median * 2.2f).toInt() }
-            val chosen = if (typical.isEmpty()) median else typical[typical.size / 2]
+            if (samples.isEmpty()) return max(8, ink.rows() / 30)
+            val weighted = areaMedian(samples)
+            val low = (weighted * 0.55f).toInt()
+            val high = (weighted * 1.9f).toInt().coerceAtLeast(low)
+            val typical = samples.filter { (height, _) -> height in low..high }
+            val chosen = if (typical.isEmpty()) weighted else areaMedian(typical)
             return chosen.coerceIn(4, max(8, ink.rows() / 8))
         } finally {
             labels.release()
             stats.release()
             centroids.release()
         }
+    }
+
+    private fun areaMedian(samples: List<Pair<Int, Int>>): Int {
+        val sorted = samples.sortedBy { it.first }
+        val total = sorted.sumOf { it.second.toLong() }.coerceAtLeast(1L)
+        var covered = 0L
+        for ((height, area) in sorted) {
+            covered += area
+            if (covered * 2L >= total) return height
+        }
+        return sorted.last().first
     }
 
     private fun bridge(rows: BooleanArray, gap: Int) {
@@ -397,6 +410,27 @@ object TextLineDetector {
         val rows = BooleanArray(height) { counts[band.first + it] > valley }
         val parts = runs(rows).map { (band.first + it.first)..(band.first + it.last) }
         return if (parts.size < 2) listOf(band) else parts
+    }
+
+    private fun joinHalves(bands: List<IntRange>, glyph: Int): List<IntRange> {
+        if (bands.size < 2) return bands
+        val half = glyph * 0.8f
+        val cap = max(glyph + 4, (glyph * 1.8f).roundToInt())
+        val merged = mutableListOf(bands.first())
+        for (band in bands.drop(1)) {
+            val previous = merged.last()
+            val gap = band.first - previous.last - 1
+            val combined = band.last - previous.first + 1
+            val upper = previous.last - previous.first + 1
+            val lower = band.last - band.first + 1
+            val halves = upper <= half && lower <= half && combined <= cap
+            if (gap <= 1 && halves) {
+                merged[merged.lastIndex] = previous.first..band.last
+            } else {
+                merged.add(band)
+            }
+        }
+        return merged
     }
 
     private fun mergeMarks(bands: List<IntRange>, glyph: Int): List<IntRange> {

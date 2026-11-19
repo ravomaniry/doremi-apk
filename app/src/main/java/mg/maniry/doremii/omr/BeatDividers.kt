@@ -28,7 +28,7 @@ object BeatDividers {
             val memberLines = members.map { lines[it] }
             val height = medianHeight(memberLines)
             val tolerance = max(4f, height * 0.35f)
-            val columns = columns(members, lines, marks, tolerance)
+            val columns = columns(members, lines, marks, tolerance, block)
             if (columns.isEmpty()) continue
             val promoted = if (columns.size < 2) {
                 emptyList()
@@ -69,6 +69,8 @@ object BeatDividers {
             val midpoint = (upper.bottom + lower.top) / 2f
             val candidates = lines.indices.filter { index ->
                 !musical[index] && !taken[index] &&
+                    lines[index].bottom - lines[index].top >= height * 0.55f &&
+                    colonCount(lines[index], marks) < 2 &&
                     inside(lines[index], block) &&
                     sameColumn(lines[index], block) &&
                     between(lines[index], upper, lower)
@@ -114,6 +116,8 @@ object BeatDividers {
             val center = (line.top + line.bottom) / 2f
             if (above && center >= edgeCenter) return@filter false
             if (!above && center <= edgeCenter) return@filter false
+            if (line.bottom - line.top < height * 0.55f) return@filter false
+            if (colonCount(line, marks) >= 2) return@filter false
             if (!separate(line, edge) || !sameColumn(line, block)) return@filter false
             if (closerToOtherBlock(line, block, blocks)) return@filter false
             val distance = if (above) edge.top - line.bottom else line.top - edge.bottom
@@ -133,13 +137,16 @@ object BeatDividers {
         lines: List<DebugLine>,
         marks: List<DebugMark>,
         tolerance: Float,
+        block: DebugBlock,
     ): List<Float> {
         val hits = mutableListOf<Hit>()
         for (index in members) {
             val line = lines[index]
             for (mark in marks) {
                 if (!overlaps(mark, line)) continue
-                hits.add(Hit(index, (mark.left + mark.right) / 2f))
+                val x = (mark.left + mark.right) / 2f
+                if (x < block.left - 18f || x > block.right + 18f) continue
+                hits.add(Hit(index, x))
             }
         }
         if (hits.isEmpty()) return emptyList()
@@ -150,9 +157,48 @@ object BeatDividers {
             if (abs(hit.x - median) > tolerance) groups.add(mutableListOf(hit))
             else groups.last().add(hit)
         }
-        return groups.mapNotNull { group ->
-            if (group.map { it.line }.toSet().size < 2) null else median(group.map { it.x })
-        }.sorted()
+        val found = groups.mapNotNull { group ->
+            val support = group.map { it.line }.toSet().size
+            val x = median(group.map { it.x })
+            val width = (block.right - block.left).coerceAtLeast(1f)
+            val outer = x <= block.left + width * 0.08f || x >= block.right - width * 0.08f
+            val edge = x <= block.left + width * 0.18f || x >= block.right - width * 0.18f
+            val needed = when {
+                members.size < 4 -> 2
+                outer -> max(2, members.size - 2)
+                edge -> members.size - 1
+                else -> members.size
+            }
+            if (support < needed) null else x
+        }
+        return withEdges(separateClose(found), block)
+    }
+
+    private fun separateClose(xs: List<Float>): List<Float> {
+        if (xs.size < 3) return xs.sorted()
+        val sorted = xs.sorted()
+        val gaps = sorted.zipWithNext { a, b -> b - a }.filter { it > 1f }.sorted()
+        if (gaps.isEmpty()) return sorted
+        val typical = gaps[gaps.size / 2]
+        val limit = max(16f, typical * 0.34f)
+        val kept = mutableListOf(sorted.first())
+        for (x in sorted.drop(1)) {
+            if (x - kept.last() < limit) kept[kept.lastIndex] = x else kept.add(x)
+        }
+        return kept
+    }
+
+    private fun withEdges(xs: List<Float>, block: DebugBlock): List<Float> {
+        if (xs.size < 2) return xs
+        val sorted = xs.sorted().toMutableList()
+        val gaps = sorted.zipWithNext { a, b -> b - a }.filter { it > 1f }.sorted()
+        if (gaps.isEmpty()) return sorted
+        val typical = gaps[gaps.size / 2]
+        val lead = sorted.first() - block.left
+        if (lead > typical * 0.55f && lead < typical * 1.1f) sorted.add(0, block.left)
+        val tail = block.right - sorted.last()
+        if (tail > typical * 0.55f && tail < typical * 1.1f) sorted.add(block.right)
+        return sorted
     }
 
     private fun bestMatch(
@@ -169,7 +215,7 @@ object BeatDividers {
         var bestDistance = Float.MAX_VALUE
         for (index in candidates) {
             val score = matchedColumns(ink, lines[index], columns, marks, tolerance)
-            if (score < 2) continue
+            if (score < max(2, columns.size / 2)) continue
             val center = (lines[index].top + lines[index].bottom) / 2f
             val distance = abs(center - anchor)
             if (chosen < 0 || score > bestScore || (score == bestScore && distance < bestDistance)) {
@@ -196,9 +242,15 @@ object BeatDividers {
         return count
     }
 
+    private fun colonCount(line: DebugLine, marks: List<DebugMark>): Int {
+        return marks.count { it.kind == DebugMarkKind.COLON && overlaps(it, line) }
+    }
+
     private fun markAt(mark: DebugMark, line: DebugLine, x: Float, tolerance: Float): Boolean {
         if (abs((mark.left + mark.right) / 2f - x) > tolerance) return false
-        return overlaps(mark, line)
+        if (!overlaps(mark, line)) return false
+        if (mark.kind == DebugMarkKind.BAR && mark.bottom - mark.top > (line.bottom - line.top) * 1.8f) return false
+        return true
     }
 
     private fun delimiterAt(ink: InkImage, line: DebugLine, x: Float, tolerance: Float): Boolean {
@@ -228,10 +280,8 @@ object BeatDividers {
                 if (colon(runs[index], runs[index + 1], band)) return true
             }
         }
-        if (runs.isNotEmpty() && runs.maxOf { it.last - it.first + 1 } >= band * 0.42f) return true
-        if (dark >= band * 0.4f && (outside(ink, x, top - 1, -1) >= 3 || outside(ink, x, bottom, 1) >= 3)) {
-            return true
-        }
+        val leaves = outside(ink, x, top - 1, -1) >= 3 || outside(ink, x, bottom, 1) >= 3
+        if (!leaves && runs.isNotEmpty() && runs.maxOf { it.last - it.first + 1 } >= band * 0.42f) return true
         return false
     }
 
