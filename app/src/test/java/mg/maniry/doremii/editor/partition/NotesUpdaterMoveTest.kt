@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -84,10 +85,6 @@ class NotesUpdaterMoveTest {
         assertFalse(updater.canMove(left, 0, -1))
         assertNull(updater.move(left, 0, -1))
 
-        val right = ClipBoard(Cell(0, 1), Cell(1, 1))
-        assertFalse(updater.canMove(right, 0, 1))
-        assertNull(updater.move(right, 0, 1))
-
         val top = ClipBoard(Cell(0, 0), Cell(0, 1))
         assertFalse(updater.canMove(top, -1, 0))
         assertNull(updater.move(top, -1, 0))
@@ -98,6 +95,23 @@ class NotesUpdaterMoveTest {
 
         assertEquals(listOf("a", "b"), data.notes[0])
         assertEquals(listOf("c", "d"), data.notes[1])
+    }
+
+    @Test
+    fun shiftRightPastTheEndAddsAColumn() {
+        val data = score(
+            listOf("a", "b"),
+            listOf("c", "d"),
+        )
+        val updater = NotesUpdater(data)
+        val selection = ClipBoard(Cell(0, 1), Cell(1, 1))
+
+        assertTrue(updater.canMove(selection, 0, 1))
+        val moved = updater.move(selection, 0, 1)
+
+        assertNotNull(moved)
+        assertEquals(listOf("a", "", "b"), data.notes[0])
+        assertEquals(listOf("c", "", "d"), data.notes[1])
     }
 
     private fun score(vararg rows: List<String>): PartitionData {

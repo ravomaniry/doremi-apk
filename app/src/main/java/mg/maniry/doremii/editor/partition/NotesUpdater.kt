@@ -232,14 +232,17 @@ class NotesUpdater constructor(
         val endIndex = clipBoard.end.index + dIndex
         if (startVoice < 0 || endVoice >= partitionData.voicesNum) return false
         if (startIndex < 0 || endIndex < 0) return false
+        // A right shift can always add columns; the other edges stay fixed.
+        if (dIndex > 0) return true
         return endIndex < partitionData.getMaxLength()
     }
 
 
     /**
      * Shifts the rectangle by one musical step. Source values are snapshotted
-     * first so a one-cell overlap keeps the original notes. Returns null when
-     * the destination would leave the score.
+     * first so a one-cell overlap keeps the original notes. Moving right past
+     * the last column adds cells. Returns null when the destination would
+     * leave the voices or move before the first column.
      */
     fun move(clipBoard: ClipBoard, dVoice: Int, dIndex: Int): PartitionPasteResult? {
         if (!canMove(clipBoard, dVoice, dIndex)) return null
