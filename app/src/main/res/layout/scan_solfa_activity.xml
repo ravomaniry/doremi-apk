@@ -7,319 +7,347 @@
     android:background="@color/surface"
     android:fitsSystemWindows="true">
 
-    <FrameLayout
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
-        <androidx.camera.view.PreviewView
-            android:id="@+id/scan_preview"
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="@android:color/black">
 
-        <ImageView
-            android:id="@+id/scan_still"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:contentDescription="@string/scan_crop"
-            android:scaleType="fitCenter"
-            android:visibility="gone" />
+            <ImageView
+                android:id="@+id/scan_still"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/scan_crop"
+                android:scaleType="fitCenter" />
 
-        <mg.maniry.doremii.omr.CropOverlayView
-            android:id="@+id/scan_overlay"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:contentDescription="@string/scan_crop"
-            android:visibility="gone" />
+            <mg.maniry.doremii.omr.CropOverlayView
+                android:id="@+id/scan_overlay"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/scan_crop" />
+
+            <TextView
+                android:id="@+id/scan_capture_message"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top"
+                android:layout_margin="@dimen/spacing3"
+                android:background="@drawable/scan_message_background"
+                android:padding="@dimen/spacing3"
+                android:textColor="@color/dark"
+                android:visibility="gone" />
+        </FrameLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
-            android:orientation="vertical"
+            android:background="@color/white"
+            android:elevation="8dp"
+            android:orientation="horizontal"
             android:padding="@dimen/spacing4">
 
-            <HorizontalScrollView
-                android:id="@+id/scan_page_strip_scroll"
-                android:layout_width="match_parent"
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/scan_crop_cancel"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/spacing2"
-                android:contentDescription="@string/scan_pages"
-                android:scrollbars="none"
-                android:visibility="gone">
+                android:layout_weight="1"
+                android:text="@string/text_cancel" />
 
-                <LinearLayout
-                    android:id="@+id/scan_page_strip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal" />
-            </HorizontalScrollView>
-
-            <com.google.android.flexbox.FlexboxLayout
-                android:layout_width="match_parent"
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/scan_accept"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                app:flexWrap="wrap"
-                app:justifyContent="center">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/scan_shutter"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="@dimen/spacing2"
-                    android:text="@string/scan_shutter" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/scan_gallery"
-                    style="@style/Widget.Material3.Button.TonalButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="@dimen/spacing2"
-                    android:text="@string/scan_gallery" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/scan_add_page"
-                    style="@style/Widget.Material3.Button.TonalButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="@dimen/spacing2"
-                    android:text="@string/scan_add_page"
-                    android:visibility="gone" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/scan_read"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="@dimen/spacing2"
-                    android:text="@string/scan_read"
-                    android:visibility="gone" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/scan_retake"
-                    style="@style/Widget.Material3.Button.TonalButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="@dimen/spacing2"
-                    android:text="@string/scan_retake"
-                    android:visibility="gone" />
-            </com.google.android.flexbox.FlexboxLayout>
+                android:layout_marginStart="@dimen/spacing2"
+                android:layout_weight="1"
+                android:text="@string/scan_accept" />
         </LinearLayout>
+    </LinearLayout>
 
-        <TextView
-            android:id="@+id/scan_capture_message"
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/scan_progress"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="top"
-            android:background="#CCFFFFFF"
+            android:visibility="gone"
+            app:indicatorColor="@color/colorPrimary"
+            app:trackColor="@color/songIconBackground"
+            app:trackCornerRadius="2dp"
+            app:trackThickness="4dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="@dimen/spacing4"
+            android:paddingTop="@dimen/spacing4"
+            android:paddingEnd="@dimen/spacing4"
+            android:paddingBottom="@dimen/spacing2"
+            android:text="@string/scan_pages"
+            android:textAppearance="@style/TextAppearance.Material3.TitleLarge" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:fillViewport="true"
+            android:padding="@dimen/spacing3"
+            android:scrollbars="none">
+
+            <com.google.android.flexbox.FlexboxLayout
+                android:id="@+id/scan_page_grid"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/scan_pages"
+                app:alignItems="flex_start"
+                app:flexWrap="wrap"
+                app:justifyContent="flex_start" />
+        </ScrollView>
+
+        <TextView
+            android:id="@+id/scan_pages_message"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/spacing4"
+            android:layout_marginEnd="@dimen/spacing4"
+            android:layout_marginBottom="@dimen/spacing2"
+            android:background="@drawable/scan_message_background"
             android:padding="@dimen/spacing3"
             android:textColor="@color/dark"
             android:visibility="gone" />
 
-        <ProgressBar
-            android:id="@+id/scan_progress"
-            style="?android:attr/progressBarStyleHorizontal"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginStart="@dimen/spacing4"
-            android:layout_marginEnd="@dimen/spacing4"
-            android:indeterminate="false"
-            android:max="100"
-            android:minHeight="12dp"
-            android:progress="0"
-            android:progressBackgroundTint="@color/dark"
-            android:progressTint="@color/colorPrimary"
-            android:visibility="gone" />
-    </FrameLayout>
+            android:background="@color/white"
+            android:elevation="8dp"
+            android:orientation="horizontal"
+            android:padding="@dimen/spacing4">
 
-    <ScrollView
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/scan_pages_cancel"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/text_cancel" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/scan_read"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/spacing2"
+                android:layout_weight="1"
+                android:enabled="false"
+                android:text="@string/scan_read" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:fillViewport="true">
+        android:orientation="vertical">
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/spacing4">
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/tex_title"
+                    app:boxBackgroundColor="@color/white">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/scan_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textCapSentences" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing2"
+                    android:hint="@string/text_singer"
+                    app:boxBackgroundColor="@color/white">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/scan_singer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textCapWords" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing2"
+                    android:hint="@string/text_author"
+                    app:boxBackgroundColor="@color/white">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/scan_author"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textCapWords" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing2"
+                    android:hint="@string/text_compositor"
+                    app:boxBackgroundColor="@color/white">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/scan_compositor"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textCapWords" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing2"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="@dimen/spacing2"
+                        android:layout_weight="1"
+                        android:hint="@string/text_signature"
+                        app:boxBackgroundColor="@color/white">
+
+                        <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                            android:id="@+id/scan_signature"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="none" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="@string/text_key"
+                        app:boxBackgroundColor="@color/white">
+
+                        <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                            android:id="@+id/scan_key"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="none" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing2"
+                    android:hint="@string/text_tempo"
+                    app:boxBackgroundColor="@color/white">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/scan_tempo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="number"
+                        android:text="120" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <TextView
+                    android:id="@+id/scan_review_message"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing3"
+                    android:textColor="@color/dark_gray" />
+
+                <FrameLayout
+                    android:layout_width="72dp"
+                    android:layout_height="40dp"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="@dimen/spacing4"
+                    android:layout_marginBottom="@dimen/spacing2">
+
+                    <ImageButton
+                        android:id="@+id/scan_play"
+                        style="@style/AppTheme.PlayButton"
+                        android:contentDescription="@string/scan_play"
+                        android:padding="8dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_play" />
+                </FrameLayout>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="@color/white"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/gray"
+                    app:strokeWidth="1dp">
+
+                    <com.google.android.flexbox.FlexboxLayout
+                        android:id="@+id/scan_score"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:padding="@dimen/spacing3"
+                        app:flexWrap="wrap" />
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+        </ScrollView>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
+            android:background="@color/white"
+            android:elevation="8dp"
+            android:orientation="horizontal"
             android:padding="@dimen/spacing4">
 
-            <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/scan_cancel"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:hint="@string/tex_title">
+                android:layout_weight="1"
+                android:text="@string/text_cancel" />
 
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/scan_title"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="textCapSentences" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/scan_confirm"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing2"
-                android:hint="@string/text_singer">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/scan_singer"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="textCapWords" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing2"
-                android:hint="@string/text_author">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/scan_author"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="textCapWords" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing2"
-                android:hint="@string/text_compositor">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/scan_compositor"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="textCapWords" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing3"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical"
-                    android:layout_weight="1"
-                    android:text="@string/text_signature" />
-
-                <Spinner
-                    android:id="@+id/scan_signature"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing2"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical"
-                    android:layout_weight="1"
-                    android:text="@string/text_key" />
-
-                <Spinner
-                    android:id="@+id/scan_key"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing2"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical"
-                    android:layout_weight="1"
-                    android:labelFor="@id/scan_tempo"
-                    android:text="@string/text_tempo" />
-
-                <EditText
-                    android:id="@+id/scan_tempo"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="end"
-                    android:inputType="number"
-                    android:text="120" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/scan_review_message"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing2"
-                android:textColor="@color/dark_gray" />
-
-            <ScrollView
-                android:layout_width="match_parent"
-                android:layout_height="220dp"
-                android:layout_marginTop="@dimen/spacing3"
-                android:background="@color/white"
-                android:fillViewport="true">
-
-                <com.google.android.flexbox.FlexboxLayout
-                    android:id="@+id/scan_score"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:padding="@dimen/spacing2"
-                    app:flexWrap="wrap" />
-            </ScrollView>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing3"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/scan_play"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/scan_play" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/scan_stop"
-                    style="@style/Widget.Material3.Button.TonalButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/spacing2"
-                    android:text="@string/scan_stop"
-                    android:visibility="gone" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="end"
-                android:orientation="horizontal">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/scan_cancel"
-                    style="@style/Widget.Material3.Button.TextButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/text_cancel" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/scan_confirm"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/scan_confirm" />
-            </LinearLayout>
+                android:layout_marginStart="@dimen/spacing2"
+                android:layout_weight="1"
+                android:text="@string/scan_confirm" />
         </LinearLayout>
-    </ScrollView>
+    </LinearLayout>
 </ViewFlipper>

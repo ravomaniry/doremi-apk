@@ -1,8 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="64dp"
-    android:layout_height="64dp"
-    android:layout_marginEnd="@dimen/spacing2">
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="104dp"
+    android:layout_height="136dp"
+    android:layout_margin="6dp"
+    app:cardBackgroundColor="@color/white"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="1dp"
+    app:strokeColor="@color/gray"
+    app:strokeWidth="1dp">
 
     <ImageView
         android:id="@+id/scan_page_thumb"
@@ -13,10 +19,16 @@
 
     <ImageButton
         android:id="@+id/scan_page_remove"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
         android:layout_gravity="top|end"
-        android:background="#CCFFFFFF"
+        android:layout_margin="6dp"
+        android:background="@drawable/scan_remove_badge"
         android:contentDescription="@string/scan_remove_page"
-        android:src="@android:drawable/ic_menu_close_clear_cancel" />
-</FrameLayout>
+        android:elevation="2dp"
+        android:padding="6dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_close"
+        app:backgroundTint="@color/white"
+        app:tint="@color/dark" />
+</com.google.android.material.card.MaterialCardView>

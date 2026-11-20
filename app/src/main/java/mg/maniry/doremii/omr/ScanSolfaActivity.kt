@@ -1,21 +1,16 @@
 package mg.maniry.doremii.omr
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.ImageFormat
 import android.media.ExifInterface
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.ProgressBar
-import android.widget.Spinner
 import android.widget.TextView
 import android.widget.ViewFlipper
 import androidx.activity.OnBackPressedCallback
@@ -23,18 +18,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageCapture
-import androidx.camera.core.ImageCaptureException
-import androidx.camera.core.ImageProxy
-import androidx.camera.core.Preview
-import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.google.android.flexbox.FlexboxLayout
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.progressindicator.LinearProgressIndicator
+import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -47,14 +36,12 @@ class ScanSolfaActivity : AppCompatActivity() {
     private lateinit var viewModel: ScanViewModel
     private lateinit var player: ScanPreviewPlayer
     private lateinit var flipper: ViewFlipper
-    private lateinit var preview: PreviewView
     private lateinit var stillView: ImageView
     private lateinit var overlay: CropOverlayView
-    private lateinit var pageStripScroll: View
-    private lateinit var pageStrip: LinearLayout
+    private lateinit var pageGrid: FlexboxLayout
     private lateinit var score: FlexboxLayout
-    private lateinit var signatureSpinner: Spinner
-    private lateinit var keySpinner: Spinner
+    private lateinit var signatureField: MaterialAutoCompleteTextView
+    private lateinit var keyField: MaterialAutoCompleteTextView
     private lateinit var tempoField: EditText
     private lateinit var titleField: EditText
     private lateinit var singerField: EditText
@@ -62,28 +49,24 @@ class ScanSolfaActivity : AppCompatActivity() {
     private lateinit var compositorField: EditText
     private lateinit var reviewMessage: TextView
     private lateinit var captureMessage: TextView
-    private lateinit var progress: ProgressBar
+    private lateinit var pagesMessage: TextView
+    private lateinit var progress: LinearProgressIndicator
     private lateinit var readButton: MaterialButton
-    private lateinit var addPageButton: MaterialButton
     private lateinit var confirmButton: MaterialButton
-    private lateinit var playButton: MaterialButton
-    private lateinit var stopButton: MaterialButton
+    private lateinit var playButton: ImageButton
     private val signatureValues = intArrayOf(2, 3, 4, 5, 6)
-    private var imageCapture: ImageCapture? = null
     private var renderedGeneration = -1
-    private var suppressSpinner = false
-    private var cameraAvailable = false
+    private var suppressDropdown = false
     private var playing = false
+    private var loadingImage = false
     private var shownPhase: ScanViewModel.Phase? = null
 
-    private val cameraPermission = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) startCamera() else showCaptureMessage(getString(R.string.scan_permission))
-    }
-
     private val gallery = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) loadGallery(uri)
+        if (uri != null) {
+            loadGallery(uri)
+        } else if (viewModel.pages.value.isNullOrEmpty() && viewModel.still == null) {
+            finish()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -99,22 +82,12 @@ class ScanSolfaActivity : AppCompatActivity() {
         }
         bindActions()
         observe()
-        cameraAvailable = packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
         showPhase(viewModel.phase.value)
-        if (!cameraAvailable) {
-            findViewById<View>(R.id.scan_shutter).visibility = View.GONE
-        } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) ==
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            startCamera()
-        } else {
-            cameraPermission.launch(Manifest.permission.CAMERA)
-        }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 when (viewModel.phase.value) {
-                    ScanViewModel.Phase.PREVIEW -> viewModel.phase.value = ScanViewModel.Phase.CAMERA
-                    ScanViewModel.Phase.ADJUST -> viewModel.discardStill()
+                    ScanViewModel.Phase.PREVIEW -> viewModel.phase.value = ScanViewModel.Phase.PAGES
+                    ScanViewModel.Phase.ADJUST -> discardCrop()
                     else -> {
                         isEnabled = false
                         onBackPressedDispatcher.onBackPressed()
@@ -122,6 +95,12 @@ class ScanSolfaActivity : AppCompatActivity() {
                 }
             }
         })
+        if (savedInstanceState == null &&
+            viewModel.phase.value == ScanViewModel.Phase.PAGES &&
+            viewModel.pages.value.isNullOrEmpty()
+        ) {
+            openPicker()
+        }
     }
 
     override fun onPause() {
@@ -136,14 +115,12 @@ class ScanSolfaActivity : AppCompatActivity() {
 
     private fun bindViews() {
         flipper = findViewById(R.id.scan_flipper)
-        preview = findViewById(R.id.scan_preview)
         stillView = findViewById(R.id.scan_still)
         overlay = findViewById(R.id.scan_overlay)
-        pageStripScroll = findViewById(R.id.scan_page_strip_scroll)
-        pageStrip = findViewById(R.id.scan_page_strip)
+        pageGrid = findViewById(R.id.scan_page_grid)
         score = findViewById(R.id.scan_score)
-        signatureSpinner = findViewById(R.id.scan_signature)
-        keySpinner = findViewById(R.id.scan_key)
+        signatureField = findViewById(R.id.scan_signature)
+        keyField = findViewById(R.id.scan_key)
         tempoField = findViewById(R.id.scan_tempo)
         titleField = findViewById(R.id.scan_title)
         singerField = findViewById(R.id.scan_singer)
@@ -151,59 +128,31 @@ class ScanSolfaActivity : AppCompatActivity() {
         compositorField = findViewById(R.id.scan_compositor)
         reviewMessage = findViewById(R.id.scan_review_message)
         captureMessage = findViewById(R.id.scan_capture_message)
+        pagesMessage = findViewById(R.id.scan_pages_message)
         progress = findViewById(R.id.scan_progress)
         readButton = findViewById(R.id.scan_read)
-        addPageButton = findViewById(R.id.scan_add_page)
         confirmButton = findViewById(R.id.scan_confirm)
         playButton = findViewById(R.id.scan_play)
-        stopButton = findViewById(R.id.scan_stop)
-        signatureSpinner.adapter = spinnerAdapter(R.array.signature_list)
-        keySpinner.adapter = spinnerAdapter(R.array.keys_list)
-        signatureSpinner.setSelection(2)
+        bindDropdown(signatureField, R.array.signature_list, 2) { position ->
+            val before = viewModel.review.value?.generation
+            viewModel.reparse(signatureValues.getOrElse(position) { 4 })
+            if (viewModel.review.value?.generation == before) renderScore()
+        }
+        bindDropdown(keyField, R.array.keys_list, 0) { renderScore() }
     }
 
     private fun bindActions() {
-        findViewById<View>(R.id.scan_shutter).setOnClickListener { takePhoto() }
-        findViewById<View>(R.id.scan_gallery).setOnClickListener {
-            gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-        }
-        readButton.setOnClickListener { readCrop() }
-        addPageButton.setOnClickListener { addPage() }
-        findViewById<View>(R.id.scan_retake).setOnClickListener { viewModel.discardStill() }
+        findViewById<View>(R.id.scan_crop_cancel).setOnClickListener { discardCrop() }
+        findViewById<View>(R.id.scan_accept).setOnClickListener { acceptCrop() }
+        findViewById<View>(R.id.scan_pages_cancel).setOnClickListener { finish() }
         findViewById<View>(R.id.scan_cancel).setOnClickListener {
             player.stop()
             finish()
         }
+        readButton.setOnClickListener { viewModel.recognize(null) }
         confirmButton.setOnClickListener { confirm() }
-        playButton.setOnClickListener { playPreview() }
-        stopButton.setOnClickListener { player.stop() }
-        signatureSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(
-                parent: android.widget.AdapterView<*>?,
-                view: View?,
-                position: Int,
-                id: Long,
-            ) {
-                if (suppressSpinner || flipper.displayedChild != 1) return
-                val before = viewModel.review.value?.generation
-                viewModel.reparse(signatureValues[position])
-                if (viewModel.review.value?.generation == before) renderScore()
-            }
-
-            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
-        }
-        keySpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(
-                parent: android.widget.AdapterView<*>?,
-                view: View?,
-                position: Int,
-                id: Long,
-            ) {
-                if (suppressSpinner || flipper.displayedChild != 1) return
-                renderScore()
-            }
-
-            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
+        playButton.setOnClickListener {
+            if (playing) player.stop() else playPreview()
         }
     }
 
@@ -220,7 +169,7 @@ class ScanSolfaActivity : AppCompatActivity() {
         viewModel.progress.observe(this) { value ->
             if (viewModel.busy.value != true) return@observe
             progress.isIndeterminate = false
-            progress.progress = value ?: 0
+            progress.setProgressCompat(value ?: 0, true)
         }
         viewModel.captureMessage.observe(this) { showCaptureMessage(it) }
         viewModel.review.observe(this) { state ->
@@ -229,138 +178,97 @@ class ScanSolfaActivity : AppCompatActivity() {
     }
 
     private fun showPhase(phase: ScanViewModel.Phase?) {
-        val adjusting = phase == ScanViewModel.Phase.ADJUST
-        val camera = phase == ScanViewModel.Phase.CAMERA
-        val queued = viewModel.pages.value.orEmpty().isNotEmpty()
-        flipper.displayedChild = if (phase == ScanViewModel.Phase.PREVIEW) 1 else 0
-        if (adjusting) {
+        flipper.displayedChild = when (phase) {
+            ScanViewModel.Phase.ADJUST -> PAGE_CROP
+            ScanViewModel.Phase.PREVIEW -> PAGE_REVIEW
+            else -> PAGE_GRID
+        }
+        if (phase == ScanViewModel.Phase.ADJUST) {
             stillView.setImageBitmap(viewModel.still)
-            stillView.visibility = View.VISIBLE
         } else {
             stillView.setImageBitmap(null)
-            stillView.visibility = View.GONE
         }
-        preview.visibility = if (adjusting) View.INVISIBLE else View.VISIBLE
-        overlay.visibility = if (adjusting) View.VISIBLE else View.GONE
-        addPageButton.visibility = if (adjusting) View.VISIBLE else View.GONE
-        readButton.visibility = if (adjusting || (camera && queued)) View.VISIBLE else View.GONE
-        findViewById<View>(R.id.scan_retake).visibility = if (adjusting) View.VISIBLE else View.GONE
-        findViewById<View>(R.id.scan_shutter).visibility =
-            if (camera && cameraAvailable) View.VISIBLE else View.GONE
+        showCaptureMessage(viewModel.captureMessage.value)
         refreshActions()
     }
 
     private fun renderPages(items: List<ScanPage>) {
-        pageStrip.removeAllViews()
-        val working = viewModel.busy.value == true
+        pageGrid.removeAllViews()
+        val locked = viewModel.busy.value == true || loadingImage
         items.forEachIndexed { index, page ->
-            val item = layoutInflater.inflate(R.layout.scan_page_thumb, pageStrip, false)
+            val item = layoutInflater.inflate(R.layout.scan_page_thumb, pageGrid, false)
             item.findViewById<ImageView>(R.id.scan_page_thumb).setImageBitmap(page.thumb)
             item.findViewById<View>(R.id.scan_page_remove).apply {
-                isEnabled = !working
-                setOnClickListener { viewModel.removePage(index) }
+                isEnabled = !locked
+                setOnClickListener {
+                    if (viewModel.busy.value == true || loadingImage) return@setOnClickListener
+                    viewModel.removePage(index)
+                }
             }
-            pageStrip.addView(item)
+            pageGrid.addView(item)
         }
-        pageStripScroll.visibility = if (items.isEmpty()) View.GONE else View.VISIBLE
-        if (::flipper.isInitialized) showPhase(viewModel.phase.value)
+        val add = layoutInflater.inflate(R.layout.scan_page_add, pageGrid, false)
+        add.setOnClickListener {
+            if (viewModel.busy.value == true || loadingImage) return@setOnClickListener
+            openPicker()
+        }
+        pageGrid.addView(add)
+        refreshActions()
     }
 
-    private fun startCamera() {
-        val future = ProcessCameraProvider.getInstance(this)
-        future.addListener({
-            val provider = future.get()
-            val previewUseCase = Preview.Builder().build().also {
-                it.surfaceProvider = preview.surfaceProvider
-            }
-            imageCapture = ImageCapture.Builder()
-                .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
-                .build()
-            try {
-                provider.unbindAll()
-                provider.bindToLifecycle(
-                    this,
-                    CameraSelector.DEFAULT_BACK_CAMERA,
-                    previewUseCase,
-                    imageCapture,
-                )
-            } catch (error: Exception) {
-                showCaptureMessage(getString(R.string.scan_failed))
-            }
-        }, ContextCompat.getMainExecutor(this))
-    }
-
-    private fun takePhoto() {
-        val capture = imageCapture ?: return
-        preview.display?.let { capture.targetRotation = it.rotation }
-        capture.takePicture(
-            ContextCompat.getMainExecutor(this),
-            object : ImageCapture.OnImageCapturedCallback() {
-                override fun onCaptureSuccess(image: ImageProxy) {
-                    try {
-                        val raw = bitmapFromCapture(image)
-                        showStill(raw)
-                    } catch (error: Exception) {
-                        showCaptureMessage(getString(R.string.scan_failed))
-                    } finally {
-                        image.close()
-                    }
-                }
-
-                override fun onError(exception: ImageCaptureException) {
-                    showCaptureMessage(getString(R.string.scan_failed))
-                }
-            },
-        )
+    private fun openPicker() {
+        gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
 
     private fun loadGallery(uri: Uri) {
-        progress.isIndeterminate = true
-        progress.visibility = View.VISIBLE
+        loadingImage = true
+        viewModel.captureMessage.value = null
+        refreshActions()
         lifecycleScope.launch {
             val bitmap = withContext(Dispatchers.IO) { decodeGallery(uri) }
-            progress.isIndeterminate = false
-            progress.visibility = View.GONE
-            if (bitmap == null) showCaptureMessage(getString(R.string.scan_failed))
-            else showStill(bitmap)
+            loadingImage = false
+            if (bitmap == null) {
+                viewModel.captureMessage.value = getString(R.string.scan_failed)
+                refreshActions()
+            } else {
+                showStill(bitmap)
+            }
         }
     }
 
     private fun showStill(bitmap: Bitmap) {
         val scaled = ImagePreprocessor.scaleDown(ImagePreprocessor.software(bitmap))
         if (scaled !== bitmap && !bitmap.isRecycled) bitmap.recycle()
+        overlay.resetCrop()
         viewModel.setStill(scaled)
-        stillView.setImageBitmap(scaled)
     }
 
-    private fun addPage() {
+    private fun acceptCrop() {
         val cropped = croppedStill() ?: return
         viewModel.addPage(cropped)
     }
 
-    private fun readCrop() {
-        if (viewModel.phase.value == ScanViewModel.Phase.ADJUST) {
-            val cropped = croppedStill() ?: return
-            viewModel.recognize(cropped)
-        } else {
-            viewModel.recognize(null)
-        }
+    private fun discardCrop() {
+        val reopen = viewModel.pages.value.isNullOrEmpty()
+        viewModel.captureMessage.value = null
+        viewModel.discardStill()
+        if (reopen) openPicker()
     }
 
     private fun croppedStill(): Bitmap? {
         val source = viewModel.still ?: return null
         val cropped = ImagePreprocessor.cropDisplayed(source, overlay.width, overlay.height, overlay.crop)
-        if (cropped == null) showCaptureMessage(getString(R.string.scan_crop_small))
+        if (cropped == null) viewModel.captureMessage.value = getString(R.string.scan_crop_small)
         return cropped
     }
 
     private fun renderReview(state: ReviewState) {
         renderedGeneration = state.generation
         if (state.detected) {
-            suppressSpinner = true
-            signatureSpinner.setSelection(signatureValues.indexOf(state.signature).coerceAtLeast(0))
-            keySpinner.setSelection(state.keyIndex.coerceIn(0, keySpinner.adapter.count - 1))
-            suppressSpinner = false
+            suppressDropdown = true
+            selectDropdown(signatureField, signatureValues.indexOf(state.signature).coerceAtLeast(0))
+            selectDropdown(keyField, state.keyIndex.coerceIn(0, keyField.adapter.count - 1))
+            suppressDropdown = false
         }
         reviewMessage.text = when {
             state.empty -> getString(R.string.scan_empty)
@@ -373,8 +281,8 @@ class ScanSolfaActivity : AppCompatActivity() {
 
     private fun renderScore() {
         val state = viewModel.review.value ?: return
-        val signature = signatureValues.getOrElse(signatureSpinner.selectedItemPosition) { state.signature }
-        val key = keySpinner.selectedItemPosition.coerceAtLeast(0)
+        val signature = signatureValues.getOrElse(selectedIndex(signatureField)) { state.signature }
+        val key = selectedIndex(keyField)
         ScanScorePreview.render(score, viewModel.scoreVoices(signature, null), signature, key)
     }
 
@@ -383,8 +291,8 @@ class ScanSolfaActivity : AppCompatActivity() {
         val tempo = tempoOrWarn() ?: return
         player.play(
             voices,
-            signatureValues.getOrElse(signatureSpinner.selectedItemPosition) { 4 },
-            keySpinner.selectedItemPosition.coerceAtLeast(0),
+            signatureValues.getOrElse(selectedIndex(signatureField)) { 4 },
+            selectedIndex(keyField),
             tempo,
         )
     }
@@ -393,8 +301,8 @@ class ScanSolfaActivity : AppCompatActivity() {
         player.stop()
         val voices = audibleVoices() ?: return
         val tempo = tempoOrWarn() ?: return
-        val signature = signatureValues.getOrElse(signatureSpinner.selectedItemPosition) { 4 }
-        val key = keySpinner.selectedItemPosition.coerceAtLeast(0)
+        val signature = signatureValues.getOrElse(selectedIndex(signatureField)) { 4 }
+        val key = selectedIndex(keyField)
         val title = titleField.text?.toString() ?: ""
         val singer = singerField.text?.toString() ?: ""
         val filename = ScanScoreBuilder.filename(title, singer, "scan_${System.currentTimeMillis()}")
@@ -419,7 +327,7 @@ class ScanSolfaActivity : AppCompatActivity() {
     }
 
     private fun audibleVoices(): List<ParsedVoice>? {
-        val signature = signatureValues.getOrElse(signatureSpinner.selectedItemPosition) { 4 }
+        val signature = signatureValues.getOrElse(selectedIndex(signatureField)) { 4 }
         val voices = viewModel.scoreVoices(signature, null)
         if (voices.isEmpty() || voices.all { voice -> voice.cells.all { it.isBlank() } }) {
             reviewMessage.setText(R.string.scan_empty)
@@ -439,47 +347,85 @@ class ScanSolfaActivity : AppCompatActivity() {
 
     private fun refreshActions() {
         val working = viewModel.busy.value == true
+        val loading = loadingImage
         val ready = viewModel.review.value?.empty == false
-        progress.visibility = if (working) View.VISIBLE else View.GONE
-        if (working) {
+        val hasPages = viewModel.pages.value.orEmpty().isNotEmpty()
+        if (loading && !working) {
+            progress.isIndeterminate = true
+            progress.visibility = View.VISIBLE
+        } else if (working) {
             progress.isIndeterminate = false
-            progress.progress = viewModel.progress.value ?: 0
+            progress.setProgressCompat(viewModel.progress.value ?: 0, true)
+            progress.visibility = View.VISIBLE
+        } else {
+            progress.visibility = View.GONE
         }
-        readButton.isEnabled = !working
-        addPageButton.isEnabled = !working
-        findViewById<View>(R.id.scan_shutter).isEnabled = !working
-        findViewById<View>(R.id.scan_gallery).isEnabled = !working
+        readButton.isEnabled = !working && !loading && hasPages
         confirmButton.isEnabled = !working && ready
-        playButton.isEnabled = !working && ready && !playing
-        stopButton.visibility = if (playing) View.VISIBLE else View.GONE
-        for (index in 0 until pageStrip.childCount) {
-            pageStrip.getChildAt(index).findViewById<View>(R.id.scan_page_remove).isEnabled = !working
+        playButton.isEnabled = !working && ready
+        updatePlayButton()
+        val pageEnabled = !working && !loading
+        for (index in 0 until pageGrid.childCount) {
+            val child = pageGrid.getChildAt(index)
+            val remove = child.findViewById<View>(R.id.scan_page_remove)
+            if (remove != null) {
+                remove.isEnabled = pageEnabled
+                remove.alpha = if (pageEnabled) 1f else 0.4f
+            } else {
+                child.isEnabled = pageEnabled
+                child.alpha = if (pageEnabled) 1f else 0.4f
+            }
+        }
+    }
+
+    private fun updatePlayButton() {
+        if (playing) {
+            playButton.setImageResource(R.drawable.ic_stop_circle)
+            playButton.setBackgroundResource(R.drawable.stop_button_background)
+            playButton.contentDescription = getString(R.string.scan_stop)
+        } else {
+            playButton.setImageResource(R.drawable.ic_play)
+            playButton.setBackgroundResource(R.drawable.play_button_background)
+            playButton.contentDescription = getString(R.string.scan_play)
         }
     }
 
     private fun showCaptureMessage(text: String?) {
-        captureMessage.text = text
-        captureMessage.visibility = if (text.isNullOrBlank()) View.GONE else View.VISIBLE
+        val onCrop = viewModel.phase.value == ScanViewModel.Phase.ADJUST
+        val active = if (onCrop) captureMessage else pagesMessage
+        val inactive = if (onCrop) pagesMessage else captureMessage
+        inactive.text = ""
+        inactive.visibility = View.GONE
+        active.text = text
+        active.visibility = if (text.isNullOrBlank()) View.GONE else View.VISIBLE
     }
 
-    private fun spinnerAdapter(array: Int): ArrayAdapter<CharSequence> {
-        return ArrayAdapter.createFromResource(this, array, android.R.layout.simple_spinner_item).also {
-            it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+    private fun bindDropdown(
+        field: MaterialAutoCompleteTextView,
+        array: Int,
+        initial: Int,
+        onPick: (Int) -> Unit,
+    ) {
+        field.setAdapter(ArrayAdapter.createFromResource(this, array, android.R.layout.simple_list_item_1))
+        selectDropdown(field, initial)
+        field.setOnItemClickListener { _, _, position, _ ->
+            if (suppressDropdown || flipper.displayedChild != PAGE_REVIEW) return@setOnItemClickListener
+            onPick(position)
         }
     }
 
-    private fun bitmapFromCapture(image: ImageProxy): Bitmap {
-        val buffer = image.planes[0].buffer
-        val bytes = ByteArray(buffer.remaining())
-        buffer.get(bytes)
-        val decoded = if (image.format == ImageFormat.JPEG || image.planes.size == 1) {
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-        } else {
-            null
-        } ?: throw IllegalStateException("empty capture")
-        val turned = ImagePreprocessor.rotate(decoded, image.imageInfo.rotationDegrees)
-        if (turned !== decoded) decoded.recycle()
-        return ImagePreprocessor.software(turned)
+    private fun selectDropdown(field: MaterialAutoCompleteTextView, index: Int) {
+        val label = field.adapter?.getItem(index.coerceAtLeast(0))?.toString().orEmpty()
+        field.setText(label, false)
+    }
+
+    private fun selectedIndex(field: MaterialAutoCompleteTextView): Int {
+        val text = field.text?.toString().orEmpty()
+        val adapter = field.adapter ?: return 0
+        for (index in 0 until adapter.count) {
+            if (adapter.getItem(index)?.toString() == text) return index
+        }
+        return 0
     }
 
     private fun decodeGallery(uri: Uri): Bitmap? {
@@ -507,5 +453,11 @@ class ScanSolfaActivity : AppCompatActivity() {
             if (it !== decoded) decoded.recycle()
         }
         return ImagePreprocessor.software(turned)
+    }
+
+    private companion object {
+        const val PAGE_CROP = 0
+        const val PAGE_GRID = 1
+        const val PAGE_REVIEW = 2
     }
 }

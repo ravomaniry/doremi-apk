@@ -31,9 +31,9 @@ data class ReviewState(
 class ScanPage(val image: Bitmap, val thumb: Bitmap)
 
 class ScanViewModel(application: Application) : AndroidViewModel(application) {
-    enum class Phase { CAMERA, ADJUST, PREVIEW }
+    enum class Phase { PAGES, ADJUST, PREVIEW }
 
-    val phase = MutableLiveData(Phase.CAMERA)
+    val phase = MutableLiveData(Phase.PAGES)
     val busy = MutableLiveData(false)
     val progress = MutableLiveData(0)
     val captureMessage = MutableLiveData<String?>(null)
@@ -113,7 +113,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                 phase.value = Phase.PREVIEW
             } catch (error: Exception) {
                 captureMessage.value = error.message
-                phase.value = Phase.CAMERA
+                phase.value = Phase.PAGES
             } finally {
                 releaseWorkingImage()
                 progressOffset = 0
@@ -209,7 +209,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     private fun releaseStill() {
         val leaving = still
         still = null
-        phase.value = Phase.CAMERA
+        phase.value = Phase.PAGES
         recycle(leaving)
     }
 

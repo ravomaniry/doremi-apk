@@ -31,14 +31,32 @@ class CropOverlayView @JvmOverloads constructor(
     private var lastX = 0f
     private var lastY = 0f
 
+    fun resetCrop() {
+        ready = false
+        if (width > 0 && height > 0) {
+            placeInitial()
+            ready = true
+            invalidate()
+        }
+    }
+
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         if (!ready && w > 0 && h > 0) {
-            val width = w * 0.92f
-            val height = h * 0.32f
-            crop.set((w - width) / 2f, (h - height) / 2f, (w + width) / 2f, (h + height) / 2f)
+            placeInitial()
             ready = true
         }
+    }
+
+    private fun placeInitial() {
+        val frameWidth = width * 0.92f
+        val frameHeight = height * 0.32f
+        crop.set(
+            (width - frameWidth) / 2f,
+            (height - frameHeight) / 2f,
+            (width + frameWidth) / 2f,
+            (height + frameHeight) / 2f,
+        )
     }
 
     override fun onDraw(canvas: Canvas) {
