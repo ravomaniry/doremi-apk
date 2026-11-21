@@ -91,6 +91,18 @@ data class Player constructor(
         worker.execute { sfPlayer.stopPlaying() }
     }
 
+    fun seekTo(positionMs: Long) {
+        seekOnWorker { positionMs }
+    }
+
+    fun seekBy(deltaMs: Long) {
+        seekOnWorker { sfPlayer.positionMs() + deltaMs }
+    }
+
+    fun positionMs(): Long = sfPlayer.positionMs()
+
+    fun durationMs(): Long = sfPlayer.durationMs()
+
 
     fun toggleMute(index: Int) {
         mutedVoices.value = flipped(mutedVoices.value, index)
@@ -110,6 +122,17 @@ data class Player constructor(
         worker.execute { sfPlayer.dispose() }
     }
 
+
+    private fun seekOnWorker(positionMs: () -> Long) {
+        val ticket = generation
+        worker.execute {
+            if (ticket != generation) return@execute
+            val moved = sfPlayer.seekTo(positionMs())
+            if (moved && ticket != generation) {
+                sfPlayer.stopPlaying()
+            }
+        }
+    }
 
     private fun audibleFlags(): List<Boolean> {
         return audibleVoices(

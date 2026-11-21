@@ -229,6 +229,34 @@ Java_mg_maniry_doremii_editor_sfplayer_SfPlayer_nativeStop(JNIEnv *, jobject, jl
     }
 }
 
+extern "C" JNIEXPORT jboolean JNICALL
+Java_mg_maniry_doremii_editor_sfplayer_SfPlayer_nativeSeek(JNIEnv *, jobject, jlong handle,
+                                                            jlong positionMs) {
+    SynthEngine *engine = engineFrom(handle);
+    if (engine == nullptr) {
+        return JNI_FALSE;
+    }
+    return engine->seek(positionMs) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_mg_maniry_doremii_editor_sfplayer_SfPlayer_nativePositionMs(JNIEnv *, jobject, jlong handle) {
+    SynthEngine *engine = engineFrom(handle);
+    if (engine == nullptr) {
+        return 0;
+    }
+    return engine->positionMs();
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_mg_maniry_doremii_editor_sfplayer_SfPlayer_nativeDurationMs(JNIEnv *, jobject, jlong handle) {
+    SynthEngine *engine = engineFrom(handle);
+    if (engine == nullptr) {
+        return 0;
+    }
+    return engine->durationMs();
+}
+
 extern "C" JNIEXPORT jobjectArray JNICALL
 Java_mg_maniry_doremii_editor_sfplayer_SfPlayer_nativeProbe(JNIEnv *env, jclass, jstring path) {
     if (path == nullptr) {

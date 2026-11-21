@@ -38,6 +38,10 @@ public:
                        const int64_t *onMs, const int64_t *offMs, int count);
     void addNote(int channel, int pitch, int velocity, int64_t durationMs);
     void stop();
+    // Moves the loaded score. Returns false when no score is loaded.
+    bool seek(int64_t positionMs);
+    int64_t positionMs();
+    int64_t durationMs();
 
     oboe::DataCallbackResult onAudioReady(oboe::AudioStream *stream, void *audioData,
                                            int32_t numFrames) override;
@@ -69,9 +73,12 @@ private:
     void ensureStream();
     std::shared_ptr<oboe::AudioStream> buildStream(oboe::PerformanceMode mode);
     void ensureSynthLocked(int32_t sampleRate);
-    void insertEventLocked(const ScheduledEvent &event);
-    void compactLocked();
+    void clearEventsLocked();
+    void applyEventLocked(const ScheduledEvent &event);
+    void insertLiveLocked(const ScheduledEvent &event);
+    void compactLiveLocked();
     int64_t millisecondsToFrames(int64_t milliseconds) const;
+    int64_t framesToMilliseconds(int64_t frames) const;
     int fontIdLocked(const std::string &path) const;
 
     static bool eventBefore(const ScheduledEvent &left, const ScheduledEvent &right);
@@ -82,8 +89,18 @@ private:
     fluid_settings_t *settings = nullptr;
     fluid_synth_t *synth = nullptr;
 
-    std::vector<ScheduledEvent> events;
-    size_t cursor = 0;
+    // Score frames are measured from the start of the score. originFrame is the
+    // audio-clock frame where that start falls. Live frames are absolute, for
+    // one-shot preview notes. Resume frames are absolute note-ons for voices
+    // that were already sounding at a seek point.
+    std::vector<ScheduledEvent> scoreEvents;
+    size_t scoreCursor = 0;
+    int64_t originFrame = 0;
+    int64_t scoreLengthMs = 0;
+    std::vector<ScheduledEvent> liveEvents;
+    size_t liveCursor = 0;
+    std::vector<ScheduledEvent> resumeEvents;
+    size_t resumeCursor = 0;
     int64_t renderedFrames = 0;
     int32_t currentSampleRate = kSampleRate;
     std::vector<LoadedFont> fonts;

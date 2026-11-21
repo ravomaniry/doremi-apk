@@ -88,8 +88,7 @@ void SynthEngine::shutdown() {
     }
 
     std::lock_guard<std::mutex> lock(synthMutex);
-    events.clear();
-    cursor = 0;
+    clearEventsLocked();
     if (synth != nullptr) {
         delete_fluid_synth(synth);
         synth = nullptr;
@@ -187,8 +186,7 @@ void SynthEngine::replaceScore(const int *pitches, const int *velocities, const 
                                 const int64_t *onMs, const int64_t *offMs, int count) {
     ensureStream();
     std::lock_guard<std::mutex> lock(synthMutex);
-    events.clear();
-    cursor = 0;
+    clearEventsLocked();
     if (synth != nullptr) {
         fluid_synth_all_sounds_off(synth, -1);
     }
@@ -196,29 +194,22 @@ void SynthEngine::replaceScore(const int *pitches, const int *velocities, const 
         return;
     }
 
-    const int64_t origin = renderedFrames + millisecondsToFrames(kPrerollMs);
-    events.reserve(static_cast<size_t>(count) * 2);
+    originFrame = renderedFrames + millisecondsToFrames(kPrerollMs);
+    scoreEvents.reserve(static_cast<size_t>(count) * 2);
     for (int i = 0; i < count; ++i) {
         int channel = channelsIn == nullptr ? 0 : channelsIn[i];
         if (channel < 0 || channel >= kChannels) {
             channel = 0;
         }
-        events.push_back(ScheduledEvent{
-                origin + millisecondsToFrames(onMs[i]),
-                channel,
-                pitches[i],
-                velocities[i],
-                true,
-        });
-        events.push_back(ScheduledEvent{
-                origin + millisecondsToFrames(offMs[i]),
-                channel,
-                pitches[i],
-                0,
-                false,
-        });
+        const int64_t onFrame = millisecondsToFrames(onMs[i]);
+        const int64_t offFrame = millisecondsToFrames(offMs[i]);
+        if (offMs[i] > scoreLengthMs) {
+            scoreLengthMs = offMs[i];
+        }
+        scoreEvents.push_back(ScheduledEvent{onFrame, channel, pitches[i], velocities[i], true});
+        scoreEvents.push_back(ScheduledEvent{offFrame, channel, pitches[i], 0, false});
     }
-    std::sort(events.begin(), events.end(), eventBefore);
+    std::sort(scoreEvents.begin(), scoreEvents.end(), eventBefore);
 }
 
 void SynthEngine::addNote(int channel, int pitch, int velocity, int64_t durationMs) {
@@ -230,20 +221,92 @@ void SynthEngine::addNote(int channel, int pitch, int velocity, int64_t duration
     if (channel < 0 || channel >= kChannels) {
         channel = 0;
     }
-    compactLocked();
+    compactLiveLocked();
     const int64_t onFrame = renderedFrames + millisecondsToFrames(kPrerollMs);
     const int64_t offFrame = onFrame + millisecondsToFrames(durationMs);
-    insertEventLocked(ScheduledEvent{onFrame, channel, pitch, velocity, true});
-    insertEventLocked(ScheduledEvent{offFrame, channel, pitch, 0, false});
+    insertLiveLocked(ScheduledEvent{onFrame, channel, pitch, velocity, true});
+    insertLiveLocked(ScheduledEvent{offFrame, channel, pitch, 0, false});
 }
 
 void SynthEngine::stop() {
     std::lock_guard<std::mutex> lock(synthMutex);
-    events.clear();
-    cursor = 0;
+    clearEventsLocked();
     if (synth != nullptr) {
         fluid_synth_all_sounds_off(synth, -1);
     }
+}
+
+bool SynthEngine::seek(int64_t positionMs) {
+    ensureStream();
+    std::lock_guard<std::mutex> lock(synthMutex);
+    if (synth == nullptr || scoreLengthMs <= 0) {
+        return false;
+    }
+    if (positionMs < 0) {
+        positionMs = 0;
+    }
+    if (positionMs > scoreLengthMs) {
+        positionMs = scoreLengthMs;
+    }
+
+    fluid_synth_all_sounds_off(synth, -1);
+    const int64_t positionFrames = millisecondsToFrames(positionMs);
+    const int64_t resumeFrame = renderedFrames + millisecondsToFrames(kPrerollMs);
+    originFrame = resumeFrame - positionFrames;
+    const auto cursor = std::lower_bound(
+            scoreEvents.begin(), scoreEvents.end(), positionFrames,
+            [](const ScheduledEvent &event, int64_t frame) { return event.frame < frame; });
+    scoreCursor = static_cast<size_t>(cursor - scoreEvents.begin());
+
+    struct OpenNote {
+        int channel;
+        int pitch;
+        int velocity;
+        int64_t onFrame;
+        bool matched;
+    };
+    std::vector<OpenNote> open;
+    open.reserve(scoreEvents.size() / 2);
+    resumeEvents.clear();
+    resumeCursor = 0;
+    for (const ScheduledEvent &event : scoreEvents) {
+        if (event.noteOn) {
+            open.push_back(OpenNote{
+                    event.channel, event.pitch, event.velocity, event.frame, false});
+            continue;
+        }
+        for (size_t index = open.size(); index > 0; --index) {
+            OpenNote &note = open[index - 1];
+            if (note.matched || note.channel != event.channel || note.pitch != event.pitch) {
+                continue;
+            }
+            note.matched = true;
+            if (note.onFrame < positionFrames && event.frame > positionFrames) {
+                resumeEvents.push_back(
+                        ScheduledEvent{resumeFrame, note.channel, note.pitch, note.velocity, true});
+            }
+            break;
+        }
+    }
+    return true;
+}
+
+int64_t SynthEngine::positionMs() {
+    std::lock_guard<std::mutex> lock(synthMutex);
+    if (scoreLengthMs <= 0) {
+        return 0;
+    }
+    const int64_t logical = renderedFrames + millisecondsToFrames(kPrerollMs) - originFrame;
+    const int64_t position = framesToMilliseconds(logical);
+    if (position > scoreLengthMs) {
+        return scoreLengthMs;
+    }
+    return position;
+}
+
+int64_t SynthEngine::durationMs() {
+    std::lock_guard<std::mutex> lock(synthMutex);
+    return scoreLengthMs;
 }
 
 oboe::DataCallbackResult SynthEngine::onAudioReady(oboe::AudioStream *, void *audioData,
@@ -263,22 +326,40 @@ oboe::DataCallbackResult SynthEngine::onAudioReady(oboe::AudioStream *, void *au
 
     int32_t frame = 0;
     while (frame < numFrames) {
-        while (cursor < events.size() && events[cursor].frame <= renderedFrames + frame) {
-            const ScheduledEvent &event = events[cursor++];
-            if (event.noteOn) {
-                fluid_synth_noteon(synth, event.channel, event.pitch, event.velocity);
-            } else {
-                fluid_synth_noteoff(synth, event.channel, event.pitch);
-            }
+        const int64_t now = renderedFrames + frame;
+        while (resumeCursor < resumeEvents.size() && resumeEvents[resumeCursor].frame <= now) {
+            applyEventLocked(resumeEvents[resumeCursor++]);
+        }
+        while (scoreCursor < scoreEvents.size() &&
+               originFrame + scoreEvents[scoreCursor].frame <= now) {
+            applyEventLocked(scoreEvents[scoreCursor++]);
+        }
+        while (liveCursor < liveEvents.size() && liveEvents[liveCursor].frame <= now) {
+            applyEventLocked(liveEvents[liveCursor++]);
         }
 
-        int32_t renderUntil = numFrames;
-        if (cursor < events.size()) {
-            const int64_t due = events[cursor].frame - renderedFrames;
-            if (due < renderUntil) {
-                renderUntil = static_cast<int32_t>(std::max<int64_t>(due, frame + 1));
+        int64_t nextFrame = renderedFrames + numFrames;
+        if (resumeCursor < resumeEvents.size() && resumeEvents[resumeCursor].frame < nextFrame) {
+            nextFrame = resumeEvents[resumeCursor].frame;
+        }
+        if (scoreCursor < scoreEvents.size()) {
+            const int64_t due = originFrame + scoreEvents[scoreCursor].frame;
+            if (due < nextFrame) {
+                nextFrame = due;
             }
         }
+        if (liveCursor < liveEvents.size() && liveEvents[liveCursor].frame < nextFrame) {
+            nextFrame = liveEvents[liveCursor].frame;
+        }
+
+        int64_t due = nextFrame - renderedFrames;
+        if (due < frame + 1) {
+            due = frame + 1;
+        }
+        if (due > numFrames) {
+            due = numFrames;
+        }
+        const auto renderUntil = static_cast<int32_t>(due);
         const int32_t chunk = renderUntil - frame;
         float *slice = output + static_cast<size_t>(frame) * 2;
         fluid_synth_write_float(synth, chunk, slice, 0, 2, slice, 1, 2);
@@ -494,21 +575,44 @@ int SynthEngine::fontIdLocked(const std::string &path) const {
     return -1;
 }
 
-void SynthEngine::insertEventLocked(const ScheduledEvent &event) {
-    const auto it = std::lower_bound(events.begin(), events.end(), event, eventBefore);
-    const size_t index = static_cast<size_t>(it - events.begin());
-    events.insert(it, event);
-    if (index < cursor) {
-        ++cursor;
+void SynthEngine::clearEventsLocked() {
+    scoreEvents.clear();
+    scoreCursor = 0;
+    liveEvents.clear();
+    liveCursor = 0;
+    resumeEvents.clear();
+    resumeCursor = 0;
+    scoreLengthMs = 0;
+    originFrame = renderedFrames;
+}
+
+void SynthEngine::applyEventLocked(const ScheduledEvent &event) {
+    if (synth == nullptr) {
+        return;
+    }
+    if (event.noteOn) {
+        fluid_synth_noteon(synth, event.channel, event.pitch, event.velocity);
+    } else {
+        fluid_synth_noteoff(synth, event.channel, event.pitch);
     }
 }
 
-void SynthEngine::compactLocked() {
-    if (cursor == 0 || cursor > events.size()) {
+void SynthEngine::insertLiveLocked(const ScheduledEvent &event) {
+    const auto it = std::lower_bound(liveEvents.begin(), liveEvents.end(), event, eventBefore);
+    const size_t index = static_cast<size_t>(it - liveEvents.begin());
+    liveEvents.insert(it, event);
+    if (index < liveCursor) {
+        ++liveCursor;
+    }
+}
+
+void SynthEngine::compactLiveLocked() {
+    if (liveCursor == 0 || liveCursor > liveEvents.size()) {
         return;
     }
-    events.erase(events.begin(), events.begin() + static_cast<std::ptrdiff_t>(cursor));
-    cursor = 0;
+    liveEvents.erase(liveEvents.begin(),
+                     liveEvents.begin() + static_cast<std::ptrdiff_t>(liveCursor));
+    liveCursor = 0;
 }
 
 int64_t SynthEngine::millisecondsToFrames(int64_t milliseconds) const {
@@ -516,6 +620,13 @@ int64_t SynthEngine::millisecondsToFrames(int64_t milliseconds) const {
         return 0;
     }
     return milliseconds * currentSampleRate / 1000;
+}
+
+int64_t SynthEngine::framesToMilliseconds(int64_t frames) const {
+    if (frames <= 0 || currentSampleRate <= 0) {
+        return 0;
+    }
+    return frames * 1000 / currentSampleRate;
 }
 
 bool SynthEngine::eventBefore(const ScheduledEvent &left, const ScheduledEvent &right) {

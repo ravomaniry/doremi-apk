@@ -88,6 +88,36 @@ class SfPlayer {
         }
     }
 
+    fun seekTo(positionMs: Long): Boolean {
+        val delayMs: Long
+        val sessionToStop: Int
+        synchronized(this) {
+            if (engine == 0L || !nativeSeek(engine, positionMs)) {
+                return false
+            }
+            sessionId++
+            sessionToStop = sessionId
+            val remaining = (nativeDurationMs(engine) - nativePositionMs(engine)).coerceAtLeast(0L)
+            delayMs = remaining + PREROLL_MS
+        }
+        scheduleCompletion(sessionToStop, delayMs)
+        return true
+    }
+
+    fun positionMs(): Long {
+        synchronized(this) {
+            if (engine == 0L) return 0L
+            return nativePositionMs(engine)
+        }
+    }
+
+    fun durationMs(): Long {
+        synchronized(this) {
+            if (engine == 0L) return 0L
+            return nativeDurationMs(engine)
+        }
+    }
+
     fun dispose() {
         val handle: Long
         synchronized(this) {
@@ -193,6 +223,9 @@ class SfPlayer {
     )
 
     private external fun nativeStop(handle: Long)
+    private external fun nativeSeek(handle: Long, positionMs: Long): Boolean
+    private external fun nativePositionMs(handle: Long): Long
+    private external fun nativeDurationMs(handle: Long): Long
 
     companion object {
         private const val TAG = "SfPlayer"
