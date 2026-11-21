@@ -145,6 +145,9 @@ data class Player constructor(
 
     fun positionMs(): Long = sfPlayer.positionMs()
 
+    /** Speaker delay. Playback follow subtracts it; seek and pause keep [positionMs]. */
+    fun outputLatencyMs(): Long = sfPlayer.outputLatencyMs()
+
     fun durationMs(): Long = sfPlayer.durationMs()
 
 

@@ -407,7 +407,7 @@
         <mg.maniry.doremii.editor.views.PlaybackPianoView
             android:id="@+id/playback_piano"
             android:layout_width="match_parent"
-            android:layout_height="100dp"
+            android:layout_height="37.5dp"
             android:clickable="false"
             android:focusable="false"
             android:importantForAccessibility="no" />

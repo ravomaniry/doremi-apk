@@ -49,6 +49,8 @@ public:
     // Continues from the frozen position and retriggers notes that are on.
     bool resume();
     int64_t positionMs();
+    // Speaker delay after the score clock. The follow UI waits this long; seek does not.
+    int64_t outputLatencyMs() const;
     int64_t durationMs();
 
     oboe::DataCallbackResult onAudioReady(oboe::AudioStream *stream, void *audioData,
@@ -89,6 +91,7 @@ private:
     void compactLiveLocked();
     int64_t millisecondsToFrames(int64_t milliseconds) const;
     int64_t positionFrom(int64_t rendered, int64_t origin, int64_t length, int32_t sampleRate) const;
+    void rememberLatency(oboe::AudioStream *audioStream);
     int fontIdLocked(const std::string &path) const;
 
     // Sets suspend, then locks the synth. The callback writes silence instead of
@@ -121,11 +124,14 @@ private:
     std::vector<ScheduledEvent> scoreEvents;
     size_t scoreCursor = 0;
     // The UI reads these without synthMutex. The callback still uses them
-    // while holding that lock. A one-buffer lag on the playhead is fine.
+    // while holding that lock. Playback follow subtracts latencyMs from the score clock.
     std::atomic<int64_t> originFrame{0};
     std::atomic<int64_t> scoreLengthMs{0};
     std::atomic<int64_t> renderedFrames{0};
     std::atomic<int32_t> currentSampleRate{kSampleRate};
+    // Output delay in milliseconds. kBufferMs until the stream reports a measurement.
+    std::atomic<int32_t> latencyMs{kBufferMs};
+    std::atomic<bool> latencyMeasured{false};
     // While set, the callback writes silence and does not take synthMutex
     // or move the clock.
     std::atomic<bool> suspend{false};

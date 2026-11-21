@@ -152,6 +152,14 @@ class SfPlayer {
         }
     }
 
+    /** How long the speaker lags the score clock. Seek and pause ignore this. */
+    fun outputLatencyMs(): Long {
+        synchronized(this) {
+            if (engine == 0L) return 0L
+            return nativeOutputLatencyMs(engine)
+        }
+    }
+
     fun durationMs(): Long {
         synchronized(this) {
             if (engine == 0L) return 0L
@@ -270,6 +278,7 @@ class SfPlayer {
     private external fun nativeSetPaused(handle: Long, paused: Boolean): Boolean
     private external fun nativeResume(handle: Long): Boolean
     private external fun nativePositionMs(handle: Long): Long
+    private external fun nativeOutputLatencyMs(handle: Long): Long
     private external fun nativeDurationMs(handle: Long): Long
 
     companion object {

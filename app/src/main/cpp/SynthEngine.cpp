@@ -358,6 +358,10 @@ int64_t SynthEngine::positionMs() {
                         currentSampleRate.load());
 }
 
+int64_t SynthEngine::outputLatencyMs() const {
+    return latencyMs.load();
+}
+
 int64_t SynthEngine::positionMsLocked() const {
     return positionFrom(renderedFrames.load(), originFrame.load(), scoreLengthMs.load(),
                         currentSampleRate.load());
@@ -367,34 +371,38 @@ int64_t SynthEngine::durationMs() {
     return scoreLengthMs.load();
 }
 
-oboe::DataCallbackResult SynthEngine::onAudioReady(oboe::AudioStream *, void *audioData,
+oboe::DataCallbackResult SynthEngine::onAudioReady(oboe::AudioStream *audioStream, void *audioData,
                                                     int32_t numFrames) {
+    const auto finish = [&]() {
+        rememberLatency(audioStream);
+        return oboe::DataCallbackResult::Continue;
+    };
     failedRestarts.store(0);
     flushDenormalsOnce();
     auto *output = static_cast<float *>(audioData);
     if (output == nullptr || numFrames <= 0) {
-        return oboe::DataCallbackResult::Continue;
+        return finish();
     }
     // A SoundFont load holds synthMutex. Play silence instead of waiting for it.
     if (suspend.load()) {
         writeSilence(output, numFrames);
-        return oboe::DataCallbackResult::Continue;
+        return finish();
     }
     std::unique_lock<std::mutex> lock(synthMutex, std::try_to_lock);
     if (!lock.owns_lock()) {
         writeSilence(output, numFrames);
-        return oboe::DataCallbackResult::Continue;
+        return finish();
     }
     if (paused) {
         // Leave renderedFrames where it is. Seeking while paused schedules
         // resume notes against this clock, and positionMs stays on the bar.
         writeSilence(output, numFrames);
-        return oboe::DataCallbackResult::Continue;
+        return finish();
     }
     if (synth == nullptr) {
         writeSilence(output, numFrames);
         renderedFrames.fetch_add(numFrames);
-        return oboe::DataCallbackResult::Continue;
+        return finish();
     }
 
     const int64_t rendered = renderedFrames.load();
@@ -442,7 +450,7 @@ oboe::DataCallbackResult SynthEngine::onAudioReady(oboe::AudioStream *, void *au
     }
 
     renderedFrames.fetch_add(numFrames);
-    return oboe::DataCallbackResult::Continue;
+    return finish();
 }
 
 void SynthEngine::onErrorAfterClose(oboe::AudioStream *audioStream, oboe::Result error) {
@@ -528,6 +536,8 @@ void SynthEngine::openNewStream() {
             return;
         }
         stream = opened;
+        latencyMeasured.store(false);
+        latencyMs.store(kBufferMs);
     }
 
     std::lock_guard<std::mutex> lock(synthMutex);
@@ -727,7 +737,9 @@ int64_t SynthEngine::positionFrom(int64_t rendered, int64_t origin, int64_t leng
     if (length <= 0 || sampleRate <= 0) {
         return 0;
     }
-    const int64_t logical = rendered + (kPrerollMs * sampleRate / 1000) - origin;
+    // originFrame is already preroll after the rendered clock, so the first note
+    // is rendered when this reaches 0. Adding preroll again puts the playhead early.
+    const int64_t logical = rendered - origin;
     if (logical <= 0) {
         return 0;
     }
@@ -736,6 +748,31 @@ int64_t SynthEngine::positionFrom(int64_t rendered, int64_t origin, int64_t leng
         return length;
     }
     return position;
+}
+
+void SynthEngine::rememberLatency(oboe::AudioStream *audioStream) {
+    if (audioStream == nullptr) {
+        return;
+    }
+    const auto measured = audioStream->calculateLatencyMillis();
+    if (!measured) {
+        return;
+    }
+    const double ms = measured.value();
+    if (ms < 1.0 || ms > 500.0) {
+        return;
+    }
+    const auto sample = static_cast<int32_t>(ms + 0.5);
+    if (!latencyMeasured.load()) {
+        latencyMeasured.store(true);
+        latencyMs.store(sample);
+        return;
+    }
+    const int32_t previous = latencyMs.load();
+    const int32_t next = previous + (sample - previous) / 4;
+    if (next > 0 && next != previous) {
+        latencyMs.store(next);
+    }
 }
 
 SynthEngine::SuspendedSynth::SuspendedSynth(SynthEngine &owner) : engine(owner) {

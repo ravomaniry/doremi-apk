@@ -13,7 +13,6 @@ data class SolfaColors(private val mainContext: Context) {
     val separator = ContextCompat.getColor(mainContext, R.color.dark_gray)
     val key = ContextCompat.getColor(mainContext, R.color.colorAccent)
     val playerCursor = ContextCompat.getColor(mainContext, R.color.colorAccentLight)
-    val playhead = ContextCompat.getColor(mainContext, R.color.playhead)
     val modulation = ContextCompat.getColor(mainContext, R.color.colorPrimaryLight)
     val velocity = ContextCompat.getColor(mainContext, R.color.colorPrimaryLight)
     val sign = ContextCompat.getColor(mainContext, R.color.colorAccent)

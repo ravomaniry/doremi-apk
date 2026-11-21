@@ -7,6 +7,7 @@ import com.google.android.flexbox.FlexboxLayout
 import mg.maniry.doremii.R.id.add_measure_btn
 import mg.maniry.doremii.R.id.partition_cont
 import mg.maniry.doremii.editor.EditorActivity
+import mg.maniry.doremii.editor.partition.PlayheadSpan
 import mg.maniry.doremii.editor.viewModels.EditorViewModel
 
 
@@ -25,7 +26,7 @@ class SolfaDisplayManager(
         }
     }
 
-    fun setPlayheadMeasure(measure: Int?) {
-        react.setPlayheadMeasure(measure)
+    fun setPlayhead(span: PlayheadSpan?) {
+        react.setPlayhead(span)
     }
 }

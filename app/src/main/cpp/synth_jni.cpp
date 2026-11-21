@@ -268,6 +268,16 @@ Java_mg_maniry_doremii_editor_sfplayer_SfPlayer_nativePositionMs(JNIEnv *, jobje
 }
 
 extern "C" JNIEXPORT jlong JNICALL
+Java_mg_maniry_doremii_editor_sfplayer_SfPlayer_nativeOutputLatencyMs(JNIEnv *, jobject,
+                                                                       jlong handle) {
+    SynthEngine *engine = engineFrom(handle);
+    if (engine == nullptr) {
+        return 0;
+    }
+    return engine->outputLatencyMs();
+}
+
+extern "C" JNIEXPORT jlong JNICALL
 Java_mg_maniry_doremii_editor_sfplayer_SfPlayer_nativeDurationMs(JNIEnv *, jobject, jlong handle) {
     SynthEngine *engine = engineFrom(handle);
     if (engine == nullptr) {

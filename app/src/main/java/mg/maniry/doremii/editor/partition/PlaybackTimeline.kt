@@ -97,6 +97,77 @@ fun measureAtPosition(visits: List<ScoreVisit>, positionMs: Long, tempo: Int, si
     return visits[index].sourceCell / signature
 }
 
+/** Source cell of the beat sounding at [tick]. Repeats return that same cell again. */
+fun cellAt(visits: List<ScoreVisit>, tick: Long): Int? {
+    val index = visitIndexAt(visits, tick)
+    if (index < 0) return null
+    return visits[index].sourceCell
+}
+
+/** Source cell of the beat sounding at [positionMs]. */
+fun cellAtPosition(visits: List<ScoreVisit>, positionMs: Long, tempo: Int): Int? {
+    val index = visitIndexAtPosition(visits, positionMs, tempo)
+    if (index < 0) return null
+    return visits[index].sourceCell
+}
+
+/**
+ * Where the playhead marker is drawn.
+ * It rests on [cell]. During the last 120ms before the next column of the same
+ * measure, [cell] is the beat still sounding, [nextCell] is the column about to
+ * be reached, and [fraction] runs from 0 to 1 so the marker lands as that note
+ * sounds. A beat shorter than 120ms uses its whole length, so the glide never
+ * starts early. A new bar, a repeat, or a skipped column leaves [nextCell] unset,
+ * and that jump stays on the beat.
+ */
+data class PlayheadSpan(
+    val cell: Int,
+    val fraction: Float,
+    val nextCell: Int?,
+)
+
+private const val PLAYHEAD_SNAP_MS = 120L
+
+fun playheadSpan(
+    visits: List<ScoreVisit>,
+    positionMs: Long,
+    tempo: Int,
+    signature: Int,
+): PlayheadSpan? {
+    if (signature <= 0) return null
+    val index = visitIndexAtPosition(visits, positionMs, tempo)
+    if (index < 0) return null
+    val visit = visits[index]
+    val next = visits.getOrNull(index + 1)
+    val toCell = if (next != null &&
+        next.sourceCell / signature == visit.sourceCell / signature &&
+        visit.sourceCell + 1 == next.sourceCell
+    ) {
+        next.sourceCell
+    } else {
+        null
+    }
+    if (toCell == null) return PlayheadSpan(visit.sourceCell, 0f, null)
+    val startMs = tickToPositionMs(visit.startTick, tempo)
+    val endMs = tickToPositionMs(visit.startTick + visit.durationTicks, tempo)
+    val spanMs = (endMs - startMs).coerceAtLeast(0L)
+    val leadMs = min(PLAYHEAD_SNAP_MS, spanMs)
+    val glideStart = endMs - leadMs
+    if (positionMs <= glideStart) return PlayheadSpan(visit.sourceCell, 0f, null)
+    val fraction = playheadSnapFraction(positionMs - glideStart, leadMs)
+    if (fraction >= 1f) return PlayheadSpan(visit.sourceCell, 0f, null)
+    return PlayheadSpan(visit.sourceCell, fraction, toCell)
+}
+
+/** 0 when the glide starts, 1 once the marker has landed. Ease-out, so the move reads as a snap. */
+private fun playheadSnapFraction(elapsedMs: Long, leadMs: Long): Float {
+    if (leadMs <= 0L || elapsedMs <= 0L) return 0f
+    if (elapsedMs >= leadMs) return 1f
+    val t = elapsedMs.toFloat() / leadMs.toFloat()
+    val remaining = 1f - t
+    return 1f - remaining * remaining
+}
+
 /** Start tick of the next bar in playback order. Stays put on the last bar. */
 fun nextMeasureTick(visits: List<ScoreVisit>, tick: Long, signature: Int): Long {
     if (visits.isEmpty() || signature <= 0) return 0
