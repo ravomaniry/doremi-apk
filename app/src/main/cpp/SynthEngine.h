@@ -40,6 +40,10 @@ public:
     void stop();
     // Moves the loaded score. Returns false when no score is loaded.
     bool seek(int64_t positionMs);
+    // Freezes the score clock and silences sounding notes. Position stays put.
+    bool setPaused(bool paused);
+    // Continues from the frozen position and retriggers notes that are on.
+    bool resume();
     int64_t positionMs();
     int64_t durationMs();
 
@@ -74,6 +78,8 @@ private:
     std::shared_ptr<oboe::AudioStream> buildStream(oboe::PerformanceMode mode);
     void ensureSynthLocked(int32_t sampleRate);
     void clearEventsLocked();
+    bool seekLocked(int64_t positionMs);
+    int64_t positionMsLocked() const;
     void applyEventLocked(const ScheduledEvent &event);
     void insertLiveLocked(const ScheduledEvent &event);
     void compactLiveLocked();
@@ -97,6 +103,7 @@ private:
     size_t scoreCursor = 0;
     int64_t originFrame = 0;
     int64_t scoreLengthMs = 0;
+    bool paused = false;
     std::vector<ScheduledEvent> liveEvents;
     size_t liveCursor = 0;
     std::vector<ScheduledEvent> resumeEvents;

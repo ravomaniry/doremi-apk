@@ -258,6 +258,7 @@
     </FrameLayout>
 
     <LinearLayout
+        android:id="@+id/tool_chips"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -322,12 +323,14 @@
     </LinearLayout>
 
     <View
+        android:id="@+id/tool_divider"
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_marginTop="@dimen/spacing1"
         android:background="@color/gray" />
 
     <LinearLayout
+        android:id="@+id/edit_transport"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
@@ -392,5 +395,81 @@
             android:layout_weight="10"
             android:contentDescription="@string/help_show_keyboard"
             android:src="@drawable/ic_piano" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/play_panel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <mg.maniry.doremii.editor.views.PlaybackPianoView
+            android:id="@+id/playback_piano"
+            android:layout_width="match_parent"
+            android:layout_height="100dp"
+            android:clickable="false"
+            android:focusable="false"
+            android:importantForAccessibility="no" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingVertical="@dimen/spacing2"
+            android:weightSum="55">
+
+            <ImageButton
+                android:id="@+id/play_start_btn"
+                style="@style/AppTheme.MenuIconButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="10"
+                android:contentDescription="@string/play_beginning"
+                android:src="@drawable/ic_to_start" />
+
+            <ImageButton
+                android:id="@+id/play_prev_btn"
+                style="@style/AppTheme.MenuIconButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="10"
+                android:contentDescription="@string/play_previous_measure"
+                android:src="@drawable/ic_measure_previous" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_weight="15"
+                android:orientation="vertical"
+                android:paddingHorizontal="5dp">
+
+                <ImageButton
+                    android:id="@+id/play_pause_btn"
+                    style="@style/AppTheme.PlayButton"
+                    android:contentDescription="@string/play_pause"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_pause" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/play_next_btn"
+                style="@style/AppTheme.MenuIconButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="10"
+                android:contentDescription="@string/play_next_measure"
+                android:src="@drawable/ic_measure_next" />
+
+            <ImageButton
+                android:id="@+id/play_close_btn"
+                style="@style/AppTheme.MenuIconButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="10"
+                android:contentDescription="@string/play_close"
+                android:src="@drawable/ic_close" />
+        </LinearLayout>
     </LinearLayout>
 </LinearLayout>

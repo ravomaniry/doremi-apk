@@ -147,6 +147,12 @@
         Manokatra ny \"menu\" ahafahana manova ny firafitry ny hira
     </string>
     <string name="help_play">Mandefa ny feon-kira</string>
+    <string name="play_pause">Mijanona kely</string>
+    <string name="play_resume">Hanohy ny feon-kira</string>
+    <string name="play_previous_measure">Fizarana teo aloha</string>
+    <string name="play_next_measure">Fizarana manaraka</string>
+    <string name="play_beginning">Hiverina any am-piandohana</string>
+    <string name="play_close">Hiala amin\'ny filalaovana</string>
     <string name="hep_stop">Manajanona ny feon-kira</string>
     <string name="help_save">Mitahiry ny hira na ny fanovana natao taminy</string>
     <string name="help_show_keyboard">Mampiseho ny \"clavier\"</string>

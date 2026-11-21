@@ -48,6 +48,7 @@ class EditorViewModel : ViewModel() {
     var player: Player? = null
     private var launched = false
     val playerIsPlaying = MutableLiveData<Boolean>().apply { value = false }
+    val playSession = MutableLiveData<Boolean>().apply { value = false }
     val playbackLoading = MutableLiveData<Boolean>().apply { value = false }
     private var _selectMode = SelectMode.CURSOR
     val selectMode: SelectMode get() = _selectMode
@@ -353,6 +354,8 @@ class EditorViewModel : ViewModel() {
         }
         return parser.parse(partitionData.notes)
     }
+
+    fun playbackVisits(): List<ScoreVisit> = parser.visits
 
 
     fun exportMidiFile() {

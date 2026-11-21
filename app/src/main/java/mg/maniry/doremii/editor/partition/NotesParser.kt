@@ -23,6 +23,9 @@ class NotesParser {
     private var currentTempo = 0
 
     private var tmpStart = 0
+    private var sourceCells = mutableListOf<Int>()
+    var visits: List<ScoreVisit> = emptyList()
+        private set
     var voiceIds = mutableListOf<String>()
     var playedVoices = listOf<Boolean>()
     var changeEvents = mutableListOf<ChangeEvent>()
@@ -37,9 +40,12 @@ class NotesParser {
 
     fun parse(notes: MutableList<MutableList<String>>): MutableList<Note> {
         ticks = notes.map { commonDelay }.toMutableList()
+        sourceCells = mutableListOf()
+        visits = emptyList()
 
         handleRepetitions(notes)
         handleStartAndLoops()
+        visits = buildVisits()
 
         val parsedNotes = mutableListOf<Note>()
         val voicesNum = voiceIds.size
@@ -174,6 +180,7 @@ class NotesParser {
                     voiceNotes.add("")
                 }
             }
+            sourceCells.add(nextIndex)
 
             realIndex++
 
@@ -219,6 +226,7 @@ class NotesParser {
 
 
     private fun handleStartAndLoops() {
+        val originalSources = sourceCells.toList()
         val tmpNotesToParse: Array<MutableList<String>>
         val newChangeEvents: MutableList<ParserStructureEvent>
 
@@ -245,10 +253,12 @@ class NotesParser {
             notesToParse.forEachIndexed { v, notesList ->
                 tmpNotesToParse[v] = notesList.slice(tmpStart until notesList.size).toMutableList()
             }
+            sourceCells = originalSources.slice(tmpStart until originalSources.size).toMutableList()
 
         } else {
             tmpNotesToParse = notesToParse.map { it.toMutableList() }.toTypedArray()
             newChangeEvents = tmpChangeEvents.toMutableList()
+            sourceCells = originalSources.toMutableList()
         }
 
 
@@ -259,6 +269,7 @@ class NotesParser {
             notesToParse.forEachIndexed { v, voiceNotes ->
                 tmpNotesToParse[v].addAll(voiceNotes)
             }
+            sourceCells.addAll(originalSources)
 
             loopIndex++
             positionOffset = tmpNotesToParse[0].size
@@ -266,6 +277,20 @@ class NotesParser {
 
         tmpChangeEvents = newChangeEvents
         notesToParse = tmpNotesToParse
+    }
+
+
+    private fun buildVisits(): List<ScoreVisit> {
+        val songTempo = tempo.coerceAtLeast(1)
+        var localTempo = songTempo
+        var tick = commonDelay
+        return sourceCells.mapIndexed { index, source ->
+            tmpChangeEvents.find { it.position == index }?.let { event ->
+                if (event.tempo >= 0) localTempo = event.tempo.coerceAtLeast(1)
+            }
+            val duration = timeUnit * songTempo / localTempo
+            ScoreVisit(source, tick, duration).also { tick += duration }
+        }
     }
 
 

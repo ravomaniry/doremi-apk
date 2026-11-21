@@ -19,8 +19,13 @@ class SolfaDisplayManager(
     init {
         editorVM.partitionData.signature.observe(mainContext as EditorActivity) { react.reRender() }
         editorVM.reRenderNotifier.observe(mainContext) { react.reRender() }
+        editorVM.playSession.observe(mainContext) { react.setPlaySession(it == true) }
         viewsCont.findViewById<ImageView>(add_measure_btn).setOnClickListener {
             editorVM.addMeasure()
         }
+    }
+
+    fun setPlayheadMeasure(measure: Int?) {
+        react.setPlayheadMeasure(measure)
     }
 }

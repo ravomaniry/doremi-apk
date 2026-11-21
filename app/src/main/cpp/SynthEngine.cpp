@@ -239,6 +239,36 @@ void SynthEngine::stop() {
 bool SynthEngine::seek(int64_t positionMs) {
     ensureStream();
     std::lock_guard<std::mutex> lock(synthMutex);
+    return seekLocked(positionMs);
+}
+
+bool SynthEngine::setPaused(bool shouldPause) {
+    std::lock_guard<std::mutex> lock(synthMutex);
+    if (shouldPause && (synth == nullptr || scoreLengthMs <= 0)) {
+        return false;
+    }
+    if (paused == shouldPause) {
+        return true;
+    }
+    paused = shouldPause;
+    if (paused && synth != nullptr) {
+        fluid_synth_all_sounds_off(synth, -1);
+    }
+    return true;
+}
+
+bool SynthEngine::resume() {
+    ensureStream();
+    std::lock_guard<std::mutex> lock(synthMutex);
+    if (!paused || synth == nullptr || scoreLengthMs <= 0) {
+        return false;
+    }
+    const int64_t position = positionMsLocked();
+    paused = false;
+    return seekLocked(position);
+}
+
+bool SynthEngine::seekLocked(int64_t positionMs) {
     if (synth == nullptr || scoreLengthMs <= 0) {
         return false;
     }
@@ -293,6 +323,10 @@ bool SynthEngine::seek(int64_t positionMs) {
 
 int64_t SynthEngine::positionMs() {
     std::lock_guard<std::mutex> lock(synthMutex);
+    return positionMsLocked();
+}
+
+int64_t SynthEngine::positionMsLocked() const {
     if (scoreLengthMs <= 0) {
         return 0;
     }
@@ -318,6 +352,12 @@ oboe::DataCallbackResult SynthEngine::onAudioReady(oboe::AudioStream *, void *au
     }
 
     std::lock_guard<std::mutex> lock(synthMutex);
+    if (paused) {
+        // Leave renderedFrames where it is. Seeking while paused schedules
+        // resume notes against this clock, and positionMs stays on the bar.
+        std::fill_n(output, static_cast<size_t>(numFrames) * 2, 0.f);
+        return oboe::DataCallbackResult::Continue;
+    }
     if (synth == nullptr) {
         std::fill_n(output, static_cast<size_t>(numFrames) * 2, 0.f);
         renderedFrames += numFrames;
@@ -584,6 +624,7 @@ void SynthEngine::clearEventsLocked() {
     resumeCursor = 0;
     scoreLengthMs = 0;
     originFrame = renderedFrames;
+    paused = false;
 }
 
 void SynthEngine::applyEventLocked(const ScheduledEvent &event) {

@@ -1,7 +1,10 @@
 package mg.maniry.doremii.editor.managers
 
 import android.graphics.Color
+import android.graphics.Rect
 import android.text.SpannableStringBuilder
+import android.view.View
+import android.widget.ScrollView
 import com.google.android.flexbox.FlexboxLayout
 import mg.maniry.doremii.editor.partition.HtmlExport
 import mg.maniry.doremii.editor.partition.MeasureHeader
@@ -21,11 +24,37 @@ class SolfaDisplayManagerReactive(
     private val gesture = SelectionGesture(editorVM, container)
     private var signature: Int = 1
     private var currentLayout = listOf<VirtualTable>()
+    private var playSession = false
+    private var playheadMeasure: Int? = null
 
     fun reRender() {
         val layout = buildLayout()
         renderDiffs(layout)
         currentLayout = layout
+        playheadMeasure?.let { paintMeasure(it) }
+    }
+
+    fun setPlaySession(active: Boolean) {
+        if (playSession == active) return
+        playSession = active
+        val start = editorVM.measureToStartPlayer
+        if (!active) {
+            val was = playheadMeasure
+            playheadMeasure = null
+            paintMeasure(was)
+            paintMeasure(start)
+        } else {
+            paintMeasure(start)
+        }
+    }
+
+    fun setPlayheadMeasure(measure: Int?) {
+        if (measure == playheadMeasure) return
+        val previous = playheadMeasure
+        playheadMeasure = measure
+        paintMeasure(previous)
+        paintMeasure(measure)
+        if (measure != null) reveal(measure)
     }
 
     private fun buildLayout(): List<VirtualTable> {
@@ -55,8 +84,7 @@ class SolfaDisplayManagerReactive(
 
     private fun buildVirtualTable(index: Int): VirtualTable {
         val voicesNum = editorVM.partitionData.voicesNum
-        val backgroundColor =
-            if (index == editorVM.measureToStartPlayer) colors.playerCursor else colors.regularBg
+        val backgroundColor = colorFor(index)
         val rows = List(voicesNum + 1) {
             if (it == 0) buildTableHeader(index) else buildTableRow(index, it - 1)
         }
@@ -189,6 +217,71 @@ class SolfaDisplayManagerReactive(
             onTouchListener = onTouchListener,
             noteRef = NoteCellRef(voiceIndex, cellIndex),
         )
+    }
+
+    private fun colorFor(measure: Int): Int {
+        if (measure == playheadMeasure) return colors.playhead
+        if (!playSession && measure == editorVM.measureToStartPlayer) return colors.playerCursor
+        return colors.regularBg
+    }
+
+    private fun paintMeasure(measure: Int?) {
+        if (measure == null) return
+        currentLayout.getOrNull(measure + 1)?.view?.setBackgroundColor(colorFor(measure))
+    }
+
+    private fun reveal(measure: Int) {
+        val view = currentLayout.getOrNull(measure + 1)?.view ?: return
+        view.post {
+            if (playheadMeasure != measure || !view.isAttachedToWindow) return@post
+            val scroll = findScrollView(view) ?: return@post
+            if (!isOffScreen(view, scroll)) return@post
+            val delta = scrollDeltaToReveal(view, scroll)
+            if (delta != 0) scroll.smoothScrollBy(0, delta)
+        }
+    }
+
+    /** True when the measure no longer intersects the score viewport. */
+    private fun isOffScreen(view: View, scroll: ScrollView): Boolean {
+        val visible = Rect()
+        if (!view.getGlobalVisibleRect(visible) || visible.isEmpty) return true
+        val viewport = Rect()
+        if (!scroll.getGlobalVisibleRect(viewport)) return true
+        return !Rect.intersects(visible, viewport)
+    }
+
+    /**
+     * Smallest scroll that brings the whole measure into the viewport.
+     * A measure taller than the viewport is aligned to the top.
+     */
+    private fun scrollDeltaToReveal(view: View, scroll: ScrollView): Int {
+        val viewLoc = IntArray(2)
+        val scrollLoc = IntArray(2)
+        view.getLocationOnScreen(viewLoc)
+        scroll.getLocationOnScreen(scrollLoc)
+        val viewTop = viewLoc[1]
+        val viewBottom = viewTop + view.height
+        val viewportTop = scrollLoc[1] + scroll.paddingTop
+        val viewportBottom = scrollLoc[1] + scroll.height - scroll.paddingBottom
+        val viewportHeight = viewportBottom - viewportTop
+        if (viewportHeight <= 0) return 0
+        if (view.height >= viewportHeight) return viewTop - viewportTop
+        val minDelta = viewBottom - viewportBottom
+        val maxDelta = viewTop - viewportTop
+        return when {
+            maxDelta < 0 -> maxDelta
+            minDelta > 0 -> minDelta
+            else -> 0
+        }
+    }
+
+    private fun findScrollView(view: View): ScrollView? {
+        var parent = view.parent
+        while (parent != null) {
+            if (parent is ScrollView) return parent
+            parent = parent.parent
+        }
+        return null
     }
 
     private fun renderDiffs(newLayout: List<VirtualTable>) {

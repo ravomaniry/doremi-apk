@@ -2,6 +2,7 @@ package mg.maniry.doremii.editor.managers
 
 import android.content.Context
 import android.view.View
+import androidx.lifecycle.LifecycleOwner
 import mg.maniry.doremii.editor.viewModels.EditorViewModel
 import mg.maniry.doremii.editor.partition.Player
 import mg.maniry.doremii.editor.viewModels.UiViewModel
@@ -19,12 +20,14 @@ class UiManager(
     val changesDialogManager: ChangesDialogManager
     private val solfaDisplayManager: SolfaDisplayManager
     private val lyricsDisplayManager: LyricsDisplayManager
+    private val playbackFollow: PlaybackFollow
 
     init {
         AppBarManager(mainContext, mainView, uiViewModel, editorViewModel, player)
         Toaster(mainContext, editorViewModel)
         PianoViewManager(mainContext, mainView, editorViewModel)
         solfaDisplayManager = SolfaDisplayManager(mainContext, mainView, editorViewModel)
+        playbackFollow = PlaybackFollow(mainContext as LifecycleOwner, mainView, editorViewModel, player, solfaDisplayManager)
         Toaster(mainContext, editorViewModel)
         lyricsDisplayManager =
             LyricsDisplayManager(mainContext, mainView, uiViewModel, editorViewModel)
@@ -42,7 +45,7 @@ class UiManager(
 
 
     fun kill() {
-//        solfaDisplayManager.movePlayerCursor(null)
+        playbackFollow.stop()
         lyricsDisplayManager.save()
 
         editorViewModel.run {

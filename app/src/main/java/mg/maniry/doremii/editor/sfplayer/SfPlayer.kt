@@ -21,6 +21,11 @@ class SfPlayer {
     @Volatile
     private var sessionId = 0
 
+    @Volatile
+    private var paused = false
+
+    private var remainingMs = 0L
+
     private val mainHandler = Handler(Looper.getMainLooper())
 
     fun setOnCompletionListener(listener: () -> Unit) {
@@ -35,6 +40,8 @@ class SfPlayer {
             if (!ensureEngine() || !prepareVoices(voices, discovered)) {
                 return false
             }
+            paused = false
+            remainingMs = 0
             sessionId++
             sessionToStop = sessionId
             val pitches = IntArray(notes.size)
@@ -81,11 +88,41 @@ class SfPlayer {
 
     fun stopPlaying() {
         synchronized(this) {
+            paused = false
+            remainingMs = 0
             sessionId++
             if (engine != 0L) {
                 nativeStop(engine)
             }
         }
+    }
+
+    fun pause(): Boolean {
+        synchronized(this) {
+            if (engine == 0L || paused) return paused && engine != 0L
+            if (!nativeSetPaused(engine, true)) return false
+            paused = true
+            sessionId++
+            remainingMs = (nativeDurationMs(engine) - nativePositionMs(engine)).coerceAtLeast(0L)
+            return true
+        }
+    }
+
+    fun resume(): Boolean {
+        val delayMs: Long
+        val sessionToStop: Int
+        synchronized(this) {
+            if (engine == 0L || !paused) return false
+            if (!nativeResume(engine)) return false
+            paused = false
+            sessionId++
+            sessionToStop = sessionId
+            val remaining = (nativeDurationMs(engine) - nativePositionMs(engine)).coerceAtLeast(0L)
+            remainingMs = remaining
+            delayMs = remaining + PREROLL_MS
+        }
+        scheduleCompletion(sessionToStop, delayMs)
+        return true
     }
 
     fun seekTo(positionMs: Long): Boolean {
@@ -94,6 +131,10 @@ class SfPlayer {
         synchronized(this) {
             if (engine == 0L || !nativeSeek(engine, positionMs)) {
                 return false
+            }
+            if (paused) {
+                remainingMs = (nativeDurationMs(engine) - nativePositionMs(engine)).coerceAtLeast(0L)
+                return true
             }
             sessionId++
             sessionToStop = sessionId
@@ -121,6 +162,8 @@ class SfPlayer {
     fun dispose() {
         val handle: Long
         synchronized(this) {
+            paused = false
+            remainingMs = 0
             sessionId++
             handle = engine
             engine = 0L
@@ -224,6 +267,8 @@ class SfPlayer {
 
     private external fun nativeStop(handle: Long)
     private external fun nativeSeek(handle: Long, positionMs: Long): Boolean
+    private external fun nativeSetPaused(handle: Long, paused: Boolean): Boolean
+    private external fun nativeResume(handle: Long): Boolean
     private external fun nativePositionMs(handle: Long): Long
     private external fun nativeDurationMs(handle: Long): Long
 
