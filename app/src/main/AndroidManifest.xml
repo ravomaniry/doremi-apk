@@ -122,10 +122,6 @@
         <activity
             android:name=".browser.UploadSolfaActivity"
             android:exported="false" />
-        <activity
-            android:name=".omr.ScanSolfaActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

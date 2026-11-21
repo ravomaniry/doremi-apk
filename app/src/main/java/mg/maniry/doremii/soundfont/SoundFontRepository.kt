@@ -361,8 +361,11 @@ class SoundFontRepository(context: Context) {
                     active = dao.active() == null,
                 )
             )
-        } else if (existing.sizeBytes != destination.length()) {
+        } else if (existing.fileName != PIANO_FILE || existing.sizeBytes != destination.length()) {
             dao.insert(existing.copy(sizeBytes = destination.length(), fileName = PIANO_FILE, bundled = true))
+            if (existing.fileName == LEGACY_PIANO_FILE) {
+                File(directory, LEGACY_PIANO_FILE).delete()
+            }
         }
         if (dao.presets(VoiceTimbre.PIANO_ID).isEmpty()) {
             val presets = SfPlayer.probe(destination.absolutePath).orEmpty().ifEmpty {
@@ -444,7 +447,8 @@ class SoundFontRepository(context: Context) {
     }
 
     companion object {
-        const val PIANO_FILE = "Piano.sf2"
+        const val PIANO_FILE = "Piano.sf3"
+        private const val LEGACY_PIANO_FILE = "Piano.sf2"
 
         val curated = listOf(
             CuratedSoundFont(

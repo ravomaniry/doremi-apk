@@ -64,21 +64,6 @@
 
     <string name="search">Hikaroka …</string>
     <string name="home_new_song">Hira vaovao</string>
-    <string name="home_scan_song">Haka solfa</string>
-    <string name="scan_read">Vakio</string>
-    <string name="scan_accept">Alaina</string>
-    <string name="scan_confirm">Ampiasaina</string>
-    <string name="scan_empty">Tsy nahitana solfa amin\'ity sary ity. Azonao soratana eto, na alao sary indray.</string>
-    <string name="scan_failed">Tsy voavaky ilay sary.</string>
-    <string name="scan_crop_small">Alefaso lehibe kokoa ny faritra voafantina.</string>
-    <string name="scan_inferred">Ny soratra miloko dia vinavina.</string>
-    <string name="scan_crop">Faritra hovakiana</string>
-    <string name="scan_add_page">Ampiana pejy</string>
-    <string name="scan_remove_page">Esorina ity pejy ity</string>
-    <string name="scan_pages">Pejy voaangona</string>
-    <string name="scan_play">Henoy</string>
-    <string name="scan_stop">Ajanony</string>
-    <string name="scan_tempo_invalid">Ny tempo dia tokony ho eo anelanelan\'ny 31 sy 399.</string>
     <string name="home_empty">Tsy mbola misy hira. Tsindrio + hanomboka.</string>
     <string name="home_empty_search">Tsy misy hira mitovy amin\'izay nosoratana.</string>
     <string name="home_untitled">Tsy misy lohateny</string>

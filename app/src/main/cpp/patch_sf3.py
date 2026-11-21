@@ -5,6 +5,10 @@ import pathlib
 import sys
 
 MARKER = "DOREMI_SF3_STB_V1"
+LENGTH_OLD = "    length = end_byte - start_byte;\n"
+LENGTH_NEW = "    /* source_end is the last byte, so the span is one longer than end - start. */\n    length = end_byte - start_byte + 1;\n"
+BOUNDS_OLD = "end_byte < start_byte || end_byte > sf->samplesize || start_byte > sf->samplesize"
+BOUNDS_NEW = "end_byte < start_byte || end_byte >= sf->samplesize || start_byte > sf->samplesize"
 
 VERSION_CHECK = """if(sf->version.major == 3)
             {
@@ -39,13 +43,14 @@ static int fluid_sffile_read_vorbis(SFData *sf, unsigned int start_byte, unsigne
     unsigned char *compressed;
     int frames;
 
-    if(data == NULL || end_byte < start_byte || end_byte > sf->samplesize || start_byte > sf->samplesize)
+    if(data == NULL || end_byte < start_byte || end_byte >= sf->samplesize || start_byte > sf->samplesize)
     {
         FLUID_LOG(FLUID_ERR, "Ogg Vorbis data offsets exceed sample data chunk");
         return -1;
     }
 
-    length = end_byte - start_byte;
+    /* source_end is the last byte, so the span is one longer than end - start. */
+    length = end_byte - start_byte + 1;
     if(length == 0)
     {
         *data = NULL;
@@ -81,6 +86,13 @@ static int fluid_sffile_read_vorbis(SFData *sf, unsigned int start_byte, unsigne
 #endif"""
 
 
+def include_last_byte(text: str) -> str:
+    """FluidSynth passes the last compressed byte, so the span is end - start + 1."""
+    if LENGTH_OLD not in text and BOUNDS_OLD not in text:
+        return text
+    return text.replace(BOUNDS_OLD, BOUNDS_NEW, 1).replace(LENGTH_OLD, LENGTH_NEW, 1)
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print("usage: patch_sf3.py FLUIDSYNTH_SRC", file=sys.stderr)
@@ -91,6 +103,9 @@ def main() -> int:
         return 1
     text = path.read_text()
     if MARKER in text:
+        upgraded = include_last_byte(text)
+        if upgraded != text:
+            path.write_text(upgraded)
         return 0
     if VERSION_CHECK not in text or STUB not in text:
         print("FluidSynth sources did not match the SF3 patch", file=sys.stderr)

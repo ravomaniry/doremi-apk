@@ -84,6 +84,8 @@ endif()
 # FluidSynth 2.6 decodes SF3 only when libsndfile has Vorbis. This build keeps
 # libsndfile off and patches the loader to decode SF3 samples with stb_vorbis.
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/patch_sf3.py")
 execute_process(
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/patch_sf3.py" "${FLUIDSYNTH_SRC}"
     RESULT_VARIABLE DOREMI_SF3_PATCH

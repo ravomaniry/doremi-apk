@@ -15,10 +15,6 @@ android {
         versionName = '2.2.0-rc4'
         testInstrumentationRunner = 'androidx.test.runner.AndroidJUnitRunner'
 
-        ndk {
-            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
-        }
-
         externalNativeBuild {
             cmake {
                 cppFlags '-std=c++17'
@@ -28,8 +24,17 @@ android {
     }
 
     buildTypes {
+        debug {
+            ndk {
+                abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+            }
+        }
         release {
+            ndk {
+                abiFilters 'armeabi-v7a', 'arm64-v8a'
+            }
             minifyEnabled = true
+            shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -74,13 +79,6 @@ kotlin {
     }
 }
 
-// JVM unit tests cannot load the Android OpenCV library, so they use the desktop jar.
-configurations.configureEach {
-    if (name.contains('UnitTestRuntimeClasspath')) {
-        exclude group: 'org.opencv', module: 'opencv'
-    }
-}
-
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.1'
     implementation 'androidx.activity:activity-ktx:1.11.0'
@@ -101,9 +99,6 @@ dependencies {
     implementation 'com.google.android.flexbox:flexbox:3.0.0'
     implementation 'com.android.volley:volley:1.2.1'
     implementation 'com.google.code.gson:gson:2.13.1'
-    implementation 'com.google.mlkit:text-recognition:16.0.1'
-    implementation 'org.opencv:opencv:4.14.0'
-    testImplementation 'org.openpnp:opencv:4.9.0-0'
     implementation 'org.jetbrains.kotlinx:kotlinx-html-jvm:0.12.0'
     implementation 'org.apache.poi:poi-ooxml:5.2.5'
     implementation 'com.fasterxml:aalto-xml:1.3.3'

@@ -1,4 +1,0 @@
-d:-.r:m:d:r:-.m:f:r:m:-.f:s:-.s:l:r:r:-
-s,:-.t,:d:s,:t,:-.d:r:t,:d:-.t,:d:-.d:d:d:t,:-
-m:-.s:s:m:s:-.s:s:s:s:-.r:s:-.m:f:l:s:-
-d:-.s,:d:d:s,:-.s,:s,:s,:d:-.r:m:-.d:f,:fi,:s,:-
