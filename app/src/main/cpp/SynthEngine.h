@@ -19,6 +19,10 @@ public:
     static constexpr int32_t kSampleRate = 48000;
     static constexpr int64_t kPrerollMs = 100;
     static constexpr int kChannels = 16;
+    // Score playback already waits kPrerollMs, so a short low-latency buffer
+    // only makes the callback miss its deadline.
+    static constexpr int32_t kBufferMs = 40;
+    static constexpr int32_t kCapacityMs = 100;
 
     SynthEngine() = default;
     ~SynthEngine() override;
@@ -84,8 +88,23 @@ private:
     void insertLiveLocked(const ScheduledEvent &event);
     void compactLiveLocked();
     int64_t millisecondsToFrames(int64_t milliseconds) const;
-    int64_t framesToMilliseconds(int64_t frames) const;
+    int64_t positionFrom(int64_t rendered, int64_t origin, int64_t length, int32_t sampleRate) const;
     int fontIdLocked(const std::string &path) const;
+
+    // Sets suspend, then locks the synth. The callback writes silence instead of
+    // waiting, so a SoundFont load cannot stall the audio thread.
+    class SuspendedSynth {
+    public:
+        explicit SuspendedSynth(SynthEngine &engine);
+        ~SuspendedSynth();
+
+        SuspendedSynth(const SuspendedSynth &) = delete;
+        SuspendedSynth &operator=(const SuspendedSynth &) = delete;
+
+    private:
+        SynthEngine &engine;
+        std::unique_lock<std::mutex> lock;
+    };
 
     static bool eventBefore(const ScheduledEvent &left, const ScheduledEvent &right);
 
@@ -101,15 +120,20 @@ private:
     // that were already sounding at a seek point.
     std::vector<ScheduledEvent> scoreEvents;
     size_t scoreCursor = 0;
-    int64_t originFrame = 0;
-    int64_t scoreLengthMs = 0;
+    // The UI reads these without synthMutex. The callback still uses them
+    // while holding that lock. A one-buffer lag on the playhead is fine.
+    std::atomic<int64_t> originFrame{0};
+    std::atomic<int64_t> scoreLengthMs{0};
+    std::atomic<int64_t> renderedFrames{0};
+    std::atomic<int32_t> currentSampleRate{kSampleRate};
+    // While set, the callback writes silence and does not take synthMutex
+    // or move the clock.
+    std::atomic<bool> suspend{false};
     bool paused = false;
     std::vector<ScheduledEvent> liveEvents;
     size_t liveCursor = 0;
     std::vector<ScheduledEvent> resumeEvents;
     size_t resumeCursor = 0;
-    int64_t renderedFrames = 0;
-    int32_t currentSampleRate = kSampleRate;
     std::vector<LoadedFont> fonts;
     std::array<ChannelPatch, kChannels> channels{};
 

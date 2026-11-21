@@ -7,10 +7,41 @@
 #include <algorithm>
 #include <sstream>
 
+#if defined(__x86_64__) || defined(__i386__)
+#include <pmmintrin.h>
+#include <xmmintrin.h>
+#endif
+
 namespace {
 
 constexpr char kLogTag[] = "doremi_synth";
 constexpr float kGain = 0.6f;
+
+void writeSilence(float *output, int32_t numFrames) {
+    std::fill_n(output, static_cast<size_t>(numFrames) * 2, 0.f);
+}
+
+// Denormal reverb tails spike the audio thread for tens of milliseconds.
+void flushDenormalsOnce() {
+    static thread_local bool enabled = false;
+    if (enabled) {
+        return;
+    }
+    enabled = true;
+#if defined(__aarch64__)
+    uint64_t fpcr;
+    __asm__ volatile("mrs %0, fpcr" : "=r"(fpcr));
+    fpcr |= (1ULL << 24);
+    __asm__ volatile("msr fpcr, %0" ::"r"(fpcr));
+#elif defined(__arm__)
+    uint32_t fpscr;
+    __asm__ volatile("vmrs %0, fpscr" : "=r"(fpscr));
+    fpscr |= (1U << 24);
+    __asm__ volatile("vmsr fpscr, %0" ::"r"(fpscr));
+#elif defined(__x86_64__) || defined(__i386__)
+    _mm_setcsr(_mm_getcsr() | 0x8040);
+#endif
+}
 
 std::string presetRow(int bank, int program, const char *name) {
     std::string label = name == nullptr ? "" : name;
@@ -102,7 +133,7 @@ void SynthEngine::shutdown() {
 
 int SynthEngine::loadSoundFont(const std::string &path) {
     ensureStream();
-    std::lock_guard<std::mutex> lock(synthMutex);
+    SuspendedSynth guard(*this);
     if (synth == nullptr) {
         return -1;
     }
@@ -130,7 +161,7 @@ std::vector<std::string> SynthEngine::presets(int sfontId) {
 }
 
 bool SynthEngine::selectInstrument(int channel, int sfontId, int bank, int program) {
-    std::lock_guard<std::mutex> lock(synthMutex);
+    SuspendedSynth guard(*this);
     if (synth == nullptr || channel < 0 || channel >= kChannels) {
         return false;
     }
@@ -155,7 +186,7 @@ bool SynthEngine::selectInstrument(int channel, int sfontId, int bank, int progr
 }
 
 void SynthEngine::releaseUnused(const std::vector<int> &keepIds) {
-    std::lock_guard<std::mutex> lock(synthMutex);
+    SuspendedSynth guard(*this);
     auto kept = [&keepIds](int id) {
         return std::find(keepIds.begin(), keepIds.end(), id) != keepIds.end();
     };
@@ -194,7 +225,7 @@ void SynthEngine::replaceScore(const int *pitches, const int *velocities, const 
         return;
     }
 
-    originFrame = renderedFrames + millisecondsToFrames(kPrerollMs);
+    originFrame.store(renderedFrames.load() + millisecondsToFrames(kPrerollMs));
     scoreEvents.reserve(static_cast<size_t>(count) * 2);
     for (int i = 0; i < count; ++i) {
         int channel = channelsIn == nullptr ? 0 : channelsIn[i];
@@ -203,8 +234,8 @@ void SynthEngine::replaceScore(const int *pitches, const int *velocities, const 
         }
         const int64_t onFrame = millisecondsToFrames(onMs[i]);
         const int64_t offFrame = millisecondsToFrames(offMs[i]);
-        if (offMs[i] > scoreLengthMs) {
-            scoreLengthMs = offMs[i];
+        if (offMs[i] > scoreLengthMs.load()) {
+            scoreLengthMs.store(offMs[i]);
         }
         scoreEvents.push_back(ScheduledEvent{onFrame, channel, pitches[i], velocities[i], true});
         scoreEvents.push_back(ScheduledEvent{offFrame, channel, pitches[i], 0, false});
@@ -222,7 +253,7 @@ void SynthEngine::addNote(int channel, int pitch, int velocity, int64_t duration
         channel = 0;
     }
     compactLiveLocked();
-    const int64_t onFrame = renderedFrames + millisecondsToFrames(kPrerollMs);
+    const int64_t onFrame = renderedFrames.load() + millisecondsToFrames(kPrerollMs);
     const int64_t offFrame = onFrame + millisecondsToFrames(durationMs);
     insertLiveLocked(ScheduledEvent{onFrame, channel, pitch, velocity, true});
     insertLiveLocked(ScheduledEvent{offFrame, channel, pitch, 0, false});
@@ -244,7 +275,7 @@ bool SynthEngine::seek(int64_t positionMs) {
 
 bool SynthEngine::setPaused(bool shouldPause) {
     std::lock_guard<std::mutex> lock(synthMutex);
-    if (shouldPause && (synth == nullptr || scoreLengthMs <= 0)) {
+    if (shouldPause && (synth == nullptr || scoreLengthMs.load() <= 0)) {
         return false;
     }
     if (paused == shouldPause) {
@@ -260,7 +291,7 @@ bool SynthEngine::setPaused(bool shouldPause) {
 bool SynthEngine::resume() {
     ensureStream();
     std::lock_guard<std::mutex> lock(synthMutex);
-    if (!paused || synth == nullptr || scoreLengthMs <= 0) {
+    if (!paused || synth == nullptr || scoreLengthMs.load() <= 0) {
         return false;
     }
     const int64_t position = positionMsLocked();
@@ -269,20 +300,21 @@ bool SynthEngine::resume() {
 }
 
 bool SynthEngine::seekLocked(int64_t positionMs) {
-    if (synth == nullptr || scoreLengthMs <= 0) {
+    if (synth == nullptr || scoreLengthMs.load() <= 0) {
         return false;
     }
     if (positionMs < 0) {
         positionMs = 0;
     }
-    if (positionMs > scoreLengthMs) {
-        positionMs = scoreLengthMs;
+    const int64_t length = scoreLengthMs.load();
+    if (positionMs > length) {
+        positionMs = length;
     }
 
     fluid_synth_all_sounds_off(synth, -1);
     const int64_t positionFrames = millisecondsToFrames(positionMs);
-    const int64_t resumeFrame = renderedFrames + millisecondsToFrames(kPrerollMs);
-    originFrame = resumeFrame - positionFrames;
+    const int64_t resumeFrame = renderedFrames.load() + millisecondsToFrames(kPrerollMs);
+    originFrame.store(resumeFrame - positionFrames);
     const auto cursor = std::lower_bound(
             scoreEvents.begin(), scoreEvents.end(), positionFrames,
             [](const ScheduledEvent &event, int64_t frame) { return event.frame < frame; });
@@ -322,68 +354,71 @@ bool SynthEngine::seekLocked(int64_t positionMs) {
 }
 
 int64_t SynthEngine::positionMs() {
-    std::lock_guard<std::mutex> lock(synthMutex);
-    return positionMsLocked();
+    return positionFrom(renderedFrames.load(), originFrame.load(), scoreLengthMs.load(),
+                        currentSampleRate.load());
 }
 
 int64_t SynthEngine::positionMsLocked() const {
-    if (scoreLengthMs <= 0) {
-        return 0;
-    }
-    const int64_t logical = renderedFrames + millisecondsToFrames(kPrerollMs) - originFrame;
-    const int64_t position = framesToMilliseconds(logical);
-    if (position > scoreLengthMs) {
-        return scoreLengthMs;
-    }
-    return position;
+    return positionFrom(renderedFrames.load(), originFrame.load(), scoreLengthMs.load(),
+                        currentSampleRate.load());
 }
 
 int64_t SynthEngine::durationMs() {
-    std::lock_guard<std::mutex> lock(synthMutex);
-    return scoreLengthMs;
+    return scoreLengthMs.load();
 }
 
 oboe::DataCallbackResult SynthEngine::onAudioReady(oboe::AudioStream *, void *audioData,
                                                     int32_t numFrames) {
     failedRestarts.store(0);
+    flushDenormalsOnce();
     auto *output = static_cast<float *>(audioData);
     if (output == nullptr || numFrames <= 0) {
         return oboe::DataCallbackResult::Continue;
     }
-
-    std::lock_guard<std::mutex> lock(synthMutex);
+    // A SoundFont load holds synthMutex. Play silence instead of waiting for it.
+    if (suspend.load()) {
+        writeSilence(output, numFrames);
+        return oboe::DataCallbackResult::Continue;
+    }
+    std::unique_lock<std::mutex> lock(synthMutex, std::try_to_lock);
+    if (!lock.owns_lock()) {
+        writeSilence(output, numFrames);
+        return oboe::DataCallbackResult::Continue;
+    }
     if (paused) {
         // Leave renderedFrames where it is. Seeking while paused schedules
         // resume notes against this clock, and positionMs stays on the bar.
-        std::fill_n(output, static_cast<size_t>(numFrames) * 2, 0.f);
+        writeSilence(output, numFrames);
         return oboe::DataCallbackResult::Continue;
     }
     if (synth == nullptr) {
-        std::fill_n(output, static_cast<size_t>(numFrames) * 2, 0.f);
-        renderedFrames += numFrames;
+        writeSilence(output, numFrames);
+        renderedFrames.fetch_add(numFrames);
         return oboe::DataCallbackResult::Continue;
     }
 
+    const int64_t rendered = renderedFrames.load();
+    const int64_t origin = originFrame.load();
     int32_t frame = 0;
     while (frame < numFrames) {
-        const int64_t now = renderedFrames + frame;
+        const int64_t now = rendered + frame;
         while (resumeCursor < resumeEvents.size() && resumeEvents[resumeCursor].frame <= now) {
             applyEventLocked(resumeEvents[resumeCursor++]);
         }
         while (scoreCursor < scoreEvents.size() &&
-               originFrame + scoreEvents[scoreCursor].frame <= now) {
+               origin + scoreEvents[scoreCursor].frame <= now) {
             applyEventLocked(scoreEvents[scoreCursor++]);
         }
         while (liveCursor < liveEvents.size() && liveEvents[liveCursor].frame <= now) {
             applyEventLocked(liveEvents[liveCursor++]);
         }
 
-        int64_t nextFrame = renderedFrames + numFrames;
+        int64_t nextFrame = rendered + numFrames;
         if (resumeCursor < resumeEvents.size() && resumeEvents[resumeCursor].frame < nextFrame) {
             nextFrame = resumeEvents[resumeCursor].frame;
         }
         if (scoreCursor < scoreEvents.size()) {
-            const int64_t due = originFrame + scoreEvents[scoreCursor].frame;
+            const int64_t due = origin + scoreEvents[scoreCursor].frame;
             if (due < nextFrame) {
                 nextFrame = due;
             }
@@ -392,7 +427,7 @@ oboe::DataCallbackResult SynthEngine::onAudioReady(oboe::AudioStream *, void *au
             nextFrame = liveEvents[liveCursor].frame;
         }
 
-        int64_t due = nextFrame - renderedFrames;
+        int64_t due = nextFrame - rendered;
         if (due < frame + 1) {
             due = frame + 1;
         }
@@ -406,7 +441,7 @@ oboe::DataCallbackResult SynthEngine::onAudioReady(oboe::AudioStream *, void *au
         frame = renderUntil;
     }
 
-    renderedFrames += numFrames;
+    renderedFrames.fetch_add(numFrames);
     return oboe::DataCallbackResult::Continue;
 }
 
@@ -464,9 +499,16 @@ void SynthEngine::openNewStream() {
         ~Guard() { flag.store(false); }
     } guard{restarting};
 
-    std::shared_ptr<oboe::AudioStream> opened = buildStream(oboe::PerformanceMode::LowLatency);
+    // The new stream starts inside buildStream, before the synth is ready.
+    suspend.store(true);
+    struct Resume {
+        std::atomic<bool> &flag;
+        ~Resume() { flag.store(false); }
+    } resume{suspend};
+
+    std::shared_ptr<oboe::AudioStream> opened = buildStream(oboe::PerformanceMode::None);
     if (!opened) {
-        opened = buildStream(oboe::PerformanceMode::None);
+        opened = buildStream(oboe::PerformanceMode::LowLatency);
     }
     if (!opened) {
         __android_log_print(ANDROID_LOG_ERROR, kLogTag, "unable to open the audio stream");
@@ -512,7 +554,8 @@ std::shared_ptr<oboe::AudioStream> SynthEngine::buildStream(oboe::PerformanceMod
             ->setSharingMode(oboe::SharingMode::Shared)
             ->setFormat(oboe::AudioFormat::Float)
             ->setChannelCount(oboe::ChannelCount::Stereo)
-            ->setSampleRate(kSampleRate)
+            ->setSampleRate(oboe::kUnspecified)
+            ->setBufferCapacityInFrames(kSampleRate * kCapacityMs / 1000)
             ->setSampleRateConversionQuality(oboe::SampleRateConversionQuality::Medium)
             ->setFormatConversionAllowed(true)
             ->setChannelConversionAllowed(true)
@@ -543,6 +586,18 @@ std::shared_ptr<oboe::AudioStream> SynthEngine::buildStream(oboe::PerformanceMod
         opened->close();
         return nullptr;
     }
+    const int32_t rate = opened->getSampleRate() > 0 ? opened->getSampleRate() : kSampleRate;
+    const int32_t burst = std::max(opened->getFramesPerBurst(), static_cast<int32_t>(1));
+    const int32_t target = std::max(burst * 2, rate * kBufferMs / 1000);
+    const int32_t capacity = opened->getBufferCapacityInFrames();
+    const int32_t chosen = capacity > 0 ? std::min(target, capacity) : target;
+    if (chosen > 0) {
+        const oboe::Result resized = opened->setBufferSizeInFrames(chosen);
+        if (resized != oboe::Result::OK) {
+            __android_log_print(ANDROID_LOG_WARN, kLogTag, "setBufferSizeInFrames(%d) failed: %s",
+                                chosen, oboe::convertToText(resized));
+        }
+    }
     return opened;
 }
 
@@ -550,7 +605,7 @@ void SynthEngine::ensureSynthLocked(int32_t sampleRate) {
     if (sampleRate <= 0) {
         sampleRate = kSampleRate;
     }
-    if (synth != nullptr && sampleRate == currentSampleRate) {
+    if (synth != nullptr && sampleRate == currentSampleRate.load()) {
         return;
     }
 
@@ -577,11 +632,14 @@ void SynthEngine::ensureSynthLocked(int32_t sampleRate) {
     fluid_settings_setint(settings, "synth.midi-channels", kChannels);
     fluid_settings_setnum(settings, "synth.sample-rate", sampleRate);
     fluid_settings_setnum(settings, "synth.gain", kGain);
+    // Default reverb and chorus dominate the callback and denormal-spike as they decay.
+    fluid_settings_setint(settings, "synth.reverb.active", 0);
+    fluid_settings_setint(settings, "synth.chorus.active", 0);
     synth = new_fluid_synth(settings);
     if (synth == nullptr) {
         return;
     }
-    currentSampleRate = sampleRate;
+    currentSampleRate.store(sampleRate);
     fluid_synth_set_gain(synth, kGain);
     for (const std::string &path : paths) {
         const int id = fluid_synth_sfload(synth, path.c_str(), 0);
@@ -622,8 +680,8 @@ void SynthEngine::clearEventsLocked() {
     liveCursor = 0;
     resumeEvents.clear();
     resumeCursor = 0;
-    scoreLengthMs = 0;
-    originFrame = renderedFrames;
+    scoreLengthMs.store(0);
+    originFrame.store(renderedFrames.load());
     paused = false;
 }
 
@@ -657,17 +715,36 @@ void SynthEngine::compactLiveLocked() {
 }
 
 int64_t SynthEngine::millisecondsToFrames(int64_t milliseconds) const {
-    if (milliseconds <= 0) {
+    const int32_t sampleRate = currentSampleRate.load();
+    if (milliseconds <= 0 || sampleRate <= 0) {
         return 0;
     }
-    return milliseconds * currentSampleRate / 1000;
+    return milliseconds * sampleRate / 1000;
 }
 
-int64_t SynthEngine::framesToMilliseconds(int64_t frames) const {
-    if (frames <= 0 || currentSampleRate <= 0) {
+int64_t SynthEngine::positionFrom(int64_t rendered, int64_t origin, int64_t length,
+                                  int32_t sampleRate) const {
+    if (length <= 0 || sampleRate <= 0) {
         return 0;
     }
-    return frames * 1000 / currentSampleRate;
+    const int64_t logical = rendered + (kPrerollMs * sampleRate / 1000) - origin;
+    if (logical <= 0) {
+        return 0;
+    }
+    const int64_t position = logical * 1000 / sampleRate;
+    if (position > length) {
+        return length;
+    }
+    return position;
+}
+
+SynthEngine::SuspendedSynth::SuspendedSynth(SynthEngine &owner) : engine(owner) {
+    engine.suspend.store(true);
+    lock = std::unique_lock<std::mutex>(engine.synthMutex);
+}
+
+SynthEngine::SuspendedSynth::~SuspendedSynth() {
+    engine.suspend.store(false);
 }
 
 bool SynthEngine::eventBefore(const ScheduledEvent &left, const ScheduledEvent &right) {
