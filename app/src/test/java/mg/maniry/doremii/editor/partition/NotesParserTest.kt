@@ -196,4 +196,70 @@ class NotesParserTest {
         assertEquals(delay + (15 + 2) * timeUnit, parsed.last().tick)
     }
 
+
+    @Test
+    fun daCapoVisitsReturnToTheStart() {
+        val parser = parserWith()
+        parser.changeEvents = mutableListOf(ChangeEvent(3, ChangeEvent.DAL, "DC"))
+        parser.parse(oneVoice("d", "r", "m", "f", "s", "l", "t", "d"))
+
+        assertEquals(listOf(0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7), parser.visits.map { it.sourceCell })
+        assertEquals(delay + 4 * timeUnit, parser.visits[4].startTick)
+    }
+
+
+    @Test
+    fun dalSegnoVisitsReturnToTheSign() {
+        val parser = parserWith()
+        parser.changeEvents = mutableListOf(
+                ChangeEvent(2, ChangeEvent.SIGN, "$1"),
+                ChangeEvent(5, ChangeEvent.DAL, "D$1"))
+        parser.parse(oneVoice("d", "r", "m", "f", "s", "l", "t", "d"))
+
+        assertEquals(listOf(0, 1, 2, 3, 4, 5, 2, 3, 4, 5, 6, 7), parser.visits.map { it.sourceCell })
+    }
+
+
+    @Test
+    fun loopsRepeatSourceCells() {
+        val parser = parserWith()
+        parser.loopsNumber = 1
+        parser.parse(oneVoice("d", "r", "m", "f"))
+
+        assertEquals(listOf(0, 1, 2, 3, 0, 1, 2, 3), parser.visits.map { it.sourceCell })
+        assertEquals(delay + 4 * timeUnit, parser.visits[4].startTick)
+        assertEquals(timeUnit, parser.visits[4].durationTicks)
+    }
+
+
+    @Test
+    fun restsAndTiesStayInTheTimeline() {
+        val parser = parserWith()
+        parser.signature = 2
+        parser.parse(oneVoice("d", "-"))
+
+        assertEquals(listOf(0, 1), parser.visits.map { it.sourceCell })
+        assertEquals(1, parser.parse(oneVoice("d", "-")).size)
+    }
+
+
+    @Test
+    fun playbackCanStartMidSong() {
+        val parser = parserWith()
+        parser.start = 4
+        parser.parse(oneVoice("d", "r", "m", "f", "s", "l", "t", "d"))
+
+        assertEquals(listOf(4, 5, 6, 7), parser.visits.map { it.sourceCell })
+        assertEquals(delay, parser.visits[0].startTick)
+    }
+
+
+    private fun parserWith() = NotesParser().apply {
+        voiceIds = mutableListOf("S")
+        playedVoices = mutableListOf(true)
+    }
+
+
+    private fun oneVoice(vararg notes: String) = mutableListOf(notes.toMutableList())
+
 }

@@ -7,6 +7,7 @@ import com.google.android.flexbox.FlexboxLayout
 import mg.maniry.doremii.R.id.add_measure_btn
 import mg.maniry.doremii.R.id.partition_cont
 import mg.maniry.doremii.editor.EditorActivity
+import mg.maniry.doremii.editor.partition.PlayheadSpan
 import mg.maniry.doremii.editor.viewModels.EditorViewModel
 
 
@@ -19,8 +20,13 @@ class SolfaDisplayManager(
     init {
         editorVM.partitionData.signature.observe(mainContext as EditorActivity) { react.reRender() }
         editorVM.reRenderNotifier.observe(mainContext) { react.reRender() }
+        editorVM.playSession.observe(mainContext) { react.setPlaySession(it == true) }
         viewsCont.findViewById<ImageView>(add_measure_btn).setOnClickListener {
             editorVM.addMeasure()
         }
+    }
+
+    fun setPlayhead(span: PlayheadSpan?) {
+        react.setPlayhead(span)
     }
 }

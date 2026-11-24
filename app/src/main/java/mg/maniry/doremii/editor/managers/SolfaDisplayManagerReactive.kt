@@ -2,15 +2,21 @@ package mg.maniry.doremii.editor.managers
 
 import android.graphics.Color
 import android.text.SpannableStringBuilder
+import android.view.View
+import android.widget.ScrollView
 import com.google.android.flexbox.FlexboxLayout
+import mg.maniry.doremii.R
 import mg.maniry.doremii.editor.partition.HtmlExport
 import mg.maniry.doremii.editor.partition.MeasureHeader
+import mg.maniry.doremii.editor.partition.PlayheadSpan
 import mg.maniry.doremii.editor.viewModels.EditorViewModel
 import mg.maniry.doremii.editor.viewModels.SelectMode
+import mg.maniry.doremii.editor.views.MeasureView
 import mg.maniry.doremii.editor.views.NotesToSpan
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
+import kotlin.math.min
 
 
 class SolfaDisplayManagerReactive(
@@ -18,13 +24,39 @@ class SolfaDisplayManagerReactive(
     private val container: FlexboxLayout,
 ) {
     private val colors = SolfaColors(container.context)
+    private val gesture = SelectionGesture(editorVM, container)
     private var signature: Int = 1
     private var currentLayout = listOf<VirtualTable>()
+    private var playSession = false
+    private var playheadSpan: PlayheadSpan? = null
+    private var glideView: MeasureView? = null
 
     fun reRender() {
         val layout = buildLayout()
         renderDiffs(layout)
         currentLayout = layout
+        placeGlide(playheadSpan)
+    }
+
+    fun setPlaySession(active: Boolean) {
+        if (playSession == active) return
+        playSession = active
+        val start = editorVM.measureToStartPlayer
+        if (!active) {
+            playheadSpan = null
+            clearGlide()
+            paintMeasure(start)
+        } else {
+            paintMeasure(start)
+        }
+    }
+
+    fun setPlayhead(span: PlayheadSpan?) {
+        val previousMeasure = playheadMeasure
+        playheadSpan = span
+        placeGlide(span)
+        val measure = playheadMeasure
+        if (measure != null && measure != previousMeasure) reveal(measure)
     }
 
     private fun buildLayout(): List<VirtualTable> {
@@ -54,8 +86,7 @@ class SolfaDisplayManagerReactive(
 
     private fun buildVirtualTable(index: Int): VirtualTable {
         val voicesNum = editorVM.partitionData.voicesNum
-        val backgroundColor =
-            if (index == editorVM.measureToStartPlayer) colors.playerCursor else colors.regularBg
+        val backgroundColor = colorFor(index)
         val rows = List(voicesNum + 1) {
             if (it == 0) buildTableHeader(index) else buildTableRow(index, it - 1)
         }
@@ -147,37 +178,165 @@ class SolfaDisplayManagerReactive(
     }
 
     private fun buildNoteCell(voiceIndex: Int, cellIndex: Int): VirtualCell {
+        val text = editorVM.partitionData.safelyGetNote(voiceIndex, cellIndex)
+        val span = NotesToSpan.convert(text)
+        val style = noteStyle(voiceIndex, cellIndex)
+        val cellId = "$voiceIndex:$cellIndex"
+        val onClickListener = OnclickListenerWrapper(cellId) {
+            editorVM.moveCursor(voiceIndex, cellIndex)
+        }
+        val onTouchListener = OnTouchListenerWrapper(cellId) { view, event ->
+            gesture.onNoteTouch(voiceIndex, cellIndex, view, event)
+        }
+        return VirtualCell(
+            text,
+            span,
+            style.text,
+            style.background,
+            30,
+            onClickListener,
+            onTouchListener = onTouchListener,
+            noteRef = NoteCellRef(voiceIndex, cellIndex),
+        )
+    }
+
+    private fun colorFor(measure: Int): Int {
+        if (!playSession && measure == editorVM.measureToStartPlayer) return colors.playerCursor
+        return colors.regularBg
+    }
+
+    /** Note color from the cursor and the selection. */
+    private fun noteStyle(voiceIndex: Int, cellIndex: Int): NoteStyle {
         val cursorPos = editorVM.cursorPos
         val selectMode = editorVM.selectMode
         val clipBoard = editorVM.clipBoard
-        val text = editorVM.partitionData.safelyGetNote(voiceIndex, cellIndex)
-        val span = NotesToSpan.convert(text)
-        // Colors & BG
-        var backgroundColor = Color.TRANSPARENT
-        var textColor = colors.separator
+        var background = Color.TRANSPARENT
+        var text = colors.separator
         if (selectMode == SelectMode.COPY && clipBoard != null) {
-            if (voiceIndex >= clipBoard.start.voice && voiceIndex <= clipBoard.end.voice && cellIndex >= clipBoard.start.index && cellIndex <= clipBoard.end.index) {
-                backgroundColor = colors.selectBg
+            if (voiceIndex >= clipBoard.start.voice && voiceIndex <= clipBoard.end.voice &&
+                cellIndex >= clipBoard.start.index && cellIndex <= clipBoard.end.index
+            ) {
+                background = colors.selectBg
             }
-        } else {
-            if (voiceIndex == cursorPos.voice && cursorPos.index == cellIndex) {
-                backgroundColor = when (editorVM.selectMode) {
-                    SelectMode.CURSOR -> colors.cursorBg
-                    else -> colors.selectBg
-                }
-                textColor = when (editorVM.selectMode) {
-                    SelectMode.CURSOR -> Color.WHITE
-                    else -> Color.DKGRAY
-                }
+        } else if (voiceIndex == cursorPos.voice && cursorPos.index == cellIndex) {
+            background = when (selectMode) {
+                SelectMode.CURSOR -> colors.cursorBg
+                else -> colors.selectBg
+            }
+            text = when (selectMode) {
+                SelectMode.CURSOR -> Color.WHITE
+                else -> Color.DKGRAY
             }
         }
-        // Click listener
-        val onClickListener = OnclickListenerWrapper("$voiceIndex$voiceIndex") {
-            editorVM.moveCursor(voiceIndex, cellIndex)
+        return NoteStyle(background, text)
+    }
+
+    private fun paintMeasure(measure: Int?) {
+        if (measure == null) return
+        currentLayout.getOrNull(measure + 1)?.view?.setBackgroundColor(colorFor(measure))
+    }
+
+    private fun placeGlide(span: PlayheadSpan?) {
+        if (span == null || signature <= 0) {
+            clearGlide()
+            return
         }
-        return VirtualCell(
-            text, span, textColor, backgroundColor, 30, onClickListener
-        )
+        val view = currentLayout.getOrNull(span.cell / signature + 1)?.view
+        if (view == null) {
+            clearGlide()
+            return
+        }
+        if (glideView != null && glideView !== view) glideView?.clearPlayhead()
+        glideView = view
+        val column = (span.cell % signature) * 2
+        val nextColumn = span.nextCell?.let { (it % signature) * 2 }
+        view.setPlayhead(column, nextColumn, if (nextColumn == null) 0f else span.fraction)
+    }
+
+    private fun clearGlide() {
+        glideView?.clearPlayhead()
+        glideView = null
+    }
+
+    private val playheadMeasure: Int?
+        get() {
+            val cell = playheadSpan?.cell ?: return null
+            if (signature <= 0) return null
+            return cell / signature
+        }
+
+    private fun reveal(measure: Int) {
+        val view = currentLayout.getOrNull(measure + 1)?.view ?: return
+        view.post { revealNow(view, measure, allowRetry = true) }
+    }
+
+    private fun revealNow(view: View, measure: Int, allowRetry: Boolean) {
+        if (playheadMeasure != measure || !view.isAttachedToWindow) return
+        val scroll = findScrollView(view) ?: return
+        if (allowRetry && playSession && playbackPianoPending(view)) {
+            view.post { revealNow(view, measure, allowRetry = false) }
+            return
+        }
+        val delta = scrollDeltaToReveal(view, scroll)
+        if (delta != 0) scroll.smoothScrollBy(0, delta)
+    }
+
+    /**
+     * Smallest scroll that fits the whole measure in the score window above the
+     * playback piano, with an 8dp margin. A taller measure is aligned to the top inset.
+     */
+    private fun scrollDeltaToReveal(view: View, scroll: ScrollView): Int {
+        val viewLoc = IntArray(2)
+        val scrollLoc = IntArray(2)
+        view.getLocationOnScreen(viewLoc)
+        scroll.getLocationOnScreen(scrollLoc)
+        val margin = view.resources.getDimensionPixelSize(R.dimen.spacing2)
+        val viewTop = viewLoc[1]
+        val viewBottom = viewTop + view.height
+        val contentTop = scrollLoc[1] + scroll.paddingTop
+        var contentBottom = scrollLoc[1] + scroll.height - scroll.paddingBottom
+        val pianoTop = playbackPianoTop(view)
+        if (pianoTop != null) contentBottom = min(contentBottom, pianoTop)
+        val viewportTop = contentTop + margin
+        val viewportBottom = contentBottom - margin
+        val viewportHeight = viewportBottom - viewportTop
+        if (viewportHeight <= 0) return 0
+        if (view.height >= viewportHeight) return viewTop - viewportTop
+        val minDelta = viewBottom - viewportBottom
+        val maxDelta = viewTop - viewportTop
+        return when {
+            maxDelta < 0 -> maxDelta
+            minDelta > 0 -> minDelta
+            else -> 0
+        }
+    }
+
+    /** Screen Y of the playback piano while it is on screen, above which the score must stay. */
+    private fun playbackPianoTop(anchor: View): Int? {
+        val piano = playbackPiano(anchor) ?: return null
+        if (!piano.isShown || piano.height <= 0) return null
+        val loc = IntArray(2)
+        piano.getLocationOnScreen(loc)
+        return loc[1]
+    }
+
+    /** True when playback has opened the piano but it has not been measured yet. */
+    private fun playbackPianoPending(anchor: View): Boolean {
+        val piano = playbackPiano(anchor) ?: return false
+        return piano.isShown && piano.height <= 0
+    }
+
+    private fun playbackPiano(anchor: View): View? {
+        return anchor.rootView.findViewById(R.id.playback_piano)
+    }
+
+    private fun findScrollView(view: View): ScrollView? {
+        var parent = view.parent
+        while (parent != null) {
+            if (parent is ScrollView) return parent
+            parent = parent.parent
+        }
+        return null
     }
 
     private fun renderDiffs(newLayout: List<VirtualTable>) {
@@ -194,4 +353,7 @@ class SolfaDisplayManagerReactive(
             }
         }
     }
+
 }
+
+private data class NoteStyle(val background: Int, val text: Int)

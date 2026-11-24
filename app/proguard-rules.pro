@@ -53,5 +53,3 @@
 -keep class mg.maniry.doremii.editor.sfplayer.SfPlayer {
     native <methods>;
 }
-
--keep class org.opencv.** { *; }

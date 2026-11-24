@@ -186,12 +186,12 @@
 
             <TextView
                 style="@style/AppTheme.LegendText"
-                android:drawableStart="@drawable/ic_content_copy"
+                android:drawableStart="@drawable/ic_select_all"
                 android:text="@string/help_copy_paste_2" />
 
             <TextView
                 style="@style/AppTheme.LegendText"
-                android:drawableStart="@drawable/ic_touch"
+                android:drawableStart="@drawable/ic_arrow_right"
                 android:text="@string/help_copy_paste_3" />
 
             <TextView

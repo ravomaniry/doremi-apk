@@ -3,6 +3,7 @@ package mg.maniry.doremii.editor.managers
 import android.graphics.Color
 import android.text.SpannableStringBuilder
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.widget.TableLayout
 import android.widget.TableRow
@@ -12,6 +13,13 @@ import mg.maniry.doremii.editor.views.MeasureView
 import kotlin.math.max
 
 class OnclickListenerWrapper(val id: String, val listener: () -> Unit)
+
+class OnTouchListenerWrapper(
+    val id: String,
+    val listener: (View, MotionEvent) -> Boolean,
+)
+
+data class NoteCellRef(val voice: Int, val index: Int)
 
 abstract class VirtualView<T : View>(
     var view: T?,
@@ -107,6 +115,8 @@ class VirtualCell(
     minWidth: Int = 0,
     onClickListener: OnclickListenerWrapper? = null,
     view: TextView? = null,
+    private val onTouchListener: OnTouchListenerWrapper? = null,
+    private val noteRef: NoteCellRef? = null,
 ) : VirtualView<TextView>(view, onClickListener, backgroundColor, minWidth) {
     companion object {
         fun create(container: TableRow): VirtualCell {
@@ -120,11 +130,22 @@ class VirtualCell(
 
     fun renderDiff(newValue: VirtualCell) {
         super.renderDiff(newValue)
+        val cellView = view!!
+        if (newValue.onTouchListener?.id != onTouchListener?.id) {
+            if (newValue.onTouchListener == null) {
+                cellView.setOnTouchListener(null)
+            } else {
+                cellView.setOnTouchListener { touched, event ->
+                    newValue.onTouchListener.listener(touched, event)
+                }
+            }
+        }
+        cellView.tag = newValue.noteRef
         if (newValue.text != text) {
-            view!!.text = newValue.span ?: newValue.text ?: ""
+            cellView.text = newValue.span ?: newValue.text ?: ""
         }
         if (newValue.color != color) {
-            view!!.setTextColor(newValue.color)
+            cellView.setTextColor(newValue.color)
         }
     }
 }

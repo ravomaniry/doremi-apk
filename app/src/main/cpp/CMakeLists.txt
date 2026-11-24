@@ -5,6 +5,20 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Debug builds leave the synth at -O0 (either an explicit flag or Clang's
+# default). That misses the audio deadline. Keep -g. The app code stays a
+# normal debug build; only this native library is optimized.
+foreach(doremi_lang C CXX)
+    set(doremi_debug_flags "${CMAKE_${doremi_lang}_FLAGS_DEBUG}")
+    if(doremi_debug_flags MATCHES "-O0")
+        string(REPLACE "-O0" "-O2" doremi_debug_flags "${doremi_debug_flags}")
+    elseif(NOT doremi_debug_flags MATCHES "-O[123]")
+        string(APPEND doremi_debug_flags " -O2 -g")
+    endif()
+    set(CMAKE_${doremi_lang}_FLAGS_DEBUG "${doremi_debug_flags}" CACHE STRING
+        "Debug flags, optimized so the synth meets its deadline" FORCE)
+endforeach()
+
 include(FetchContent)
 FetchContent_Declare(
     fluidsynth
@@ -70,6 +84,8 @@ endif()
 # FluidSynth 2.6 decodes SF3 only when libsndfile has Vorbis. This build keeps
 # libsndfile off and patches the loader to decode SF3 samples with stb_vorbis.
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/patch_sf3.py")
 execute_process(
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/patch_sf3.py" "${FLUIDSYNTH_SRC}"
     RESULT_VARIABLE DOREMI_SF3_PATCH
@@ -100,6 +116,9 @@ add_library(doremi_synth SHARED
 )
 
 target_compile_features(doremi_synth PRIVATE cxx_std_17)
+# Last -O flag wins when the NDK still appends -O0.
+target_compile_options(libfluidsynth-OBJ PRIVATE $<$<CONFIG:Debug>:-O2>)
+target_compile_options(doremi_synth PRIVATE $<$<CONFIG:Debug>:-O2>)
 target_link_libraries(doremi_synth
     libfluidsynth
     oboe::oboe

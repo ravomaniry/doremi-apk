@@ -19,6 +19,10 @@ public:
     static constexpr int32_t kSampleRate = 48000;
     static constexpr int64_t kPrerollMs = 100;
     static constexpr int kChannels = 16;
+    // Score playback already waits kPrerollMs, so a short low-latency buffer
+    // only makes the callback miss its deadline.
+    static constexpr int32_t kBufferMs = 40;
+    static constexpr int32_t kCapacityMs = 100;
 
     SynthEngine() = default;
     ~SynthEngine() override;
@@ -38,6 +42,16 @@ public:
                        const int64_t *onMs, const int64_t *offMs, int count);
     void addNote(int channel, int pitch, int velocity, int64_t durationMs);
     void stop();
+    // Moves the loaded score. Returns false when no score is loaded.
+    bool seek(int64_t positionMs);
+    // Freezes the score clock and silences sounding notes. Position stays put.
+    bool setPaused(bool paused);
+    // Continues from the frozen position and retriggers notes that are on.
+    bool resume();
+    int64_t positionMs();
+    // Speaker delay after the score clock. The follow UI waits this long; seek does not.
+    int64_t outputLatencyMs() const;
+    int64_t durationMs();
 
     oboe::DataCallbackResult onAudioReady(oboe::AudioStream *stream, void *audioData,
                                            int32_t numFrames) override;
@@ -69,10 +83,31 @@ private:
     void ensureStream();
     std::shared_ptr<oboe::AudioStream> buildStream(oboe::PerformanceMode mode);
     void ensureSynthLocked(int32_t sampleRate);
-    void insertEventLocked(const ScheduledEvent &event);
-    void compactLocked();
+    void clearEventsLocked();
+    bool seekLocked(int64_t positionMs);
+    int64_t positionMsLocked() const;
+    void applyEventLocked(const ScheduledEvent &event);
+    void insertLiveLocked(const ScheduledEvent &event);
+    void compactLiveLocked();
     int64_t millisecondsToFrames(int64_t milliseconds) const;
+    int64_t positionFrom(int64_t rendered, int64_t origin, int64_t length, int32_t sampleRate) const;
+    void rememberLatency(oboe::AudioStream *audioStream);
     int fontIdLocked(const std::string &path) const;
+
+    // Sets suspend, then locks the synth. The callback writes silence instead of
+    // waiting, so a SoundFont load cannot stall the audio thread.
+    class SuspendedSynth {
+    public:
+        explicit SuspendedSynth(SynthEngine &engine);
+        ~SuspendedSynth();
+
+        SuspendedSynth(const SuspendedSynth &) = delete;
+        SuspendedSynth &operator=(const SuspendedSynth &) = delete;
+
+    private:
+        SynthEngine &engine;
+        std::unique_lock<std::mutex> lock;
+    };
 
     static bool eventBefore(const ScheduledEvent &left, const ScheduledEvent &right);
 
@@ -82,10 +117,29 @@ private:
     fluid_settings_t *settings = nullptr;
     fluid_synth_t *synth = nullptr;
 
-    std::vector<ScheduledEvent> events;
-    size_t cursor = 0;
-    int64_t renderedFrames = 0;
-    int32_t currentSampleRate = kSampleRate;
+    // Score frames are measured from the start of the score. originFrame is the
+    // audio-clock frame where that start falls. Live frames are absolute, for
+    // one-shot preview notes. Resume frames are absolute note-ons for voices
+    // that were already sounding at a seek point.
+    std::vector<ScheduledEvent> scoreEvents;
+    size_t scoreCursor = 0;
+    // The UI reads these without synthMutex. The callback still uses them
+    // while holding that lock. Playback follow subtracts latencyMs from the score clock.
+    std::atomic<int64_t> originFrame{0};
+    std::atomic<int64_t> scoreLengthMs{0};
+    std::atomic<int64_t> renderedFrames{0};
+    std::atomic<int32_t> currentSampleRate{kSampleRate};
+    // Output delay in milliseconds. kBufferMs until the stream reports a measurement.
+    std::atomic<int32_t> latencyMs{kBufferMs};
+    std::atomic<bool> latencyMeasured{false};
+    // While set, the callback writes silence and does not take synthMutex
+    // or move the clock.
+    std::atomic<bool> suspend{false};
+    bool paused = false;
+    std::vector<ScheduledEvent> liveEvents;
+    size_t liveCursor = 0;
+    std::vector<ScheduledEvent> resumeEvents;
+    size_t resumeCursor = 0;
     std::vector<LoadedFont> fonts;
     std::array<ChannelPatch, kChannels> channels{};
 

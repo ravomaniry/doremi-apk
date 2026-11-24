@@ -62,44 +62,121 @@
             </LinearLayout>
         </LinearLayout>
 
-        <LinearLayout
+        <HorizontalScrollView
             android:id="@+id/tray_edit"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/tool_tray_background"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:paddingVertical="@dimen/spacing1"
+            android:fillViewport="true"
+            android:scrollbars="none"
             android:visibility="gone">
 
             <LinearLayout
-                android:id="@+id/copy_btn"
-                style="@style/AppTheme.ToolAction"
-                android:contentDescription="@string/action_copy">
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingVertical="@dimen/spacing1">
 
-                <ImageView
-                    style="@style/AppTheme.ToolIcon"
-                    android:src="@drawable/ic_content_copy" />
+                <LinearLayout
+                    android:id="@+id/copy_btn"
+                    style="@style/AppTheme.ToolAction"
+                    android:contentDescription="@string/action_copy">
 
-                <TextView
-                    style="@style/AppTheme.ToolLabel"
-                    android:text="@string/action_copy" />
+                    <ImageView
+                        style="@style/AppTheme.ToolIcon"
+                        android:src="@drawable/ic_content_copy" />
+
+                    <TextView
+                        style="@style/AppTheme.ToolLabel"
+                        android:text="@string/action_copy" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/paste_btn"
+                    style="@style/AppTheme.ToolAction"
+                    android:contentDescription="@string/action_paste">
+
+                    <ImageView
+                        style="@style/AppTheme.ToolIcon"
+                        android:src="@drawable/ic_content_paste" />
+
+                    <TextView
+                        style="@style/AppTheme.ToolLabel"
+                        android:text="@string/action_paste" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/select_all_btn"
+                    style="@style/AppTheme.ToolAction"
+                    android:contentDescription="@string/action_select_all">
+
+                    <ImageView
+                        style="@style/AppTheme.ToolIcon"
+                        android:src="@drawable/ic_select_all" />
+
+                    <TextView
+                        style="@style/AppTheme.ToolLabel"
+                        android:text="@string/action_select_all" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/move_left_btn"
+                    style="@style/AppTheme.ToolAction"
+                    android:contentDescription="@string/action_move_left">
+
+                    <ImageView
+                        style="@style/AppTheme.ToolIcon"
+                        android:src="@drawable/ic_arrow_left" />
+
+                    <TextView
+                        style="@style/AppTheme.ToolLabel"
+                        android:text="@string/action_move_left" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/move_right_btn"
+                    style="@style/AppTheme.ToolAction"
+                    android:contentDescription="@string/action_move_right">
+
+                    <ImageView
+                        style="@style/AppTheme.ToolIcon"
+                        android:src="@drawable/ic_arrow_right" />
+
+                    <TextView
+                        style="@style/AppTheme.ToolLabel"
+                        android:text="@string/action_move_right" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/move_up_btn"
+                    style="@style/AppTheme.ToolAction"
+                    android:contentDescription="@string/action_move_up">
+
+                    <ImageView
+                        style="@style/AppTheme.ToolIcon"
+                        android:src="@drawable/ic_arrow_up" />
+
+                    <TextView
+                        style="@style/AppTheme.ToolLabel"
+                        android:text="@string/action_move_up" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/move_down_btn"
+                    style="@style/AppTheme.ToolAction"
+                    android:contentDescription="@string/action_move_down">
+
+                    <ImageView
+                        style="@style/AppTheme.ToolIcon"
+                        android:src="@drawable/ic_arrow_down" />
+
+                    <TextView
+                        style="@style/AppTheme.ToolLabel"
+                        android:text="@string/action_move_down" />
+                </LinearLayout>
             </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/paste_btn"
-                style="@style/AppTheme.ToolAction"
-                android:contentDescription="@string/action_paste">
-
-                <ImageView
-                    style="@style/AppTheme.ToolIcon"
-                    android:src="@drawable/ic_content_paste" />
-
-                <TextView
-                    style="@style/AppTheme.ToolLabel"
-                    android:text="@string/action_paste" />
-            </LinearLayout>
-        </LinearLayout>
+        </HorizontalScrollView>
 
         <LinearLayout
             android:id="@+id/tray_export"
@@ -181,6 +258,7 @@
     </FrameLayout>
 
     <LinearLayout
+        android:id="@+id/tool_chips"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -245,12 +323,14 @@
     </LinearLayout>
 
     <View
+        android:id="@+id/tool_divider"
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_marginTop="@dimen/spacing1"
         android:background="@color/gray" />
 
     <LinearLayout
+        android:id="@+id/edit_transport"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
@@ -315,5 +395,81 @@
             android:layout_weight="10"
             android:contentDescription="@string/help_show_keyboard"
             android:src="@drawable/ic_piano" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/play_panel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <mg.maniry.doremii.editor.views.PlaybackPianoView
+            android:id="@+id/playback_piano"
+            android:layout_width="match_parent"
+            android:layout_height="37.5dp"
+            android:clickable="false"
+            android:focusable="false"
+            android:importantForAccessibility="no" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingVertical="@dimen/spacing2"
+            android:weightSum="55">
+
+            <ImageButton
+                android:id="@+id/play_start_btn"
+                style="@style/AppTheme.MenuIconButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="10"
+                android:contentDescription="@string/play_beginning"
+                android:src="@drawable/ic_to_start" />
+
+            <ImageButton
+                android:id="@+id/play_prev_btn"
+                style="@style/AppTheme.MenuIconButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="10"
+                android:contentDescription="@string/play_previous_measure"
+                android:src="@drawable/ic_measure_previous" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_weight="15"
+                android:orientation="vertical"
+                android:paddingHorizontal="5dp">
+
+                <ImageButton
+                    android:id="@+id/play_pause_btn"
+                    style="@style/AppTheme.PlayButton"
+                    android:contentDescription="@string/play_pause"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_pause" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/play_next_btn"
+                style="@style/AppTheme.MenuIconButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="10"
+                android:contentDescription="@string/play_next_measure"
+                android:src="@drawable/ic_measure_next" />
+
+            <ImageButton
+                android:id="@+id/play_close_btn"
+                style="@style/AppTheme.MenuIconButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="10"
+                android:contentDescription="@string/play_close"
+                android:src="@drawable/ic_close" />
+        </LinearLayout>
     </LinearLayout>
 </LinearLayout>

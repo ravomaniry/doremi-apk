@@ -48,6 +48,7 @@ class EditorViewModel : ViewModel() {
     var player: Player? = null
     private var launched = false
     val playerIsPlaying = MutableLiveData<Boolean>().apply { value = false }
+    val playSession = MutableLiveData<Boolean>().apply { value = false }
     val playbackLoading = MutableLiveData<Boolean>().apply { value = false }
     private var _selectMode = SelectMode.CURSOR
     val selectMode: SelectMode get() = _selectMode
@@ -152,11 +153,14 @@ class EditorViewModel : ViewModel() {
 
 
     fun moveCursor(voice: Int, index: Int) {
-        endClipboard(voice, index)
+        val hideSelection = selectMode == SelectMode.COPY
         if (cursorPos.voice != voice || cursorPos.index != index) {
             prevCursorPos = cursorPos
         }
         _cursorPos = updater.moveCursor(voice, index)
+        if (hideSelection) {
+            setSelectMode(SelectMode.CURSOR)
+        }
         notifyListeners()
     }
 
@@ -351,6 +355,8 @@ class EditorViewModel : ViewModel() {
         return parser.parse(partitionData.notes)
     }
 
+    fun playbackVisits(): List<ScoreVisit> = parser.visits
+
 
     fun exportMidiFile() {
         viewModelScope.launch {
@@ -404,9 +410,11 @@ class EditorViewModel : ViewModel() {
 
 
     fun toggleSelectMode() {
-        if (selectMode == SelectMode.CURSOR) {
-            initClipBoard()
+        if (selectMode == SelectMode.COPY && clipBoard != null) {
+            message.value = Values.clipboardSaved
+            setSelectMode(SelectMode.CURSOR)
         } else {
+            clipBoard = ClipBoard(cursorPos, cursorPos)
             message.value = Values.clipboardSaved
             setSelectMode(SelectMode.CURSOR)
         }
@@ -414,27 +422,63 @@ class EditorViewModel : ViewModel() {
     }
 
 
-    private fun initClipBoard() {
-        clipBoard = ClipBoard(cursorPos, cursorPos)
+    fun setSelection(startVoice: Int, startIndex: Int, endVoice: Int, endIndex: Int) {
+        val next = ClipBoard(Cell(startVoice, startIndex), Cell(endVoice, endIndex)).apply {
+            reorder()
+        }
+        val current = clipBoard
+        if (selectMode == SelectMode.COPY && current != null &&
+            current.start.voice == next.start.voice && current.start.index == next.start.index &&
+            current.end.voice == next.end.voice && current.end.index == next.end.index
+        ) {
+            return
+        }
+        clipBoard = next
         setSelectMode(SelectMode.COPY)
+        notifyListeners()
+    }
+
+
+    fun selectAll() {
+        val length = partitionData.getMaxLength()
+        if (length <= 0 || partitionData.voicesNum <= 0) return
+        setSelection(0, 0, partitionData.voicesNum - 1, length - 1)
+    }
+
+
+    fun canMoveSelection(dVoice: Int, dIndex: Int): Boolean {
+        val selection = clipBoard ?: return false
+        if (selectMode != SelectMode.COPY) return false
+        return updater.canMove(selection, dVoice, dIndex)
+    }
+
+
+    fun moveSelection(dVoice: Int, dIndex: Int) {
+        val selection = clipBoard ?: return
+        if (selectMode != SelectMode.COPY) return
+        val result = updater.move(selection, dVoice, dIndex) ?: return
+        if (result.changes.isNotEmpty()) {
+            history.handleBulkOps(result.changes)
+        }
+        clipBoard = ClipBoard(
+            selection.start.copy(
+                voice = selection.start.voice + dVoice,
+                index = selection.start.index + dIndex,
+            ),
+            selection.end.copy(
+                voice = selection.end.voice + dVoice,
+                index = selection.end.index + dIndex,
+            ),
+        ).apply { reorder() }
+        val origin = clipBoard!!.start
+        _cursorPos = updater.moveCursor(origin.voice, origin.index)
+        notifyListeners()
     }
 
 
     private fun setSelectMode(mode: SelectMode) {
         _selectMode = mode
         _selectModeState.value = mode
-    }
-
-
-    private fun endClipboard(voice: Int, index: Int) {
-        if (selectMode == SelectMode.COPY) {
-            if (clipBoard != null) {
-                clipBoard = clipBoard!!.copy(end = Cell(voice, index)).apply {
-                    reorder()
-                }
-            }
-        }
-        notifyListeners()
     }
 
 

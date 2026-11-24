@@ -29,8 +29,18 @@ class AppBarManager(
 
     private lateinit var playBtn: ImageButton
     private lateinit var stopBtn: ImageButton
+    private lateinit var pauseBtn: ImageButton
+    private lateinit var toolChips: View
+    private lateinit var toolDivider: View
+    private lateinit var editTransport: View
+    private lateinit var playPanel: View
+    private var keyboardBeforePlay: Int? = null
     private lateinit var copyBtn: View
     private lateinit var editGroup: View
+    private lateinit var moveLeftBtn: View
+    private lateinit var moveRightBtn: View
+    private lateinit var moveUpBtn: View
+    private lateinit var moveDownBtn: View
     private val trayHandler = Handler(Looper.getMainLooper())
     private var openSection: Pair<View, View>? = null
     private val collapseOpenSection = Runnable {
@@ -53,6 +63,7 @@ class AppBarManager(
         initButtons()
         initGroups()
         initEditorMode()
+        initPlaySession()
         observePlayerState()
         observePlaybackLoading()
         observeSelectMode()
@@ -87,7 +98,33 @@ class AppBarManager(
             copyBtn = findViewById(R.id.copy_btn)
             copyBtn.onSectionAction { editorViewModel.toggleSelectMode() }
             findViewById<View>(R.id.paste_btn).onSectionAction { editorViewModel.paste() }
+            findViewById<View>(R.id.select_all_btn).onSectionAction { editorViewModel.selectAll() }
+            moveLeftBtn = findViewById(R.id.move_left_btn)
+            moveRightBtn = findViewById(R.id.move_right_btn)
+            moveUpBtn = findViewById(R.id.move_up_btn)
+            moveDownBtn = findViewById(R.id.move_down_btn)
+            moveLeftBtn.onSectionAction { editorViewModel.moveSelection(0, -1) }
+            moveRightBtn.onSectionAction { editorViewModel.moveSelection(0, 1) }
+            moveUpBtn.onSectionAction { editorViewModel.moveSelection(-1, 0) }
+            moveDownBtn.onSectionAction { editorViewModel.moveSelection(1, 0) }
             findViewById<View>(R.id.new_btn).onSectionAction { editorViewModel.createNew() }
+        }
+    }
+
+
+    private fun initPlaySession() {
+        toolChips = mainView.findViewById(R.id.tool_chips)
+        toolDivider = mainView.findViewById(R.id.tool_divider)
+        editTransport = mainView.findViewById(R.id.edit_transport)
+        playPanel = mainView.findViewById(R.id.play_panel)
+        pauseBtn = mainView.findViewById(R.id.play_pause_btn)
+        pauseBtn.setOnClickListener { player.togglePause() }
+        mainView.findViewById<View>(R.id.play_start_btn).setOnClickListener { player.seekToStart() }
+        mainView.findViewById<View>(R.id.play_prev_btn).setOnClickListener { player.seekMeasure(-1) }
+        mainView.findViewById<View>(R.id.play_next_btn).setOnClickListener { player.seekMeasure(1) }
+        mainView.findViewById<View>(R.id.play_close_btn).setOnClickListener { player.stop() }
+        editorViewModel.playSession.observe(mainContext as EditorActivity) {
+            applyPlaySession(it == true)
         }
     }
 
@@ -150,10 +187,24 @@ class AppBarManager(
 
 
     private fun observeSelectMode() {
-        editorViewModel.selectModeState.observe(mainContext as EditorActivity) { mode ->
-            val copying = mode == SelectMode.COPY
-            copyBtn.isSelected = copying
-            editGroup.isActivated = copying
+        val activity = mainContext as EditorActivity
+        editorViewModel.selectModeState.observe(activity) { refreshEditActions() }
+        editorViewModel.reRenderNotifier.observe(activity) { refreshEditActions() }
+    }
+
+
+    private fun refreshEditActions() {
+        val copying = editorViewModel.selectMode == SelectMode.COPY
+        copyBtn.isSelected = copying
+        editGroup.isActivated = copying
+        listOf(
+            moveLeftBtn to editorViewModel.canMoveSelection(0, -1),
+            moveRightBtn to editorViewModel.canMoveSelection(0, 1),
+            moveUpBtn to editorViewModel.canMoveSelection(-1, 0),
+            moveDownBtn to editorViewModel.canMoveSelection(1, 0),
+        ).forEach { (button, enabled) ->
+            button.isEnabled = enabled
+            button.alpha = if (enabled) 1f else 0.35f
         }
     }
 
@@ -169,14 +220,58 @@ class AppBarManager(
 
     private fun observePlayerState() {
         editorViewModel.playerIsPlaying.observe(mainContext as EditorActivity) {
-            if (it == true) {
+            val running = it == true
+            if (running) {
                 playBtn.visibility = View.GONE
                 stopBtn.visibility = View.VISIBLE
             } else {
                 playBtn.visibility = View.VISIBLE
                 stopBtn.visibility = View.GONE
             }
+            if (::pauseBtn.isInitialized) {
+                pauseBtn.setImageResource(if (running) R.drawable.ic_pause else R.drawable.ic_play)
+                pauseBtn.contentDescription = mainContext.getString(
+                    if (running) R.string.play_pause else R.string.play_resume
+                )
+            }
         }
+    }
+
+
+    private fun applyPlaySession(active: Boolean) {
+        if (active) {
+            if (keyboardBeforePlay == null) {
+                keyboardBeforePlay = uiViewModel.editorMode.value ?: 1
+            }
+            closeTrays()
+            toolChips.visibility = View.GONE
+            toolDivider.visibility = View.GONE
+            editTransport.visibility = View.GONE
+            playPanel.visibility = View.VISIBLE
+            if (uiViewModel.editorMode.value != 1) {
+                uiViewModel.editorMode.value = 1
+            }
+        } else {
+            playPanel.visibility = View.GONE
+            toolChips.visibility = View.VISIBLE
+            toolDivider.visibility = View.VISIBLE
+            editTransport.visibility = View.VISIBLE
+            val restore = keyboardBeforePlay
+            keyboardBeforePlay = null
+            if (restore != null && uiViewModel.editorMode.value != restore) {
+                uiViewModel.editorMode.value = restore
+            }
+        }
+    }
+
+
+    private fun closeTrays() {
+        cancelSectionCollapse()
+        openSection?.let { (chip, tray) ->
+            tray.visibility = View.GONE
+            chip.isSelected = false
+        }
+        openSection = null
     }
 
 
@@ -198,8 +293,9 @@ class AppBarManager(
 
 
     private fun toggleViewMode(mode: Int?) {
+        val hideKeyboard = mode == 1 || editorViewModel.playSession.value == true
         with(editorViews) {
-            if (mode == 1) {
+            if (hideKeyboard) {
                 viewerCont.removeView(viewer)
                 mainCont.apply {
                     removeAllViews()

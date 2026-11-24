@@ -25,6 +25,8 @@ data class Player constructor(
 
     @Volatile
     private var generation = 0
+    private var clock: PlaybackClock? = null
+    private var paused = false
     private var loadEpoch = 0
     private var pendingLoads = 0
     private val showLoading = Runnable {
@@ -36,6 +38,7 @@ data class Player constructor(
     init {
         sfPlayer.setOnCompletionListener {
             updateState(false)
+            leaveSession()
         }
         sfPlayer.onPresetsDiscovered = { path, presets ->
             DoremiApp.from(mainContext).soundFonts.rememberPresets(path, presets)
@@ -61,12 +64,19 @@ data class Player constructor(
     }
 
 
+    fun playbackClock(): PlaybackClock? = clock
+
+    fun isPlaybackPaused(): Boolean = paused
+
     fun play() {
         val notes = editorViewModel.buildNotes(audibleFlags())
         val tempo = editorViewModel.partitionData.tempo
+        val signature = editorViewModel.partitionData.signature.value ?: 4
+        val clock = PlaybackClock(notes, editorViewModel.playbackVisits(), tempo, signature)
         val patches = songPatches()
         val ticket = ++generation
         val epoch = armLoading()
+        enterSession(clock)
         worker.execute {
             var started = false
             if (ticket == generation) {
@@ -79,7 +89,11 @@ data class Player constructor(
             val playing = started
             mainHandler.post {
                 finishLoading(epoch)
-                if (ticket == generation) updateState(playing)
+                if (ticket != generation) return@post
+                if (playing) updateState(true) else {
+                    updateState(false)
+                    leaveSession()
+                }
             }
         }
     }
@@ -88,8 +102,53 @@ data class Player constructor(
         generation++
         cancelLoading()
         updateState(false)
+        leaveSession()
         worker.execute { sfPlayer.stopPlaying() }
     }
+
+    fun togglePause() {
+        if (editorViewModel.playSession.value != true) return
+        if (paused) resume() else pause()
+    }
+
+    fun seekToStart() {
+        seekToPosition(0)
+    }
+
+    fun seekMeasure(direction: Int) {
+        val current = clock ?: return
+        if (editorViewModel.playSession.value != true) return
+        val ticket = generation
+        worker.execute {
+            if (ticket != generation) return@execute
+            val position = sfPlayer.positionMs()
+            val target = if (direction < 0) {
+                previousMeasurePositionMs(current, position)
+            } else {
+                nextMeasurePositionMs(current, position)
+            }
+            sfPlayer.seekTo(target)
+        }
+    }
+
+    fun seekTo(positionMs: Long) {
+        seekToPosition(positionMs)
+    }
+
+    fun seekBy(deltaMs: Long) {
+        val ticket = generation
+        worker.execute {
+            if (ticket != generation) return@execute
+            sfPlayer.seekTo(sfPlayer.positionMs() + deltaMs)
+        }
+    }
+
+    fun positionMs(): Long = sfPlayer.positionMs()
+
+    /** Speaker delay. Playback follow subtracts it; seek and pause keep [positionMs]. */
+    fun outputLatencyMs(): Long = sfPlayer.outputLatencyMs()
+
+    fun durationMs(): Long = sfPlayer.durationMs()
 
 
     fun toggleMute(index: Int) {
@@ -110,6 +169,59 @@ data class Player constructor(
         worker.execute { sfPlayer.dispose() }
     }
 
+
+    private fun seekToPosition(positionMs: Long) {
+        if (editorViewModel.playSession.value != true) return
+        val ticket = generation
+        worker.execute {
+            if (ticket != generation) return@execute
+            val moved = sfPlayer.seekTo(positionMs)
+            if (moved && ticket != generation) {
+                sfPlayer.stopPlaying()
+            }
+        }
+    }
+
+    private fun pause() {
+        val ticket = generation
+        worker.execute {
+            if (ticket != generation) return@execute
+            val held = sfPlayer.pause()
+            mainHandler.post {
+                if (ticket == generation && held) {
+                    paused = true
+                    updateState(false)
+                }
+            }
+        }
+    }
+
+    private fun resume() {
+        val ticket = generation
+        worker.execute {
+            if (ticket != generation) return@execute
+            val running = sfPlayer.resume()
+            mainHandler.post {
+                if (ticket == generation && running) {
+                    paused = false
+                    updateState(true)
+                }
+            }
+        }
+    }
+
+    private fun enterSession(clock: PlaybackClock) {
+        this.clock = clock
+        paused = false
+        editorViewModel.playSession.value = true
+    }
+
+    private fun leaveSession() {
+        if (editorViewModel.playSession.value != true && clock == null) return
+        clock = null
+        paused = false
+        editorViewModel.playSession.value = false
+    }
 
     private fun audibleFlags(): List<Boolean> {
         return audibleVoices(
